@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Temas Complementares (LGPD · Comunicação · Gestão) — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão panorâmica de temas complementares para a prova final: LGPD e privacidade de dados, comunicação e negociação em projetos de TI, gestão de times de alto desempenho." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 10 · Complementares</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">① LGPD</div>
+      <a href="#lgpd">LGPD & Privacidade</a>
+      <a href="#lgpd-principios">Princípios & bases legais</a>
+      <a href="#lgpd-papeis">Papéis & direitos</a>
+      <a href="#lgpd-dev">LGPD no desenvolvimento</a>
+
+      <div class="group-label">② Comunicação</div>
+      <a href="#comunicacao">Comunicação & Negociação</a>
+      <a href="#com-processo">Processo de comunicação</a>
+      <a href="#com-negociacao">Negociação & conflitos</a>
+      <a href="#com-feedback">Feedback</a>
+
+      <div class="group-label">③ Gestão de Times</div>
+      <a href="#gestao">Times de alto desempenho</a>
+      <a href="#gestao-lideranca">Liderança & papéis</a>
+      <a href="#gestao-self">Self-organized teams</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 10 · Temas Complementares</span>
+        <h1>Temas Complementares</h1>
+        <p class="lede">Três temas mais leves da pós, reunidos numa revisão <em>panorâmica</em>: <strong>LGPD e privacidade de dados</strong>, <strong>comunicação e negociação</strong> em projetos de TI e <strong>gestão de times de alto desempenho</strong>. O foco aqui é reconhecer os conceitos e definições numa questão — sem o aprofundamento das trilhas técnicas.</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como esses temas caem na prova</span>
+        <p><strong>LGPD</strong> é o mais factual: definições (dado pessoal × sensível), papéis (controlador × operador), bases legais e direitos do titular — pegadinhas de definição trocada. <strong>Comunicação/Negociação</strong> e <strong>Gestão de times</strong> são conceituais: modelos (emissor-receptor, estilos de negociação, feedback) e características de times ágeis. Questões tendem a ser de reconhecimento, não de cálculo.</p>
+      </div>
+
+      <!-- ============================================================ LGPD ============================================================ -->
+      <h2 id="lgpd"><span class="h2-kicker">① Privacidade de Dados</span>LGPD — Lei Geral de Proteção de Dados</h2>
+      <p>A <span class="lead-term">LGPD</span> (Lei nº 13.709/2018) regula o tratamento de <strong>dados pessoais</strong> de pessoas naturais no Brasil, por pessoa física ou jurídica, com o objetivo de proteger os direitos fundamentais de liberdade, privacidade e livre desenvolvimento da personalidade. Inspirada no <strong>GDPR</strong> europeu. Fiscalizada pela <span class="lead-term">ANPD</span> (Autoridade Nacional de Proteção de Dados).</p>
+
+      <div class="card reveal">
+        <h4>Conceitos fundamentais</h4>
+        <ul>
+          <li><strong>Dado pessoal:</strong> informação relacionada a pessoa natural identificada ou identificável.</li>
+          <li><strong>Dado pessoal sensível:</strong> origem racial/étnica, convicção religiosa, opinião política, saúde, vida sexual, dado genético ou biométrico — tem proteção reforçada.</li>
+          <li><strong>Tratamento:</strong> qualquer operação com dados (coleta, uso, acesso, armazenamento, eliminação...).</li>
+          <li><strong>Anonimização:</strong> dado que perde a possibilidade de associação a um indivíduo — sai do escopo da LGPD. Já a <strong>pseudonimização</strong> ainda permite reidentificação e continua protegida.</li>
+        </ul>
+      </div>
+
+      <h3 id="lgpd-principios">Princípios & bases legais</h3>
+      <p>A LGPD lista <strong>10 princípios</strong> (art. 6º) e <strong>10 bases legais</strong> (hipóteses que autorizam o tratamento, art. 7º). O <strong>consentimento é apenas UMA</strong> das bases — não é obrigatório quando há outra base aplicável (pegadinha clássica).</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Alguns princípios (art. 6º)</th><th>Algumas bases legais (art. 7º)</th></tr></thead>
+          <tbody>
+            <tr><td>Finalidade · Adequação · Necessidade (minimização)</td><td>Consentimento do titular</td></tr>
+            <tr><td>Livre acesso · Qualidade dos dados · Transparência</td><td>Cumprimento de obrigação legal</td></tr>
+            <tr><td>Segurança · Prevenção · Não discriminação</td><td>Execução de contrato</td></tr>
+            <tr><td>Responsabilização e prestação de contas (<em>accountability</em>)</td><td>Legítimo interesse · Proteção da vida · Tutela da saúde</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p>O <strong>consentimento não é a única forma de tratar dados</strong> legalmente. Existem 10 bases legais; se o tratamento se enquadra em "obrigação legal", "execução de contrato" ou "legítimo interesse", o consentimento pode ser dispensado. Alternativa que diz "todo tratamento exige consentimento" está <strong>errada</strong>.</p>
+      </div>
+
+      <h3 id="lgpd-papeis">Papéis & direitos do titular</h3>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Papel</th><th>Quem é</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Titular</strong></td><td>A pessoa natural a quem os dados se referem.</td></tr>
+            <tr><td><strong>Controlador</strong></td><td>Quem toma as <strong>decisões</strong> sobre o tratamento (define finalidade e meios).</td></tr>
+            <tr><td><strong>Operador</strong></td><td>Quem <strong>realiza</strong> o tratamento em nome do controlador (ex.: um fornecedor de cloud).</td></tr>
+            <tr><td><strong>Encarregado / DPO</strong></td><td>Canal de comunicação entre controlador, titulares e a ANPD.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>O titular tem direitos como: <strong>confirmação</strong> de tratamento, <strong>acesso</strong>, <strong>correção</strong>, <strong>anonimização/eliminação</strong>, <strong>portabilidade</strong> e <strong>revogação do consentimento</strong>.</p>
+
+      <h3 id="lgpd-dev">LGPD no desenvolvimento de software</h3>
+      <div class="card reveal">
+        <ul>
+          <li><strong>Privacy by Design:</strong> privacidade considerada desde a concepção do sistema, não no fim.</li>
+          <li><strong>Privacy by Default:</strong> a configuração mais protetiva é a padrão.</li>
+          <li><strong>Minimização:</strong> coletar só o dado necessário à finalidade.</li>
+          <li><strong>Segurança:</strong> criptografia, controle de acesso, logs — medidas técnicas e administrativas.</li>
+          <li><strong>IA & LGPD:</strong> decisões automatizadas dão ao titular o direito de revisão; atenção a viés e transparência.</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Uma empresa contrata um provedor de nuvem para armazenar dados de clientes. A empresa define as finalidades; o provedor apenas executa o armazenamento. Como se classificam?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>A empresa é operadora e o provedor é controlador.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>A empresa é controladora (decide) e o provedor é operador (executa em nome dela).</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Ambos são titulares dos dados.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Ambos são encarregados (DPO).</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Quem <strong>decide</strong> finalidade e meios é o <strong>controlador</strong> (a empresa); quem <strong>executa</strong> o tratamento em nome dele é o <strong>operador</strong> (o provedor). Titular é a pessoa natural dona dos dados; DPO é o encarregado.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual destes é considerado dado pessoal <strong>sensível</strong> pela LGPD?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Nome completo e e-mail.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Número de telefone.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Dado sobre saúde, convicção religiosa ou biometria.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Endereço de entrega.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Dados sensíveis são os que podem gerar discriminação: saúde, vida sexual, origem racial/étnica, convicção religiosa/política, dado genético e biométrico. Nome, e-mail, telefone e endereço são dados pessoais comuns (não sensíveis).</div>
+      </div>
+
+      <!-- ============================================================ COMUNICAÇÃO ============================================================ -->
+      <h2 id="comunicacao"><span class="h2-kicker">② Soft Skills</span>Comunicação & Negociação em projetos de TI</h2>
+      <p>Comunicação é uma das principais causas de falha em projetos. O objetivo é transmitir a mensagem com <strong>ruído mínimo</strong> e alinhar expectativas entre stakeholders técnicos e de negócio.</p>
+
+      <h3 id="com-processo">O processo de comunicação</h3>
+      <p>Modelo clássico <span class="lead-term">emissor → mensagem → canal → receptor</span>, com <strong>codificação</strong>, <strong>decodificação</strong>, <strong>ruído</strong> e <strong>feedback</strong> (que fecha o ciclo e confirma o entendimento).</p>
+      <div class="diagram reveal">
+        <div class="flow" style="flex-wrap:wrap">
+          <div class="node accent">Emissor</div>
+          <span class="arrow-h">→</span>
+          <div class="node">Codifica<br><small style="color:var(--text-2)">mensagem</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node">Canal<br><small style="color:var(--text-2)">ruído ⚡</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node">Decodifica</div>
+          <span class="arrow-h">→</span>
+          <div class="node accent">Receptor</div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span> O <b>feedback</b> retorna do receptor ao emissor e fecha o ciclo, confirmando o entendimento.</span></div>
+      </div>
+
+      <h3 id="com-negociacao">Negociação & gestão de conflitos</h3>
+      <p>Negociação ganha-ganha (<strong>integrativa</strong>) busca valor para os dois lados; a distributiva ("dividir o bolo") é soma-zero. Modelo de Harvard: separar pessoas do problema, focar em <strong>interesses</strong> (não posições), gerar opções de ganho mútuo e usar critérios objetivos. <strong>BATNA</strong> = sua melhor alternativa caso o acordo não saia.</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Estilo de gestão de conflito (Thomas-Kilmann)</th><th>Quando</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Competição</strong> (ganha-perde)</td><td>Decisão rápida e crítica; impopular mas necessária.</td></tr>
+            <tr><td><strong>Colaboração</strong> (ganha-ganha)</td><td>Quando ambos os interesses são importantes; ideal.</td></tr>
+            <tr><td><strong>Compromisso</strong> (meio-termo)</td><td>Acordo rápido aceitável para ambos.</td></tr>
+            <tr><td><strong>Acomodação</strong> / <strong>Evitação</strong></td><td>Ceder para preservar relação / adiar conflito trivial.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="com-feedback">Como dar e receber feedback</h3>
+      <div class="card reveal">
+        <ul>
+          <li><strong>Específico e baseado em fatos</strong>, não em julgamentos de personalidade.</li>
+          <li><strong>Oportuno:</strong> o mais próximo do evento possível.</li>
+          <li><strong>Feedback × Feedforward:</strong> feedback olha o passado; feedforward sugere o futuro.</li>
+          <li><strong>Técnicas de apresentação:</strong> conhecer a audiência, storytelling, menos é mais nos slides, foco na mensagem-chave.</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">No modelo do processo de comunicação, qual elemento <strong>fecha o ciclo</strong> ao confirmar que a mensagem foi compreendida?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>O feedback (retorno do receptor ao emissor).</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>O ruído.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>O canal.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>A codificação.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O <strong>feedback</strong> é a resposta do receptor que confirma (ou não) o entendimento, fechando o ciclo. Ruído é a interferência; canal é o meio; codificação é transformar a ideia em mensagem.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Em negociação, o que é o <strong>BATNA</strong>?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>O preço máximo que você aceita pagar.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Uma técnica de persuasão por reciprocidade.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>O estilo de conflito colaborativo.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Sua melhor alternativa caso a negociação não resulte em acordo.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> BATNA (<em>Best Alternative To a Negotiated Agreement</em>) é seu "plano B" — quanto mais forte, maior seu poder de barganha. Saber o BATNA evita aceitar acordos piores do que sua alternativa.</div>
+      </div>
+
+      <!-- ============================================================ GESTÃO DE TIMES ============================================================ -->
+      <h2 id="gestao"><span class="h2-kicker">③ Liderança</span>Gestão de times de alto desempenho</h2>
+      <p>Times de alto desempenho combinam <strong>objetivo claro</strong>, <strong>confiança</strong>, <strong>papéis definidos</strong> e <strong>autonomia</strong>. A liderança moderna em TI é mais <em>servidora/facilitadora</em> que comando-e-controle.</p>
+
+      <h3 id="gestao-lideranca">Papéis da liderança & estágios do time</h3>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Modelo de Tuckman — estágios de um time</th><th>Característica</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Forming</strong> (formação)</td><td>Time se conhece; dependência do líder.</td></tr>
+            <tr><td><strong>Storming</strong> (tormenta)</td><td>Conflitos, disputa de espaço; fase crítica.</td></tr>
+            <tr><td><strong>Norming</strong> (normatização)</td><td>Acordos, normas, coesão crescente.</td></tr>
+            <tr><td><strong>Performing</strong> (desempenho)</td><td>Alta produtividade e autonomia — o "alto desempenho".</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Estilos de liderança comuns: <strong>servant leadership</strong> (líder a serviço do time), <strong>liderança situacional</strong> (adapta o estilo à maturidade do liderado), e o líder como <strong>removedor de impedimentos</strong> no contexto ágil.</p>
+
+      <h3 id="gestao-self">Self-organized teams & Lifelong Learning</h3>
+      <div class="card reveal">
+        <ul>
+          <li><strong>Self-organized team:</strong> o time decide <em>como</em> fazer o trabalho; pilar do Scrum/ágil. Autonomia com responsabilidade.</li>
+          <li><strong>Segurança psicológica</strong> (Google/Projeto Aristóteles): o fator nº 1 de times eficazes — sentir-se seguro para errar e falar.</li>
+          <li><strong>Lifelong Learning:</strong> postura de aprendizado contínuo; essencial na TI pela rápida obsolescência técnica. Crescimento <em>mindset</em>.</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">No modelo de Tuckman, em qual estágio o time atinge alta produtividade e autonomia?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Forming</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Storming</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Performing</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Norming</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A ordem é Forming → Storming → Norming → <strong>Performing</strong>. É no Performing que o time, já coeso e com normas estabelecidas, atinge alto desempenho e autonomia.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Segundo a pesquisa do Google (Projeto Aristóteles), qual é o principal fator de times eficazes?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Ter os profissionais individualmente mais talentosos.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Segurança psicológica — sentir-se seguro para arriscar e errar.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Trabalhar sempre presencialmente.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Ter o maior número possível de membros.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A <strong>segurança psicológica</strong> apareceu como o fator mais importante — acima de talento individual ou tamanho do time. Times onde as pessoas se sentem seguras para falar e errar performam melhor.</div>
+      </div>
+
+      <!-- ============================================================ FLASHCARDS ============================================================ -->
+      <h2 id="flashcards"><span class="h2-kicker">Auto-teste</span>Flashcards — clique para virar</h2>
+      <div class="flashgrid reveal">
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Dado pessoal × dado sensível?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Pessoal</strong>: identifica/torna identificável (nome, e-mail). <strong>Sensível</strong>: saúde, religião, raça, vida sexual, política, genético/biométrico — proteção reforçada.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Controlador × Operador?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Controlador</strong> decide finalidade e meios. <strong>Operador</strong> trata os dados em nome do controlador. DPO/encarregado é o canal com titulares e ANPD.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O consentimento é obrigatório na LGPD?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Não. É só <strong>uma das 10 bases legais</strong>. Obrigação legal, contrato e legítimo interesse também autorizam o tratamento.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Privacy by Design × by Default?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>By Design</strong>: privacidade pensada desde a concepção. <strong>By Default</strong>: a configuração mais protetiva já vem como padrão.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Anonimização × pseudonimização?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Anonimização</strong>: impossível reidentificar → sai da LGPD. <strong>Pseudonimização</strong>: ainda reidentificável → continua protegido.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que fecha o ciclo da comunicação?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">O <strong>feedback</strong> — retorno do receptor que confirma o entendimento. Emissor→codifica→canal(ruído)→decodifica→receptor.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é BATNA?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Best Alternative To a Negotiated Agreement — sua <strong>melhor alternativa</strong> se não houver acordo. Quanto mais forte, maior seu poder de barganha.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Negociação integrativa × distributiva?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Integrativa</strong> = ganha-ganha, cria valor para os dois. <strong>Distributiva</strong> = soma-zero, divide um bolo fixo.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Estágios de Tuckman?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Forming → Storming → Norming → Performing</strong> (e Adjourning). Alto desempenho = Performing.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é segurança psicológica?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Sentir-se seguro para arriscar, errar e falar sem medo. Fator nº 1 de times eficazes (Projeto Aristóteles, Google).</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é servant leadership?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Liderança a <strong>serviço do time</strong>: remove impedimentos, desenvolve pessoas e facilita, em vez de comandar e controlar.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é um self-organized team?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Time que decide <strong>como</strong> executar o trabalho com autonomia e responsabilidade. Pilar do Scrum/ágil.</div></div>
+        </div></div>
+      </div>
+
+      <!-- ============================================================ GLOSSÁRIO ============================================================ -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>LGPD</dt><dd>Lei 13.709/2018, proteção de dados pessoais no Brasil.</dd></div>
+        <div class="gloss-item"><dt>ANPD</dt><dd>Autoridade Nacional de Proteção de Dados; fiscaliza a LGPD.</dd></div>
+        <div class="gloss-item"><dt>Dado sensível</dt><dd>Saúde, raça, religião, política, vida sexual, genético/biométrico.</dd></div>
+        <div class="gloss-item"><dt>Controlador</dt><dd>Decide sobre o tratamento (finalidade e meios).</dd></div>
+        <div class="gloss-item"><dt>Operador</dt><dd>Trata os dados em nome do controlador.</dd></div>
+        <div class="gloss-item"><dt>Encarregado (DPO)</dt><dd>Canal entre controlador, titulares e ANPD.</dd></div>
+        <div class="gloss-item"><dt>Base legal</dt><dd>Hipótese que autoriza o tratamento (consentimento é uma das 10).</dd></div>
+        <div class="gloss-item"><dt>Privacy by Design</dt><dd>Privacidade considerada desde a concepção do sistema.</dd></div>
+        <div class="gloss-item"><dt>Ruído</dt><dd>Interferência que distorce a mensagem na comunicação.</dd></div>
+        <div class="gloss-item"><dt>BATNA</dt><dd>Melhor alternativa caso não haja acordo na negociação.</dd></div>
+        <div class="gloss-item"><dt>Negociação integrativa</dt><dd>Ganha-ganha; cria valor para ambas as partes.</dd></div>
+        <div class="gloss-item"><dt>Modelo de Tuckman</dt><dd>Forming, Storming, Norming, Performing.</dd></div>
+        <div class="gloss-item"><dt>Segurança psicológica</dt><dd>Sentir-se seguro para errar/falar; fator-chave de times eficazes.</dd></div>
+        <div class="gloss-item"><dt>Servant leadership</dt><dd>Liderança a serviço do time, facilitadora.</dd></div>
+      </dl>
+
+      <!-- ============================================================ PEGADINHAS ============================================================ -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas & checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li><strong>LGPD:</strong> consentimento é <em>uma</em> das 10 bases legais, não obrigatório sempre.</li>
+          <li><strong>Controlador</strong> decide; <strong>operador</strong> executa. Não confundir.</li>
+          <li><strong>Dado sensível</strong> ≠ dado pessoal comum — saiba a lista dos sensíveis.</li>
+          <li><strong>Anonimizado</strong> sai da LGPD; <strong>pseudonimizado</strong> não.</li>
+          <li><strong>Comunicação:</strong> o <em>feedback</em> fecha o ciclo; <em>ruído</em> é interferência.</li>
+          <li><strong>BATNA</strong> = melhor alternativa sem acordo; negociação integrativa = ganha-ganha.</li>
+          <li><strong>Tuckman:</strong> Forming → Storming → Norming → Performing.</li>
+          <li><strong>Segurança psicológica</strong> > talento individual em times eficazes.</li>
+          <li><strong>Self-organized</strong> = o time decide o "como"; pilar ágil.</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="microservices-saga.html"><div class="dir">← Tópico anterior</div><div class="ttl">09 · Microsserviços: SAGA</div></a>
+          <a href="index.html#topicos" class="next"><div class="dir">Voltar ao →</div><div class="ttl">Hub de Revisão</div></a>
+        </div>
+        <div>Tópico 10 · Temas Complementares · revisão panorâmica para a prova final. Base: Lei 13.709/2018 (LGPD); modelos clássicos de comunicação, negociação (Harvard) e gestão de times (Tuckman, Projeto Aristóteles).</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

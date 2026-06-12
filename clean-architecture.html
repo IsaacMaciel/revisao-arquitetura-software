@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Clean Architecture — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão densa de Clean Architecture para prova de múltipla escolha: regra de dependência, círculos concêntricos, entidades e use cases, SOLID, paradigmas de programação e componentes, fronteiras e implementação." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 02 · Clean Architecture</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">Fundamentos</div>
+      <a href="#oque">O que é Clean Architecture</a>
+      <a href="#objetivo">Objetivo & custo do software</a>
+      <a href="#dependencia">A Regra da Dependência</a>
+
+      <div class="group-label">As camadas</div>
+      <a href="#circulos">Os círculos concêntricos</a>
+      <a href="#entidades">Entities</a>
+      <a href="#usecases">Use Cases</a>
+      <a href="#adapters">Interface Adapters</a>
+      <a href="#frameworks">Frameworks & Drivers</a>
+      <a href="#fronteiras">Cruzando fronteiras</a>
+
+      <div class="group-label">Paradigmas</div>
+      <a href="#paradigmas-prog">Paradigmas de programação</a>
+      <a href="#componentes">Componentes & coesão</a>
+      <a href="#acoplamento-comp">Acoplamento de componentes</a>
+
+      <div class="group-label">Princípios</div>
+      <a href="#solid">SOLID</a>
+      <a href="#clean-tests">Clean Code em testes</a>
+
+      <div class="group-label">Prática</div>
+      <a href="#implementando">Implementando a arquitetura</a>
+      <a href="#comparativo">Clean × Hexagonal × Onion</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 02 · Clean Architecture</span>
+        <h1>Clean Architecture</h1>
+        <p class="lede">Proposta por <em>Robert C. Martin (Uncle Bob)</em>, a Clean Architecture organiza o sistema em <strong>círculos concêntricos</strong> governados por uma única regra inviolável: a <strong>Regra da Dependência</strong>. O objetivo não é "código bonito" — é <strong>manter o custo de mudança baixo</strong> ao longo da vida do software, isolando as regras de negócio dos detalhes (banco, UI, frameworks).</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como Clean Architecture cai na prova</span>
+        <p>Esperе: (1) <strong>a Regra da Dependência</strong> e seu sentido (de fora para dentro) — quase certo; (2) <strong>o que vive em cada círculo</strong> (Entities × Use Cases × Adapters × Frameworks) e o que NÃO pode atravessar a fronteira; (3) <strong>SOLID</strong> — significado de cada letra e exemplos; (4) <strong>paradigmas</strong> (o que cada um <em>remove</em>); (5) <strong>coesão/acoplamento de componentes</strong> (REP/CCP/CRP, ADP/SDP/SAP).</p>
+      </div>
+
+      <!-- ============================ O QUE É ============================ -->
+      <h2 id="oque"><span class="h2-kicker">Fundamentos</span>O que é Clean Architecture</h2>
+      <p>Clean Architecture é a síntese de várias arquiteturas anteriores — <strong>Hexagonal (Ports &amp; Adapters)</strong>, <strong>Onion</strong>, <strong>DCI</strong>, <strong>BCE</strong> — que compartilham o mesmo objetivo: <span class="lead-term">separação de interesses</span> por camadas, com as <strong>regras de negócio no centro</strong> e os <strong>detalhes na borda</strong>.</p>
+
+      <div class="card reveal">
+        <h4>As propriedades de um sistema "clean"</h4>
+        <ul>
+          <li><strong>Independente de frameworks:</strong> o framework é uma ferramenta, não uma camada que dita a arquitetura.</li>
+          <li><strong>Testável:</strong> as regras de negócio podem ser testadas sem UI, banco, servidor ou qualquer elemento externo.</li>
+          <li><strong>Independente da UI:</strong> a UI pode mudar (web → CLI → desktop) sem tocar nas regras.</li>
+          <li><strong>Independente do banco de dados:</strong> trocar Oracle por Mongo não afeta as regras de negócio.</li>
+          <li><strong>Independente de qualquer agente externo:</strong> as regras não sabem nada do mundo de fora.</li>
+        </ul>
+      </div>
+
+      <!-- ============================ OBJETIVO ============================ -->
+      <h2 id="objetivo"><span class="h2-kicker">Fundamentos</span>O objetivo: dois valores do software</h2>
+      <p>Uncle Bob distingue dois valores de qualquer software. A prova adora essa distinção:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Valor</th><th>O que é</th><th>Quem o vê</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Comportamento</strong> (behavior)</td><td>Fazer o software funcionar conforme os requisitos — o urgente.</td><td>Stakeholders imediatos.</td></tr>
+            <tr><td><strong>Estrutura / Arquitetura</strong></td><td>Manter o software <em>soft</em>: fácil de mudar — o importante.</td><td>Visível a longo prazo; o valor da arquitetura.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ A matriz de Eisenhower do Uncle Bob</span>
+        <p>O <strong>comportamento</strong> é urgente mas nem sempre importante; a <strong>arquitetura</strong> é importante mas raramente urgente. O erro clássico é deixar o urgente engolir o importante — e a arquitetura apodrece. "Software" vem de <em>soft</em> = a razão de existir é ser <strong>fácil de mudar</strong>.</p>
+      </div>
+
+      <!-- ============================ REGRA DA DEPENDÊNCIA ============================ -->
+      <h2 id="dependencia"><span class="h2-kicker">Conceito central</span>A Regra da Dependência</h2>
+      <p>É <strong>o</strong> conceito mais cobrado. A <span class="lead-term">Regra da Dependência</span> diz:</p>
+      <div class="callout exam reveal">
+        <span class="tag">📐 Regra da Dependência</span>
+        <p>As dependências do código-fonte só podem apontar <strong>para dentro</strong>, em direção às políticas de mais alto nível. Nada num círculo interno pode saber <strong>absolutamente nada</strong> sobre algo num círculo externo — incluindo nomes de funções, classes, variáveis ou qualquer entidade de software declarada fora.</p>
+      </div>
+
+      <p>Consequência prática: o <strong>fluxo de controle</strong> pode ir de fora para dentro e voltar, mas a <strong>dependência de código</strong> aponta sempre para dentro. Quando o fluxo precisa ir de dentro para fora (ex.: um use case precisa gravar no banco), usa-se <strong>Inversão de Dependência (DIP)</strong>: o círculo interno define uma <em>interface</em> e o externo a implementa.</p>
+
+      <div class="callout danger reveal">
+        <span class="tag">✗ Violações típicas</span>
+        <p>Uma <strong>Entity</strong> importar uma classe do ORM; um <strong>Use Case</strong> referenciar um objeto <code>HttpRequest</code> do framework web; o domínio "conhecer" a estrutura da tabela. Tudo isso aponta a dependência <em>para fora</em> → viola a regra.</p>
+      </div>
+
+      <!-- ============================ CÍRCULOS ============================ -->
+      <h2 id="circulos"><span class="h2-kicker">As camadas</span>Os círculos concêntricos</h2>
+      <p>Quanto mais <strong>interno</strong> o círculo, mais <strong>alto o nível</strong> e mais <strong>geral/estável</strong> a política. Quanto mais externo, mais <strong>detalhe</strong> e mais volátil. As quatro camadas clássicas (podem ser mais):</p>
+
+      <div class="diagram reveal">
+        <div class="rings">
+          <svg viewBox="0 0 360 360" width="360" height="360" role="img" aria-label="Diagrama de círculos concêntricos da Clean Architecture: Frameworks &amp; Drivers, Interface Adapters, Use Cases e Entities, com a dependência apontando para o centro.">
+            <!-- Anel 4 · externo · Frameworks & Drivers (azul) -->
+            <circle cx="180" cy="180" r="170" fill="rgba(106,169,255,.10)" stroke="rgba(106,169,255,.55)" stroke-width="1.5" />
+            <!-- Anel 3 · Interface Adapters (verde) -->
+            <circle cx="180" cy="180" r="130" fill="rgba(56,211,159,.10)" stroke="rgba(56,211,159,.5)" stroke-width="1.5" />
+            <!-- Anel 2 · Use Cases (âmbar) -->
+            <circle cx="180" cy="180" r="90" fill="rgba(232,179,57,.11)" stroke="rgba(232,179,57,.55)" stroke-width="1.5" />
+            <!-- Anel 1 · centro · Entities (carmim) -->
+            <circle cx="180" cy="180" r="50" fill="rgba(233,30,99,.16)" stroke="#e91e63" stroke-width="2" />
+
+            <!-- Rótulos por anel (na faixa superior de cada um) -->
+            <text class="ring-name" x="180" y="26" text-anchor="middle" fill="#9cc3ff">Frameworks &amp; Drivers</text>
+            <text class="ring-detail" x="180" y="42" text-anchor="middle">Web · DB · UI · dispositivos</text>
+
+            <text class="ring-name" x="180" y="66" text-anchor="middle" fill="#6fe0b8">Interface Adapters</text>
+            <text class="ring-detail" x="180" y="82" text-anchor="middle">Controllers · Presenters · Gateways</text>
+
+            <text class="ring-name" x="180" y="106" text-anchor="middle" fill="#f0cd6e">Use Cases</text>
+            <text class="ring-detail" x="180" y="122" text-anchor="middle">Application Business Rules</text>
+
+            <text class="ring-center-label" x="180" y="176" text-anchor="middle" fill="#ff6090">Entities</text>
+            <text class="ring-detail" x="180" y="192" text-anchor="middle" fill="#ffb3cb">Enterprise Rules</text>
+
+            <!-- Seta: dependência aponta para dentro -->
+            <defs>
+              <marker id="arrowIn" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+                <path d="M0,0 L9,4.5 L0,9 Z" fill="#e91e63" />
+              </marker>
+            </defs>
+            <line x1="335" y1="300" x2="225" y2="225" stroke="#e91e63" stroke-width="2" marker-end="url(#arrowIn)" />
+            <text x="300" y="322" text-anchor="middle" font-size="11" fill="#ff6090" font-weight="600">dependência</text>
+          </svg>
+
+          <div class="ring-key">
+            <div class="rk"><span class="sw" style="background:#6aa9ff"></span><span><b>Frameworks &amp; Drivers</b><small>Detalhes plugáveis (mais volátil)</small></span></div>
+            <div class="rk"><span class="sw" style="background:#38d39f"></span><span><b>Interface Adapters</b><small>Converte dados entre dentro e fora</small></span></div>
+            <div class="rk"><span class="sw" style="background:#e8b339"></span><span><b>Use Cases</b><small>Regras específicas da aplicação</small></span></div>
+            <div class="rk"><span class="sw" style="background:#e91e63"></span><span><b>Entities</b><small>Regras de negócio mais gerais (mais estável)</small></span></div>
+            <div class="ring-flow"><b>Regra da Dependência:</b> o código aponta sempre <b>para o centro</b>. Fora = detalhe/volátil; dentro = política/estável.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 As cores não são lei</span>
+        <p>O número de círculos é só uma ideia — o que é <strong>inviolável</strong> é a Regra da Dependência. Você pode ter mais de quatro camadas, mas elas sempre obedecem ao sentido de fora→dentro.</p>
+      </div>
+
+      <!-- ============================ ENTITIES ============================ -->
+      <h2 id="entidades"><span class="h2-kicker">Camada · centro</span>Entities (Enterprise Business Rules)</h2>
+      <p>As <span class="lead-term">Entities</span> encapsulam as regras de negócio <strong>mais gerais e de mais alto nível</strong> — aquelas que existiriam mesmo sem o sistema automatizado. Numa empresa grande, uma entity pode ser um objeto com métodos, ou um conjunto de estruturas e funções. São as <strong>menos prováveis de mudar</strong> quando algo externo muda.</p>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Não confunda com a Entity do DDD</span>
+        <p>A "Entity" da Clean Architecture ≈ regras de negócio corporativas (Enterprise Business Rules). É um conceito de <strong>camada</strong>, mais amplo que a "Entidade" tática do DDD (que se opõe a Value Object pela identidade). Em prova de Clean Architecture, pense em "regra de negócio crítica e duradoura".</p>
+      </div>
+
+      <!-- ============================ USE CASES ============================ -->
+      <h2 id="usecases"><span class="h2-kicker">Camada</span>Use Cases (Application Business Rules)</h2>
+      <p>Os <span class="lead-term">Use Cases</span> contêm as regras de negócio <strong>específicas da aplicação</strong> — orquestram o fluxo de dados de e para as Entities para realizar uma operação do sistema (ex.: "Realizar Saque"). Eles <strong>não</strong> sabem como a informação chega (HTTP? CLI?) nem para onde vai (Postgres? arquivo?) — isso é detalhe das camadas externas.</p>
+      <div class="card reveal">
+        <h4>Padrão de comunicação dos use cases</h4>
+        <ul>
+          <li><strong>Input/Output Boundaries:</strong> interfaces que delimitam a entrada e a saída do use case.</li>
+          <li><strong>Request/Response Models (DTOs):</strong> estruturas simples de dados que cruzam a fronteira — sem objetos do framework.</li>
+          <li><strong>Interactor:</strong> a implementação do use case que executa a regra.</li>
+        </ul>
+      </div>
+
+      <!-- ============================ ADAPTERS ============================ -->
+      <h2 id="adapters"><span class="h2-kicker">Camada</span>Interface Adapters</h2>
+      <p>Convertem os dados do formato conveniente para use cases/entities <strong>para</strong> o formato conveniente para agentes externos (e vice-versa). Aqui vivem:</p>
+      <ul>
+        <li><strong>Controllers</strong> — recebem a entrada externa e a traduzem para o use case.</li>
+        <li><strong>Presenters</strong> — formatam a saída do use case para a view (ex.: ViewModel).</li>
+        <li><strong>Gateways / Repositories (impl.)</strong> — adaptam o acesso a dados.</li>
+      </ul>
+      <p>É a camada que implementa o padrão <strong>MVC/MVP/MVVM</strong> e onde mora o SQL — nenhum SQL deve "vazar" para dentro.</p>
+
+      <!-- ============================ FRAMEWORKS ============================ -->
+      <h2 id="frameworks"><span class="h2-kicker">Camada · borda</span>Frameworks &amp; Drivers</h2>
+      <p>O círculo mais externo: o banco de dados, o framework web, a UI, dispositivos. Uncle Bob: <em>"the web is a detail", "the database is a detail"</em>. São <strong>plugáveis</strong> e devem conter o mínimo de código — só a "cola" que liga ao círculo de dentro.</p>
+
+      <!-- ============================ FRONTEIRAS ============================ -->
+      <h2 id="fronteiras"><span class="h2-kicker">Mecanismo</span>Cruzando fronteiras (DIP na prática)</h2>
+      <p>O ponto delicado: o fluxo de controle às vezes vai de dentro (use case) para fora (banco), mas a dependência tem de continuar apontando para dentro. A solução é a <strong>Inversão de Dependência</strong>:</p>
+
+      <div class="diagram reveal">
+        <div class="flow">
+          <div class="node accent">Use Case<br><small style="color:var(--text-2)">define a interface</small></div>
+          <span class="arrow-h">→ chama →</span>
+          <div class="node">«interface»<br>Repository<br><small style="color:var(--text-2)">no círculo interno</small></div>
+          <span class="arrow-h">← implementa ←</span>
+          <div class="node">RepositoryImpl<br><small style="color:var(--text-2)">círculo externo</small></div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span> Fluxo de controle vai para fora; a <b>dependência de código</b> aponta para dentro (interface no centro).</span></div>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Um Use Case precisa persistir dados no banco, mas não pode depender da camada de infraestrutura. Como a Clean Architecture resolve isso?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>O Use Case importa diretamente a classe do ORM para gravar os dados.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>O Use Case define uma interface (porta) no círculo interno; a infraestrutura a implementa no círculo externo (Inversão de Dependência).</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>A Entity acessa o banco para o Use Case não precisar.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>O fluxo de controle não pode sair do círculo interno em hipótese alguma.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O DIP inverte a seta: a <em>interface</em> fica no centro e a <em>implementação</em> na borda. (A) e (C) violam a Regra da Dependência; (D) confunde fluxo de controle (que pode sair) com dependência de código (que aponta para dentro).</div>
+      </div>
+
+      <!-- ============================ PARADIGMAS PROG ============================ -->
+      <h2 id="paradigmas-prog"><span class="h2-kicker">Aula 5 · paradigmas</span>Paradigmas de programação</h2>
+      <p>Uncle Bob tem uma tese provocadora: cada paradigma <strong>retira</strong> algo do programador (impõe disciplina), não adiciona poder. Cada um remove um uso de uma "palavra" perigosa:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Paradigma</th><th>O que REMOVE</th><th>Disciplina que impõe</th><th>Serve à arquitetura porque…</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Estruturada</strong></td><td>O <code>goto</code> (saltos irrestritos)</td><td>Controle de fluxo via if/while/sequência.</td><td>Permite decompor em módulos testáveis/prováveis.</td></tr>
+            <tr><td><strong>Orientada a Objetos</strong></td><td>Ponteiros de função (transferência indireta de controle)</td><td>Polimorfismo seguro.</td><td>Dá <strong>controle sobre a direção das dependências</strong> (base do DIP e dos plugins).</td></tr>
+            <tr><td><strong>Funcional</strong></td><td>A atribuição (mutação de variável)</td><td>Imutabilidade.</td><td>Elimina condições de corrida e facilita concorrência.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout reveal">
+        <span class="tag">💡 O que importa para a arquitetura</span>
+        <p>Para o Uncle Bob, o grande presente do <strong>OO</strong> à arquitetura é o <strong>polimorfismo</strong>, que permite <strong>inverter a direção da dependência</strong> através de uma fronteira — exatamente o que torna possível plugar banco/UI sem o domínio saber. É daí que sai a Regra da Dependência.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Segundo Robert C. Martin, qual recurso a Programação Orientada a Objetos efetivamente "remove" e qual é seu maior valor arquitetural?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Remove a atribuição; valor: imutabilidade.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Remove o goto; valor: fluxo estruturado.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Não remove nada; apenas adiciona herança e encapsulamento.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Remove os ponteiros de função; valor: polimorfismo que permite inverter a direção das dependências.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Para o Uncle Bob, OO disciplina a transferência indireta de controle (ponteiros de função) e oferece <strong>polimorfismo</strong> — o mecanismo que inverte dependências através de fronteiras. (A) descreve a Funcional; (B) descreve a Estruturada.</div>
+      </div>
+
+      <!-- ============================ COMPONENTES ============================ -->
+      <h2 id="componentes"><span class="h2-kicker">Aula 5 · componentes</span>Componentes & princípios de coesão</h2>
+      <p>Um <span class="lead-term">componente</span> é a menor unidade que pode ser <strong>deployada</strong> (jar, dll, gem). Como agrupar classes em componentes? Três princípios de <strong>coesão</strong> — que estão em <strong>tensão</strong> entre si:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Sigla</th><th>Princípio</th><th>Diz que…</th></tr></thead>
+          <tbody>
+            <tr><td><strong>REP</strong></td><td>Reuse/Release Equivalence</td><td>A granularidade de reúso é a granularidade de release. O que é reusado junto, versiona junto.</td></tr>
+            <tr><td><strong>CCP</strong></td><td>Common Closure Principle</td><td>Agrupe classes que mudam pelas <strong>mesmas razões</strong> e nos mesmos momentos (é o SRP no nível de componente).</td></tr>
+            <tr><td><strong>CRP</strong></td><td>Common Reuse Principle</td><td>Não force os usuários a depender do que não usam; classes reusadas juntas ficam juntas (é o ISP no nível de componente).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mnemonic reveal">
+        <div class="m-head">Mnemônico — coesão de componentes</div>
+        <div class="m-word">"<b>REP</b>, <b>CCP</b>, <b>CRP</b> — o triângulo da tensão"</div>
+        <ul>
+          <li><b>CCP</b> e <b>CRP</b> puxam para lados opostos (juntar p/ manutenção × separar p/ reúso); <b>REP</b> equilibra. Não dá para maximizar os três ao mesmo tempo.</li>
+        </ul>
+      </div>
+
+      <!-- ============================ ACOPLAMENTO COMP ============================ -->
+      <h2 id="acoplamento-comp"><span class="h2-kicker">Componentes</span>Acoplamento de componentes</h2>
+      <p>Três princípios para as <strong>relações</strong> entre componentes:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Sigla</th><th>Princípio</th><th>Diz que…</th></tr></thead>
+          <tbody>
+            <tr><td><strong>ADP</strong></td><td>Acyclic Dependencies</td><td>O grafo de dependências entre componentes <strong>não pode ter ciclos</strong>. (Quebre ciclos com DIP ou um novo componente.)</td></tr>
+            <tr><td><strong>SDP</strong></td><td>Stable Dependencies</td><td>Dependa na direção da <strong>estabilidade</strong>: componentes instáveis dependem de estáveis, nunca o contrário.</td></tr>
+            <tr><td><strong>SAP</strong></td><td>Stable Abstractions</td><td>Um componente deve ser tão <strong>abstrato</strong> quanto <strong>estável</strong>. Estável → abstrato (interfaces); instável → concreto.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Estável ≠ "muda pouco por sorte"</span>
+        <p><strong>Estabilidade</strong> aqui = "difícil de mudar", e isso decorre de <strong>quantos dependem de você</strong> (muitos dependentes = estável, pois mudar quebra todos). SDP + SAP juntos evitam a "zona da dor" (estável e concreto) e a "zona da inutilidade" (abstrato e instável).</p>
+      </div>
+
+      <!-- ============================ SOLID ============================ -->
+      <h2 id="solid"><span class="h2-kicker">Aula 6 · Design Principles</span>SOLID</h2>
+      <p>Os cinco princípios de design de classes (Uncle Bob / Michael Feathers). <strong>Quase garantido em prova</strong> — saiba a letra, o nome e uma frase de cada:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Letra</th><th>Princípio</th><th>Em uma frase</th></tr></thead>
+          <tbody>
+            <tr><td><strong>S</strong></td><td>Single Responsibility (SRP)</td><td>Uma classe deve ter <strong>um único motivo para mudar</strong> — responder a um único ator/stakeholder.</td></tr>
+            <tr><td><strong>O</strong></td><td>Open/Closed (OCP)</td><td><strong>Aberto para extensão, fechado para modificação</strong>: estenda comportamento sem alterar código existente.</td></tr>
+            <tr><td><strong>L</strong></td><td>Liskov Substitution (LSP)</td><td>Subtipos devem ser <strong>substituíveis</strong> por seus tipos base sem quebrar o programa.</td></tr>
+            <tr><td><strong>I</strong></td><td>Interface Segregation (ISP)</td><td>Não force um cliente a depender de <strong>métodos que não usa</strong>; prefira interfaces pequenas.</td></tr>
+            <tr><td><strong>D</strong></td><td>Dependency Inversion (DIP)</td><td>Dependa de <strong>abstrações</strong>, não de implementações concretas. Detalhes dependem de políticas, não o contrário.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha do SRP</span>
+        <p>SRP <strong>não</strong> é "uma classe faz só uma coisa". É "uma classe tem um único <strong>motivo para mudar</strong>", ou seja, responde a um único <strong>ator</strong>. Alternativa que define SRP como "função pequena" geralmente está incompleta/errada.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">"Uma classe deve estar aberta para extensão, mas fechada para modificação." Qual princípio SOLID é esse e o que ele evita?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>SRP — evita classes com muitas responsabilidades.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>LSP — evita que subtipos quebrem o contrato da base.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>OCP — evita modificar código existente e testado ao adicionar novo comportamento.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>DIP — evita depender de implementações concretas.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> É o <strong>Open/Closed Principle</strong>: novo comportamento entra por <em>extensão</em> (herança, composição, plugins), sem alterar o que já funciona — reduzindo o risco de regressões.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Uma interface <code>Trabalhador</code> obriga toda implementação a ter <code>comer()</code> e <code>trabalhar()</code>. Um <code>Robo</code> implementa <code>trabalhar()</code> mas é forçado a implementar <code>comer()</code> sem sentido. Qual princípio foi violado?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>ISP — Interface Segregation: o cliente foi forçado a depender de um método que não usa.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>OCP — Open/Closed.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>SRP — Single Responsibility.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>LSP — Liskov Substitution.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Interface "gorda" que força implementações a métodos inúteis viola o <strong>ISP</strong>. A solução é segregar em interfaces menores (ex.: <code>Trabalhavel</code> e <code>Alimentavel</code>).</div>
+      </div>
+
+      <!-- ============================ CLEAN TESTS ============================ -->
+      <h2 id="clean-tests"><span class="h2-kicker">Aula 3-4 · Clean Code em testes</span>Clean Code aplicado a testes</h2>
+      <p>Testes são cidadãos de primeira classe — código de teste sujo apodrece tão rápido quanto código de produção sujo. Uncle Bob chama testes da regra <strong>F.I.R.S.T.</strong>:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Letra</th><th>Significa</th><th>Bom teste é…</th></tr></thead>
+          <tbody>
+            <tr><td><strong>F</strong></td><td>Fast</td><td>Rápido — você roda o tempo todo.</td></tr>
+            <tr><td><strong>I</strong></td><td>Independent</td><td>Independente — um teste não depende de outro nem da ordem.</td></tr>
+            <tr><td><strong>R</strong></td><td>Repeatable</td><td>Repetível em qualquer ambiente (sem depender de rede/data/máquina).</td></tr>
+            <tr><td><strong>S</strong></td><td>Self-validating</td><td>Autoverificável — passa ou falha, sem inspeção manual.</td></tr>
+            <tr><td><strong>T</strong></td><td>Timely</td><td>Escrito no momento certo — idealmente antes do código (TDD).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card reveal">
+        <h4>Estrutura e leis de teste</h4>
+        <ul>
+          <li><strong>AAA / Given-When-Then:</strong> Arrange (prepara) → Act (executa) → Assert (verifica). Um conceito por teste.</li>
+          <li><strong>As 3 Leis do TDD:</strong> (1) não escreva código de produção sem um teste que falhe; (2) não escreva mais teste do que o suficiente para falhar; (3) não escreva mais produção do que o suficiente para passar.</li>
+          <li><strong>Ciclo Red → Green → Refactor:</strong> falha → faz passar → melhora sem quebrar.</li>
+        </ul>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 Por que isso é arquitetura</span>
+        <p>A testabilidade não é acidente: uma Clean Architecture é testável <em>porque</em> as regras de negócio não dependem de UI/DB/framework. Se um use case só pode ser testado subindo o banco e o servidor, a arquitetura falhou na Regra da Dependência.</p>
+      </div>
+
+      <!-- ============================ IMPLEMENTANDO ============================ -->
+      <h2 id="implementando"><span class="h2-kicker">Aula 7-8 · prática</span>Implementando a arquitetura</h2>
+      <p>Na prática, a organização do código costuma ser por <strong>camada/feature</strong> respeitando as fronteiras. Um fluxo de request típico atravessa os círculos assim:</p>
+      <div class="diagram reveal">
+        <div class="flow" style="gap:6px;flex-wrap:wrap">
+          <div class="node">Web/UI</div>
+          <span class="arrow-h">→</span>
+          <div class="node">Controller</div>
+          <span class="arrow-h">→</span>
+          <div class="node accent">Use Case<br><small style="color:var(--text-2)">Interactor</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node">Entities</div>
+          <span class="arrow-h">→</span>
+          <div class="node">Presenter</div>
+          <span class="arrow-h">→</span>
+          <div class="node">ViewModel/UI</div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span> Controle entra, mergulha até as Entities e volta via Presenter — a dependência de código nunca aponta para fora.</span></div>
+      </div>
+      <div class="card reveal">
+        <h4>Decisões de implementação que a aula enfatiza</h4>
+        <ul>
+          <li><strong>Screaming Architecture:</strong> a estrutura de pastas deve "gritar" o <em>domínio</em> (ex.: <code>emprestimo/</code>, <code>cobranca/</code>), não o framework (<code>controllers/</code>, <code>models/</code>).</li>
+          <li><strong>Detalhes adiados:</strong> escolher banco/framework é uma decisão que pode (e deve) ser <strong>postergada</strong> — a arquitetura permite começar sem decidir.</li>
+          <li><strong>Humble Object:</strong> separe o que é difícil de testar (view, infra) do que é fácil (lógica), empurrando a lógica para dentro.</li>
+          <li><strong>Cruzar fronteira só com DTOs simples</strong>, nunca com Entities ou objetos do framework.</li>
+        </ul>
+      </div>
+
+      <!-- ============================ COMPARATIVO ============================ -->
+      <h2 id="comparativo"><span class="h2-kicker">Comparação</span>Clean × Hexagonal × Onion</h2>
+      <p>São "primas" — mesma ideia (domínio no centro, dependência para dentro), ênfases diferentes. Distinguir cai em prova:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Arquitetura</th><th>Autor</th><th>Ênfase distintiva</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Hexagonal</strong> (Ports &amp; Adapters)</td><td>Alistair Cockburn</td><td>Simetria entre entradas e saídas via <strong>portas</strong> (interfaces) e <strong>adaptadores</strong>. Sem nº fixo de camadas.</td></tr>
+            <tr><td><strong>Onion</strong></td><td>Jeffrey Palermo</td><td>Camadas concêntricas explícitas com o <strong>modelo de domínio</strong> no núcleo; foco em DIP entre camadas.</td></tr>
+            <tr><td><strong>Clean</strong></td><td>Robert C. Martin</td><td><strong>Unifica</strong> as anteriores; nomeia as camadas (Entities/Use Cases/Adapters/Frameworks) e formaliza a <strong>Regra da Dependência</strong> + componentes/SOLID.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout reveal">
+        <span class="tag">💡 Frase para guardar</span>
+        <p>Hexagonal, Onion e Clean são <strong>variações do mesmo tema</strong>: isolar a regra de negócio dos detalhes e fazer a dependência apontar para o domínio. A Clean é a mais <em>prescritiva</em> sobre os nomes das camadas.</p>
+      </div>
+
+      <!-- ============================ FLASHCARDS ============================ -->
+      <h2 id="flashcards"><span class="h2-kicker">Auto-teste</span>Flashcards — clique para virar</h2>
+      <p>Pense na resposta <strong>antes</strong> de clicar.</p>
+      <div class="flashgrid reveal">
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Enuncie a Regra da Dependência.</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Dependências de código apontam só <strong>para dentro</strong>; nada num círculo interno conhece nada de um externo (nem nomes).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Quais são as 4 camadas (de dentro p/ fora)?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Entities</strong> → <strong>Use Cases</strong> → <strong>Interface Adapters</strong> → <strong>Frameworks &amp; Drivers</strong>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Como o controle sai de dentro para fora sem violar a regra?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Via <strong>Inversão de Dependência</strong>: a interface fica no círculo interno e a implementação no externo. Fluxo sai; dependência aponta para dentro.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que cada paradigma "remove"?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Estruturada</strong>: goto. <strong>OO</strong>: ponteiros de função (dá polimorfismo→inverte deps). <strong>Funcional</strong>: atribuição (imutabilidade).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">SOLID — o que é cada letra?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>S</strong>RP · <strong>O</strong>pen/Closed · <strong>L</strong>iskov · <strong>I</strong>nterface Segregation · <strong>D</strong>ependency Inversion.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que significa SRP de verdade?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Um único <strong>motivo para mudar</strong> = responder a um único <strong>ator/stakeholder</strong>. NÃO é "faz só uma coisa".</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">REP, CCP, CRP — para que servem?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Princípios de <strong>coesão de componentes</strong> (como agrupar classes em deployáveis). CCP×CRP estão em tensão; REP equilibra.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">ADP, SDP, SAP?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Acoplamento de componentes</strong>: ADP=sem ciclos; SDP=depender do mais estável; SAP=estável deve ser abstrato.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é F.I.R.S.T.?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Bons testes: <strong>F</strong>ast, <strong>I</strong>ndependent, <strong>R</strong>epeatable, <strong>S</strong>elf-validating, <strong>T</strong>imely.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">"O banco de dados é um ___"?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">…um <strong>detalhe</strong>. Banco, web e UI vivem no círculo externo (Frameworks &amp; Drivers) e são plugáveis.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é Screaming Architecture?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">A estrutura do projeto deve "gritar" o <strong>domínio</strong> (caso de uso), não o framework. Você olha as pastas e vê o negócio, não o React/Spring.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Clean × Hexagonal × Onion: o que têm em comum?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Domínio no centro + dependência apontando para dentro. Clean unifica e nomeia as camadas; Hexagonal usa portas/adaptadores; Onion enfatiza o modelo no núcleo.</div></div>
+        </div></div>
+      </div>
+
+      <!-- ============================ GLOSSÁRIO ============================ -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>Regra da Dependência</dt><dd>Dependências de código apontam só para dentro, rumo às políticas de alto nível.</dd></div>
+        <div class="gloss-item"><dt>Entity (CA)</dt><dd>Regra de negócio corporativa, mais geral e estável; no centro.</dd></div>
+        <div class="gloss-item"><dt>Use Case / Interactor</dt><dd>Regra específica da aplicação; orquestra entities para uma operação.</dd></div>
+        <div class="gloss-item"><dt>Interface Adapter</dt><dd>Converte dados entre o formato interno e o externo (controllers, presenters, gateways).</dd></div>
+        <div class="gloss-item"><dt>Frameworks &amp; Drivers</dt><dd>Círculo externo: DB, web, UI, devices — detalhes plugáveis.</dd></div>
+        <div class="gloss-item"><dt>Boundary (fronteira)</dt><dd>Interface que separa círculos; cruzada apenas por DTOs simples.</dd></div>
+        <div class="gloss-item"><dt>DIP</dt><dd>Inversão de Dependência: depender de abstrações; inverte a seta na fronteira.</dd></div>
+        <div class="gloss-item"><dt>Coesão (REP/CCP/CRP)</dt><dd>Como agrupar classes em componentes deployáveis.</dd></div>
+        <div class="gloss-item"><dt>Acoplamento (ADP/SDP/SAP)</dt><dd>Como devem ser as dependências entre componentes (sem ciclos, rumo ao estável/abstrato).</dd></div>
+        <div class="gloss-item"><dt>Humble Object</dt><dd>Separa o difícil de testar (view/infra) da lógica testável.</dd></div>
+        <div class="gloss-item"><dt>Screaming Architecture</dt><dd>A estrutura revela o domínio, não o framework.</dd></div>
+        <div class="gloss-item"><dt>F.I.R.S.T.</dt><dd>Critérios de um bom teste: Fast, Independent, Repeatable, Self-validating, Timely.</dd></div>
+      </dl>
+
+      <!-- ============================ PEGADINHAS ============================ -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas & checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li><strong>Regra da Dependência</strong>: código aponta para <em>dentro</em>; círculo interno não conhece o externo.</li>
+          <li><strong>Fluxo de controle</strong> pode sair; <strong>dependência de código</strong> não. Use DIP para inverter.</li>
+          <li>Camadas (dentro→fora): <strong>Entities → Use Cases → Adapters → Frameworks</strong>.</li>
+          <li>Banco, web e UI são <strong>detalhes</strong> no círculo externo.</li>
+          <li><strong>SRP</strong> = um motivo para mudar / um ator (não "faz uma coisa só").</li>
+          <li><strong>OCP</strong> = aberto p/ extensão, fechado p/ modificação.</li>
+          <li><strong>OO</strong> remove ponteiros de função → polimorfismo → inverte dependências (o valor arquitetural).</li>
+          <li><strong>Funcional</strong> remove atribuição (imutabilidade); <strong>Estruturada</strong> remove goto.</li>
+          <li>Coesão de componentes = <strong>REP/CCP/CRP</strong>; acoplamento = <strong>ADP/SDP/SAP</strong>.</li>
+          <li><strong>ADP</strong> = grafo de dependências <em>sem ciclos</em>.</li>
+          <li>Testes seguem <strong>F.I.R.S.T.</strong>; arquitetura limpa é testável por construção.</li>
+          <li>Clean, Hexagonal e Onion = mesma ideia, ênfases diferentes (não são opostas).</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="ddd.html"><div class="dir">← Tópico anterior</div><div class="ttl">01 · Domain-Driven Design</div></a>
+          <a href="index.html#topicos" class="next"><div class="dir">Próximo tópico →</div><div class="ttl">Escolher no Hub</div></a>
+        </div>
+        <div>Tópico 02 · Clean Architecture · material de revisão para a prova final. Base: Robert C. Martin, "Clean Architecture" e "Clean Code".</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

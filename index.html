@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pós · Arquitetura de Software — Hub de Revisão para a Prova Final</title>
+<meta name="description" content="Material de revisão para a prova final da pós-graduação em Arquitetura de Software. Conceitos densos, escaneáveis, com quiz, flashcards e mnemônicos. Tema dark." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Revisão para a prova final</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Início</div>
+      <a href="index.html" class="active">Hub de Revisão</a>
+
+      <div class="group-label">Arquitetura</div>
+      <a href="ddd.html"><span class="num">01</span> DDD</a>
+      <a href="clean-architecture.html"><span class="num">02</span> Clean Architecture</a>
+
+      <div class="group-label">Infra & DevOps</div>
+      <a href="terraform.html"><span class="num">03</span> Terraform</a>
+      <a href="docker.html"><span class="num">04</span> Docker</a>
+      <a href="cicd-devops.html"><span class="num">05</span> DevOps / CI-CD</a>
+
+      <div class="group-label">Microsserviços</div>
+      <a href="microservices-fundamentos.html"><span class="num">06</span> Fundamentos & Comunicação</a>
+      <a href="microservices-dados.html"><span class="num">07</span> Dados & Deploy</a>
+      <a href="microservices-resiliencia.html"><span class="num">08</span> Resiliência</a>
+      <a href="microservices-saga.html"><span class="num">09</span> SAGA Pattern</a>
+
+      <div class="group-label">Complementares</div>
+      <a href="complementares.html"><span class="num">10</span> LGPD · Comunicação · Gestão</a>
+
+      <div class="group-label">Kubernetes</div>
+      <a href="kubernetes.html"><span class="num">11</span> Kubernetes &amp; AWS EKS</a>
+
+      <div class="group-label">Nesta página</div>
+      <a href="#como-usar">Como usar</a>
+      <a href="#topicos">Tópicos</a>
+      <a href="#metodo">Método de estudo</a>
+      <a href="#creditos">Créditos &amp; contato</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Pós-graduação · Revisão final</span>
+        <h1>Hub de Revisão de Arquitetura de Software</h1>
+        <p class="lede">Um material de estudo enxuto e <em>denso</em> para relembrar tudo que você viu na pós e chegar afiado na prova final de múltipla escolha. Cada tópico é uma página própria com conceitos-chave, tabelas comparativas, <strong>quiz no estilo da prova</strong>, flashcards e mnemônicos.</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Feito para a prova de múltipla escolha</span>
+        <p>O conteúdo prioriza <strong>definições precisas</strong>, distinções que costumam cair em prova (ex.: <em>Entidade × Value Object</em>, <em>Domain Service × Application Service</em>) e as <strong>pegadinhas</strong> clássicas. Comece pelo DDD e siga a ordem dos tópicos — cada um é uma página própria com o mesmo conjunto de recursos.</p>
+      </div>
+
+      <h2 id="como-usar"><span class="h2-kicker">Antes de começar</span>Como usar este material</h2>
+      <div class="card reveal">
+        <ul>
+          <li><strong>Leia o tópico inteiro uma vez</strong> para reativar a memória — está organizado em blocos curtos com TL;DR.</li>
+          <li><strong>Responda os quizzes sem olhar</strong> — eles simulam o formato da prova e revelam a explicação ao clicar.</li>
+          <li><strong>Vire os flashcards</strong> para auto-teste rápido na véspera.</li>
+          <li><strong>Revise as tabelas comparativas e o glossário</strong> — é de lá que saem as pegadinhas de múltipla escolha.</li>
+          <li>Tudo funciona <strong>offline</strong>: basta abrir o arquivo no navegador.</li>
+        </ul>
+      </div>
+
+      <h2 id="topicos"><span class="h2-kicker">Conteúdo</span>Tópicos da pós</h2>
+      <p>Clique em qualquer card para abrir o tópico. Todos estão marcados como <span class="pill ok">PRONTO</span> e disponíveis para revisão.</p>
+
+      <h3>Arquitetura</h3>
+      <div class="card-grid reveal">
+
+        <a href="ddd.html" class="card-link">
+          <span class="status-pill ready">Pronto</span>
+          <span class="topic-num">TÓPICO 01</span>
+          <h3>Domain-Driven Design</h3>
+          <p>Linguagem ubíqua, bounded contexts, context mapping, building blocks táticos, arquiteturas, Event Storming, Domain Storytelling, DoR/DoD.</p>
+          <span class="arrow">Estudar →</span>
+        </a>
+
+        <a href="clean-architecture.html" class="card-link">
+          <span class="status-pill ready">Pronto</span>
+          <span class="topic-num">TÓPICO 02</span>
+          <h3>Clean Architecture</h3>
+          <p>Regra da Dependência, círculos concêntricos, Entities &amp; Use Cases, SOLID, paradigmas de programação e de componentes, fronteiras e implementação.</p>
+          <span class="arrow">Estudar →</span>
+        </a>
+
+      </div>
+
+      <h3>Infra &amp; DevOps</h3>
+      <div class="card-grid reveal">
+
+        <a href="terraform.html" class="card-link">
+          <span class="status-pill ready">Pronto</span>
+          <span class="topic-num">TÓPICO 03</span>
+          <h3>Terraform</h3>
+          <p>IaC declarativo, providers e tfstate/backend, comandos, variáveis e outputs, data e locals, módulos, count/for_each, infra na AWS, Terraform Cloud.</p>
+          <span class="arrow">Estudar →</span>
+        </a>
+
+        <a href="docker.html" class="card-link">
+          <span class="status-pill ready">Pronto</span>
+          <span class="topic-num">TÓPICO 04</span>
+          <h3>Docker</h3>
+          <p>Container vs VM, imagens e Dockerfile, ciclo de vida, orquestração (Compose/K8s/Swarm), boas práticas e multi-stage, segurança, ECS.</p>
+          <span class="arrow">Estudar →</span>
+        </a>
+
+        <a href="cicd-devops.html" class="card-link">
+          <span class="status-pill ready">Pronto</span>
+          <span class="topic-num">TÓPICO 05</span>
+          <h3>DevOps · CI/CD</h3>
+          <p>Cultura DevOps, CI × Delivery × Deployment, pipelines, GitHub Actions, estratégias de deploy, testes automatizados e qualidade de código.</p>
+          <span class="arrow">Estudar →</span>
+        </a>
+
+      </div>
+
+      <h3>Microsserviços</h3>
+      <div class="card-grid reveal">
+
+        <a href="microservices-fundamentos.html" class="card-link">
+          <span class="status-pill ready">Pronto</span>
+          <span class="topic-num">TÓPICO 06</span>
+          <h3>Fundamentos & Comunicação</h3>
+          <p>Monólito × microsserviços, decomposição, comunicação síncrona × assíncrona, API Gateway e BFF, modelo de API, queries.</p>
+          <span class="arrow">Estudar →</span>
+        </a>
+
+        <a href="microservices-dados.html" class="card-link">
+          <span class="status-pill ready">Pronto</span>
+          <span class="topic-num">TÓPICO 07</span>
+          <h3>Dados, Negócio & Deploy</h3>
+          <p>Database per Service, CQRS, Event Sourcing, consistência eventual, lógica de negócio, testes de contrato e deploy.</p>
+          <span class="arrow">Estudar →</span>
+        </a>
+
+        <a href="microservices-resiliencia.html" class="card-link">
+          <span class="status-pill ready">Pronto</span>
+          <span class="topic-num">TÓPICO 08</span>
+          <h3>Resiliência</h3>
+          <p>Falhas parciais, Circuit Breaker, retry/timeout/bulkhead, observabilidade, Service Mesh (Istio) e Chaos Engineering.</p>
+          <span class="arrow">Estudar →</span>
+        </a>
+
+        <a href="microservices-saga.html" class="card-link">
+          <span class="status-pill ready">Pronto</span>
+          <span class="topic-num">TÓPICO 09</span>
+          <h3>SAGA Pattern</h3>
+          <p>Transações distribuídas, orquestração × coreografia, o "I" do ACID, transações compensatórias, ACID × BASE.</p>
+          <span class="arrow">Estudar →</span>
+        </a>
+
+      </div>
+
+      <h3>Complementares</h3>
+      <div class="card-grid reveal">
+
+        <a href="complementares.html" class="card-link">
+          <span class="status-pill ready">Pronto</span>
+          <span class="topic-num">TÓPICO 10</span>
+          <h3>LGPD · Comunicação · Gestão</h3>
+          <p>Revisão panorâmica dos temas mais leves: LGPD e privacidade de dados, comunicação e negociação em TI, e gestão de times de alto desempenho.</p>
+          <span class="arrow">Estudar →</span>
+        </a>
+
+      </div>
+
+      <h3>Kubernetes</h3>
+      <div class="card-grid reveal">
+
+        <a href="kubernetes.html" class="card-link">
+          <span class="status-pill ready">Pronto</span>
+          <span class="topic-num">TÓPICO 11</span>
+          <h3>Kubernetes &amp; AWS EKS</h3>
+          <p>Arquitetura (control plane × nodes), Pods/labels/Services/ConfigMap, ReplicaSet/Deployment/StatefulSet/DaemonSet, Volumes/PV/PVC, Probes, HPA, Jobs, EFK, Helm, AWS EKS, CI/CD, RBAC e segurança.</p>
+          <span class="arrow">Estudar →</span>
+        </a>
+
+      </div>
+
+      <h2 id="metodo"><span class="h2-kicker">Estratégia</span>Método de estudo para múltipla escolha</h2>
+      <div class="card reveal">
+        <ol>
+          <li><strong>Distinções pareadas:</strong> prova de múltipla escolha adora contrastar conceitos próximos. Domine os pares (ex.: <em>core × supporting × generic subdomain</em>).</li>
+          <li><strong>Definição canônica:</strong> saiba a definição "de livro" de cada termo — alternativas erradas costumam ser definições trocadas entre si.</li>
+          <li><strong>Exemplo concreto:</strong> associe cada conceito a 1 exemplo. Ajuda a eliminar alternativas absurdas.</li>
+          <li><strong>Negação/exceção:</strong> atenção a "EXCETO", "NÃO é", "INCORRETO" — releia o enunciado.</li>
+        </ol>
+      </div>
+
+      <h2 id="creditos"><span class="h2-kicker">Créditos &amp; Contato</span>Quem fez &amp; como contribuir</h2>
+      <div class="card reveal">
+        <h4>Autoria</h4>
+        <p>Este material de revisão foi idealizado e organizado por <strong>Isaac Maciel</strong> durante a pós-graduação em Arquitetura de Software. É um projeto de estudo aberto — sinta-se à vontade para usar na sua própria preparação.</p>
+        <p style="margin-top:14px">
+          <a href="https://www.linkedin.com/in/isaac-maciel-araujo/" target="_blank" rel="noopener noreferrer"><strong>→ Isaac Maciel no LinkedIn</strong></a>
+        </p>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💬 Achou um erro? Tem uma sugestão?</span>
+        <p>Conteúdo de estudo vive de revisão contínua. Se você quiser ajudar a deixar este material ainda mais afiado, me chame no <a href="https://www.linkedin.com/in/isaac-maciel-araujo/" target="_blank" rel="noopener noreferrer">LinkedIn</a> nos seguintes casos:</p>
+        <ul>
+          <li><strong>Revisar um tópico</strong> — algo ficou raso, confuso ou poderia ter mais profundidade.</li>
+          <li><strong>Corrigir uma imprecisão</strong> — encontrou um conceito trocado, uma definição imprecisa ou um quiz com resposta discutível.</li>
+          <li><strong>Sugerir um novo tópico</strong> — um assunto da ementa que faria diferença na revisão e ainda não está aqui.</li>
+          <li><strong>Feedback geral</strong> — qualquer ideia para melhorar a navegação, o visual ou os recursos de estudo.</li>
+        </ul>
+        <p>Toda contribuição é bem-vinda — quanto mais olhos, melhor o material fica para a próxima turma. 🙌</p>
+      </div>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

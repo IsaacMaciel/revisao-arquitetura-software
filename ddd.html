@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Domain-Driven Design — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão densa de DDD para prova de múltipla escolha: linguagem ubíqua, bounded contexts, context mapping, building blocks táticos, arquiteturas, Event Storming, Domain Storytelling, DoR/DoD." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 01 · DDD</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">Fundamentos</div>
+      <a href="#oque">O que é DDD</a>
+      <a href="#dominio">Domínio & subdomínios</a>
+      <a href="#linguagem">Linguagem ubíqua</a>
+      <a href="#model-design">Model-Driven Design</a>
+
+      <div class="group-label">Estratégico</div>
+      <a href="#bounded-context">Bounded Contexts</a>
+      <a href="#context-mapping">Context Mapping</a>
+
+      <div class="group-label">Tático</div>
+      <a href="#building-blocks">Building Blocks</a>
+      <a href="#entidade-vo">Entidade × Value Object</a>
+      <a href="#aggregate">Aggregates</a>
+      <a href="#servicos-repo">Serviços, Repos, Factories</a>
+      <a href="#events">Domain Events</a>
+
+      <div class="group-label">Arquitetura</div>
+      <a href="#arquiteturas">Camadas / Hexagonal / Onion / Clean</a>
+
+      <div class="group-label">Descoberta (ementa)</div>
+      <a href="#storytelling">Domain Storytelling</a>
+      <a href="#event-storming">Event Storming</a>
+      <a href="#requisitos">Requisitos · DoR · DoD</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 01 · Domain-Driven Design</span>
+        <h1>Domain-Driven Design</h1>
+        <p class="lede">DDD é uma abordagem para desenvolver software <em>complexo</em> que coloca o <strong>domínio do negócio</strong> no centro. Une um lado <strong>estratégico</strong> (como dividir o sistema e alinhar com o negócio) e um lado <strong>tático</strong> (como modelar o código). Esta página cobre o cânone (Evans/Vernon) e os tópicos de descoberta da sua ementa.</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como DDD costuma cair na prova</span>
+        <p>Em múltipla escolha, DDD aparece como: (1) <strong>definições trocadas</strong> entre conceitos próximos — Entidade × Value Object, Domain × Application Service; (2) <strong>classificação</strong> — "qual destes é um padrão de Context Mapping?"; (3) <strong>identificar o conceito</strong> a partir de um exemplo; (4) <strong>verdadeiro/falso</strong> sobre regras (ex.: "agregados podem referenciar outros agregados por ID — V ou F").</p>
+      </div>
+
+      <!-- ============================ FUNDAMENTOS ============================ -->
+      <h2 id="oque"><span class="h2-kicker">Fundamentos</span>O que é DDD</h2>
+      <p>Formalizado por <span class="lead-term">Eric Evans</span> (2003, livro "azul") e expandido por <span class="lead-term">Vaughn Vernon</span> ("Implementing DDD", livro "vermelho"). A ideia central: o maior obstáculo em software complexo não é a tecnologia, é a <strong>complexidade do domínio</strong>. DDD ataca isso construindo um <strong>modelo</strong> compartilhado entre quem entende do negócio (<em>domain experts</em>) e quem programa.</p>
+
+      <div class="card reveal">
+        <h4>Os dois lados do DDD</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Lado</th><th>Pergunta que responde</th><th>Ferramentas principais</th></tr></thead>
+            <tbody>
+              <tr><td><span class="pill strat">Estratégico</span></td><td>Como dividir o sistema grande em partes e alinhá-las ao negócio?</td><td>Domínio/subdomínios, Linguagem Ubíqua, <strong>Bounded Contexts</strong>, Context Mapping</td></tr>
+              <tr><td><span class="pill tat">Tático</span></td><td>Como modelar e implementar cada parte em código?</td><td>Entidades, Value Objects, <strong>Aggregates</strong>, Domain Events, Repositories, Factories, Services</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tldr reveal">
+        <div class="t-head">TL;DR</div>
+        <ul>
+          <li>DDD = colocar o <strong>domínio</strong> no centro do design para domar a <strong>complexidade</strong>.</li>
+          <li><strong>Estratégico</strong> = onde traçar fronteiras (bounded contexts). <strong>Tático</strong> = como modelar dentro de cada fronteira.</li>
+          <li>O coração de tudo é a <strong>colaboração com domain experts</strong> e uma <strong>linguagem comum</strong>.</li>
+        </ul>
+      </div>
+
+      <!-- ============================ DOMÍNIO ============================ -->
+      <h2 id="dominio"><span class="h2-kicker">Estratégico</span>Domínio & subdomínios</h2>
+      <p><span class="lead-term">Domínio</span> é a esfera de conhecimento e atividade do negócio (ex.: "comércio eletrônico", "gestão de patrimônio"). Como é grande demais para modelar de uma vez, divide-se em <span class="lead-term">subdomínios</span>. Há três tipos — e <strong>distingui-los cai em prova</strong>:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Subdomínio</th><th>O que é</th><th>Estratégia</th><th>Exemplo (e-commerce)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Core</strong> (núcleo)</td><td>A vantagem competitiva, o motivo do software existir. Onde está o diferencial.</td><td>Investir o melhor time; modelar com cuidado máximo.</td><td>Motor de recomendação / precificação</td></tr>
+            <tr><td><strong>Supporting</strong> (suporte)</td><td>Necessário ao negócio, mas não é diferencial. Específico do negócio.</td><td>Construir de forma mais simples; pode ser terceirizado.</td><td>Catálogo de produtos</td></tr>
+            <tr><td><strong>Generic</strong> (genérico)</td><td>Resolvido igual em qualquer empresa; sem diferencial.</td><td><strong>Comprar/usar pronto</strong> (off-the-shelf).</td><td>Autenticação, envio de e-mail, pagamento</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p>O <strong>core domain</strong> NÃO é "o maior" nem "o mais complexo tecnicamente" — é o que dá <strong>vantagem competitiva</strong>. Genérico ≠ inútil: é só algo que não vale a pena construir do zero.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Uma fintech investe pesado no algoritmo de análise de crédito (seu diferencial) e usa um serviço pronto de terceiros para envio de SMS. Como classificamos esses dois?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Ambos são <em>core domains</em>, pois o sistema depende dos dois.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Análise de crédito é <em>supporting</em> e SMS é <em>core</em>.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Análise de crédito é <em>core domain</em> e o envio de SMS é <em>generic subdomain</em>.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Análise de crédito é <em>generic</em> porque já existem bibliotecas de crédito.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O diferencial competitivo (análise de crédito) é o <strong>core domain</strong> — recebe o melhor esforço de modelagem. SMS é resolvido igual por qualquer empresa, logo é <strong>generic</strong> e deve ser comprado pronto.</div>
+      </div>
+
+      <!-- ============================ LINGUAGEM UBÍQUA ============================ -->
+      <h2 id="linguagem"><span class="h2-kicker">Estratégico</span>Linguagem Ubíqua</h2>
+      <p>A <span class="lead-term">Linguagem Ubíqua</span> (Ubiquitous Language) é um vocabulário <strong>comum, rigoroso e compartilhado</strong> entre desenvolvedores e domain experts, usado em <em>toda parte</em>: conversas, documentos, nomes de classes, métodos e tabelas. Se o negócio diz "apólice", o código tem <code>Apolice</code> — não <code>Contrato2</code>.</p>
+
+      <div class="card reveal">
+        <h4>Características essenciais</h4>
+        <ul>
+          <li><strong>Ubíqua = "em todo lugar":</strong> fala, texto e código usam os mesmos termos.</li>
+          <li><strong>Viva:</strong> evolui junto com o entendimento do domínio; o modelo muda quando a linguagem muda.</li>
+          <li><strong>Vinculada a um Bounded Context:</strong> a mesma palavra pode ter significados diferentes em contextos diferentes (ver Bounded Context).</li>
+          <li>Elimina <strong>tradução</strong> entre "linguagem do negócio" e "linguagem técnica" — a tradução é onde nascem os bugs de entendimento.</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p>Linguagem Ubíqua <strong>não é global</strong>. Ela é ubíqua <em>dentro de um Bounded Context</em>. "Cliente" no contexto de Vendas ≠ "Cliente" no contexto de Suporte. Alternativa de prova que diz "uma única linguagem para toda a empresa" geralmente está <strong>errada</strong>.</p>
+      </div>
+
+      <!-- ============================ MODEL-DRIVEN ============================ -->
+      <h2 id="model-design"><span class="h2-kicker">Fundamentos</span>Model-Driven Design</h2>
+      <p>O <span class="lead-term">modelo de domínio</span> é uma abstração seletiva do conhecimento do negócio — não é o mundo real inteiro, só o que importa para resolver o problema. <span class="lead-term">Model-Driven Design</span> diz que o <strong>modelo e o código devem espelhar-se mutuamente</strong>: o código <em>é</em> a expressão do modelo. Se o modelo evolui, o código evolui; se o código fica difícil de mudar, o modelo provavelmente está errado.</p>
+
+      <div class="callout danger reveal">
+        <span class="tag">✗ Anti-padrão: Anemic Domain Model</span>
+        <p>O <strong>Modelo de Domínio Anêmico</strong> é quando as classes de domínio só têm dados (getters/setters) e toda a lógica fica em "services". Martin Fowler chama de anti-padrão porque <strong>viola o encapsulamento</strong> e joga fora o valor do OO. No DDD, comportamento e regras de negócio vivem <em>dentro</em> das entidades/agregados. Aparece muito em prova como "qual é o anti-padrão?".</p>
+      </div>
+
+      <!-- ============================ BOUNDED CONTEXT ============================ -->
+      <h2 id="bounded-context"><span class="h2-kicker">Estratégico</span>Bounded Contexts</h2>
+      <p>Um <span class="lead-term">Bounded Context</span> (Contexto Delimitado) é uma <strong>fronteira explícita</strong> dentro da qual um modelo de domínio específico — e sua linguagem ubíqua — são válidos e consistentes. É <em>o</em> padrão central do DDD estratégico.</p>
+
+      <div class="card reveal">
+        <h4>Por que existe</h4>
+        <p>Tentar um único modelo unificado para um sistema grande gera ambiguidade: o mesmo termo significa coisas diferentes para áreas diferentes. O Bounded Context resolve isso dando a cada área <strong>seu próprio modelo coerente</strong>, com fronteiras claras. Dentro da fronteira, a linguagem é precisa; fora dela, pode mudar.</p>
+        <p><strong>Relação com microsserviços:</strong> um Bounded Context é um forte candidato a virar um microsserviço (limite de autonomia e dados). Mas <strong>são conceitos distintos</strong> — BC é sobre modelo/linguagem; microsserviço é sobre deploy/processo. Um não obriga o outro.</p>
+      </div>
+
+      <div class="diagram reveal">
+        <div class="flow">
+          <div class="node accent">Contexto<br>Vendas<br><small style="color:var(--text-2)">"Cliente" = comprador</small></div>
+          <span class="arrow-h">↔</span>
+          <div class="node accent">Contexto<br>Suporte<br><small style="color:var(--text-2)">"Cliente" = ticket aberto</small></div>
+          <span class="arrow-h">↔</span>
+          <div class="node accent">Contexto<br>Faturamento<br><small style="color:var(--text-2)">"Cliente" = conta a pagar</small></div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span> Cada contexto tem seu próprio modelo e linguagem para "Cliente"</span></div>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual afirmação descreve corretamente a relação entre Bounded Context e Linguagem Ubíqua?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>A Linguagem Ubíqua é única para toda a organização e os Bounded Contexts apenas a implementam.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Cada Bounded Context delimita a validade de uma Linguagem Ubíqua; o mesmo termo pode significar coisas diferentes em contextos distintos.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Bounded Context é um conceito tático e Linguagem Ubíqua é estratégico; não se relacionam.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Bounded Context é sinônimo de microsserviço.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A linguagem é ubíqua <strong>dentro</strong> da fronteira do contexto. "Cliente" em Vendas e em Faturamento podem ser modelos diferentes. (A) erra ao globalizar a linguagem; (D) confunde BC com microsserviço.</div>
+      </div>
+
+      <!-- ============================ CONTEXT MAPPING ============================ -->
+      <h2 id="context-mapping"><span class="h2-kicker">Estratégico</span>Context Mapping</h2>
+      <p>O <span class="lead-term">Context Map</span> documenta <strong>como os Bounded Contexts se relacionam</strong> — técnica e organizacionalmente. Os padrões descrevem o tipo de relação e o equilíbrio de poder entre as equipes (upstream/downstream). <strong>Saber classificar esses padrões cai em prova.</strong></p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Padrão</th><th>Significado</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Partnership</strong></td><td>Dois contextos/times com sucesso interdependente; coordenam-se de igual para igual.</td></tr>
+            <tr><td><strong>Shared Kernel</strong></td><td>Dois times compartilham um subconjunto do modelo/código. Reduz duplicação, mas cria acoplamento — mudanças exigem acordo.</td></tr>
+            <tr><td><strong>Customer / Supplier</strong></td><td>Upstream (fornecedor) e downstream (cliente). O downstream tem voz; o upstream atende às necessidades dele.</td></tr>
+            <tr><td><strong>Conformist</strong></td><td>O downstream <strong>se submete</strong> ao modelo do upstream sem tradução (sem poder de negociação).</td></tr>
+            <tr><td><strong>Anticorruption Layer (ACL)</strong></td><td>Camada de tradução que <strong>protege</strong> o modelo do downstream de um modelo externo/legado ruim. Padrão muito cobrado.</td></tr>
+            <tr><td><strong>Open Host Service (OHS)</strong></td><td>O upstream expõe um protocolo/API aberto e bem definido para vários consumidores.</td></tr>
+            <tr><td><strong>Published Language</strong></td><td>Linguagem de intercâmbio bem documentada e compartilhada (ex.: um schema, XML/JSON padronizado). Anda junto com OHS.</td></tr>
+            <tr><td><strong>Separate Ways</strong></td><td>Os contextos não se integram — custo de integração não compensa. Seguem caminhos separados.</td></tr>
+            <tr><td><strong>Big Ball of Mud</strong></td><td>Região sem fronteiras claras, modelos misturados. Reconhecê-la e isolá-la (com ACL) é a estratégia.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 Como lembrar upstream × downstream</span>
+        <p><strong>Upstream</strong> = "rio acima" = o fornecedor, influencia o de baixo. <strong>Downstream</strong> = "rio abaixo" = o consumidor, sofre as mudanças. <em>Conformist</em> e <em>ACL</em> são as duas posturas possíveis do downstream: <strong>conformar-se</strong> ou <strong>se proteger</strong>.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Sua aplicação nova precisa integrar com um ERP legado cujo modelo de dados é confuso e você não quer "contaminar" seu domínio limpo. Qual padrão de Context Mapping você aplica?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Anticorruption Layer (ACL)</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Conformist</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Shared Kernel</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Separate Ways</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A <strong>ACL</strong> traduz o modelo externo/legado para o seu modelo, isolando-o. <em>Conformist</em> seria o oposto (submeter-se ao legado); <em>Shared Kernel</em> aumentaria o acoplamento; <em>Separate Ways</em> não integraria.</div>
+      </div>
+
+      <!-- ============================ BUILDING BLOCKS ============================ -->
+      <h2 id="building-blocks"><span class="h2-kicker">Tático</span>Building Blocks (padrões táticos)</h2>
+      <p>Os <span class="lead-term">building blocks</span> são os padrões para expressar o modelo em código, <strong>dentro</strong> de um Bounded Context. Visão geral:</p>
+
+      <div class="diagram reveal">
+        <div class="flow" style="gap:8px">
+          <div class="node">Value Object<br><small style="color:var(--text-2)">sem identidade</small></div>
+          <div class="node">Entidade<br><small style="color:var(--text-2)">com identidade</small></div>
+          <div class="node accent">Aggregate<br><small style="color:var(--text-2)">+ Root</small></div>
+          <div class="node">Domain Event<br><small style="color:var(--text-2)">algo ocorreu</small></div>
+          <div class="node">Repository<br><small style="color:var(--text-2)">persistência</small></div>
+          <div class="node">Factory<br><small style="color:var(--text-2)">criação</small></div>
+          <div class="node">Service<br><small style="color:var(--text-2)">operação sem dono</small></div>
+        </div>
+      </div>
+
+      <!-- ENTIDADE x VO -->
+      <h2 id="entidade-vo"><span class="h2-kicker">Tático · clássico de prova</span>Entidade × Value Object</h2>
+      <p>Esta distinção é <strong>a mais cobrada</strong> de DDD tático. O critério é <strong>identidade</strong>.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Aspecto</th><th>Entidade (Entity)</th><th>Value Object (VO)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Identidade</strong></td><td>Tem identidade própria e contínua (um <code>id</code>). É "quem é".</td><td>Não tem identidade; é definido só pelos seus atributos. É "o que vale".</td></tr>
+            <tr><td><strong>Igualdade</strong></td><td>Por identidade — dois objetos com mesmo <code>id</code> são o mesmo, ainda que atributos mudem.</td><td>Por valor — dois VOs com os mesmos atributos são iguais.</td></tr>
+            <tr><td><strong>Mutabilidade</strong></td><td>Mutável ao longo do tempo (estado evolui).</td><td><strong>Imutável</strong> — para mudar, cria-se um novo.</td></tr>
+            <tr><td><strong>Ciclo de vida</strong></td><td>Rastreado; nasce, muda e morre.</td><td>Descartável; usado e substituído.</td></tr>
+            <tr><td><strong>Exemplos</strong></td><td>Cliente, Pedido, ContaBancária</td><td>Dinheiro (valor+moeda), Endereço, CPF, Período de datas, Cor</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p>Se a igualdade entre dois objetos importa por <strong>quem eles são</strong> → Entidade. Se importa por <strong>o que eles contêm</strong> → Value Object. "Endereço" geralmente é VO; mas se o negócio precisa rastrear cada endereço individualmente (histórico, status próprio), pode virar Entidade. <strong>Depende do contexto</strong> — não há resposta absoluta fora do domínio.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Sobre Value Objects, assinale a alternativa CORRETA:</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>São comparados por identidade (id) e possuem ciclo de vida rastreado.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Devem ser mutáveis para refletir mudanças de estado.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Sempre se tornam tabelas próprias com chave primária.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>São definidos por seus atributos, comparados por valor e idealmente imutáveis.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> VO = sem identidade, igualdade por valor, imutável. (A) e (C) descrevem Entidade; (B) contraria a imutabilidade característica do VO.</div>
+      </div>
+
+      <!-- AGGREGATE -->
+      <h2 id="aggregate"><span class="h2-kicker">Tático · central</span>Aggregates & Aggregate Root</h2>
+      <p>Um <span class="lead-term">Aggregate</span> (Agregado) é um <strong>conjunto de objetos</strong> (entidades + VOs) tratado como <strong>uma unidade de consistência</strong>. Tem uma raiz — a <span class="lead-term">Aggregate Root</span> — que é a única porta de entrada: o mundo externo só fala com a raiz, nunca diretamente com os objetos internos.</p>
+
+      <div class="card reveal">
+        <h4>Regras de ouro dos agregados (caem muito)</h4>
+        <ul>
+          <li><strong>A raiz é a fronteira de consistência:</strong> invariantes (regras que devem ser sempre verdadeiras) são garantidas dentro do agregado, pela raiz.</li>
+          <li><strong>Acesso só pela raiz:</strong> referências externas apontam para a Aggregate Root, não para objetos internos.</li>
+          <li><strong>Referencie outros agregados por identidade (ID)</strong>, não por objeto direto. Isso mantém os agregados pequenos e desacoplados.</li>
+          <li><strong>Uma transação = um agregado:</strong> idealmente, cada transação modifica <em>um único</em> agregado. Consistência entre agregados é <strong>eventual</strong> (via Domain Events).</li>
+          <li><strong>O Repository opera no nível do agregado</strong> (um repositório por Aggregate Root).</li>
+        </ul>
+      </div>
+
+      <div class="diagram reveal">
+        <div style="display:inline-block;border:2px dashed var(--accent);border-radius:14px;padding:18px 22px;background:rgba(233,30,99,.05)">
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:10px">Aggregate: Pedido</div>
+          <div class="flow" style="gap:8px">
+            <div class="node accent">Pedido <b>(Root)</b></div>
+            <span class="arrow-h">→</span>
+            <div class="node">ItemDoPedido<br><small style="color:var(--text-2)">interno</small></div>
+            <div class="node">Endereço<br><small style="color:var(--text-2)">VO interno</small></div>
+          </div>
+          <div style="margin-top:10px;font-size:12.5px;color:var(--text-2)">Cliente é referenciado por <code>clienteId</code> (outro agregado) — não por objeto.</div>
+        </div>
+      </div>
+
+      <div class="callout danger reveal">
+        <span class="tag">✗ Erro comum</span>
+        <p>Um código que carrega <code>pedido.getCliente().getEndereco().setCep(...)</code> atravessando agregados e modificando dois numa só transação <strong>viola</strong> as regras de agregado. O correto: <code>cliente</code> é outro agregado, referenciado por ID, modificado em sua própria transação.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual é a função principal de uma Aggregate Root?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Servir como classe base de todas as entidades do sistema.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Mapear diretamente cada tabela do banco de dados.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Ser o único ponto de acesso ao agregado e garantir suas invariantes/consistência.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Expor livremente os objetos internos para manipulação externa.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A raiz é a fronteira de consistência e a única porta de entrada do agregado, protegendo as invariantes. (D) é justamente o oposto do que o padrão prega.</div>
+      </div>
+
+      <!-- SERVIÇOS / REPO / FACTORY -->
+      <h2 id="servicos-repo"><span class="h2-kicker">Tático</span>Services, Repositories & Factories</h2>
+
+      <h3>Domain Service × Application Service</h3>
+      <p>Distinção que cai em prova. Ambos são "serviços", mas com responsabilidades diferentes:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th></th><th>Domain Service</th><th>Application Service</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Contém</strong></td><td>Lógica de <strong>negócio</strong> que não pertence naturalmente a uma entidade/VO específico.</td><td><strong>Orquestração</strong>: coordena, controla transação, chama o domínio. <strong>Sem regra de negócio.</strong></td></tr>
+            <tr><td><strong>Camada</strong></td><td>Camada de domínio.</td><td>Camada de aplicação.</td></tr>
+            <tr><td><strong>Exemplo</strong></td><td><code>TransferenciaService.transferir(contaA, contaB, valor)</code> (regra envolve duas contas).</td><td><code>RealizarPedidoUseCase</code>: abre transação, busca no repo, chama o domínio, publica evento.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Repository</h3>
+      <p>Abstrai a <strong>persistência</strong>, dando a ilusão de uma coleção em memória de agregados. Você pede "salve este Pedido" / "ache o Pedido X" sem saber se é SQL, NoSQL ou arquivo. <strong>Um repositório por Aggregate Root.</strong> Não confundir com DAO genérico — o repositório fala a linguagem do domínio.</p>
+
+      <h3>Factory</h3>
+      <p>Encapsula a <strong>criação</strong> de objetos/agregados complexos, garantindo que nasçam já em estado válido e consistente. Usa-se quando a construção tem regras demais para um construtor simples.</p>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Distinção fina</span>
+        <p><strong>Repository</strong> = recupera/persiste objetos que <em>já existem</em>. <strong>Factory</strong> = <em>cria</em> objetos novos. São complementares, não concorrentes.</p>
+      </div>
+
+      <!-- DOMAIN EVENTS -->
+      <h2 id="events"><span class="h2-kicker">Tático</span>Domain Events</h2>
+      <p>Um <span class="lead-term">Domain Event</span> representa <strong>algo relevante que aconteceu no domínio</strong>, no passado. Nomeado no particípio: <code>PedidoRealizado</code>, <code>PagamentoConfirmado</code>. Permite desacoplar agregados e contextos: quando algo ocorre, um evento é publicado e outros reagem — base para <strong>consistência eventual</strong> e arquiteturas <em>event-driven</em>.</p>
+
+      <div class="mnemonic reveal">
+        <div class="m-head">Mnemônico — building blocks táticos</div>
+        <div class="m-word">"<b>E</b>u <b>V</b>i <b>A</b>gregar <b>D</b>ados <b>R</b>ápido, <b>F</b>az <b>S</b>entido"</div>
+        <ul>
+          <li><b>E</b>ntidade · <b>V</b>alue Object · <b>A</b>ggregate · <b>D</b>omain Event · <b>R</b>epository · <b>F</b>actory · <b>S</b>ervice</li>
+        </ul>
+      </div>
+
+      <!-- ============================ ARQUITETURAS ============================ -->
+      <h2 id="arquiteturas"><span class="h2-kicker">Arquitetura</span>Arquiteturas que abrigam o DDD</h2>
+      <p>DDD não exige uma arquitetura específica, mas combina com aquelas que <strong>isolam o domínio</strong> de infraestrutura e UI. O princípio comum: a <strong>dependência aponta para dentro</strong>, em direção ao domínio (Dependency Inversion).</p>
+
+      <h3>Arquitetura em Camadas (Layered)</h3>
+      <p>Clássica: <strong>Apresentação → Aplicação → Domínio → Infraestrutura</strong>. Cada camada depende da de baixo. Simples, mas a forma ingênua deixa o domínio dependendo da infra.</p>
+
+      <h3>Hexagonal (Ports & Adapters)</h3>
+      <p>Alistair Cockburn. O domínio fica no centro e se comunica com o mundo por <strong>portas</strong> (interfaces); <strong>adaptadores</strong> implementam essas portas (banco, UI, APIs). O núcleo não conhece os detalhes externos — dá testabilidade e troca de tecnologia sem tocar no domínio.</p>
+
+      <h3>Onion & Clean Architecture</h3>
+      <p>Variações da mesma ideia (Jeffrey Palermo / Robert C. Martin): camadas concêntricas com o <strong>domínio no centro</strong> e a regra de dependência apontando sempre para dentro. Frameworks/UI/DB ficam na borda e são "detalhes".</p>
+
+      <div class="diagram reveal">
+        <div class="layers">
+          <div class="layer l1"><span class="ll">Borda</span> UI · Controllers · DB · Frameworks (detalhes)</div>
+          <div class="layer l2"><span class="ll">Adaptadores / Interface</span> Repositórios concretos · Gateways</div>
+          <div class="layer l3"><span class="ll">Aplicação</span> Use Cases · Application Services (orquestração)</div>
+          <div class="layer l4"><span class="ll">Centro</span> Domínio: Entidades · VOs · Aggregates · Domain Services</div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span> A dependência aponta de fora para dentro — o domínio não conhece a borda.</span></div>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Na Arquitetura Hexagonal, o que são "portas" e "adaptadores"?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Portas são bancos de dados; adaptadores são telas de UI.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Portas são interfaces definidas pelo domínio; adaptadores são as implementações que conectam o domínio ao mundo externo.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Portas e adaptadores são sinônimos de camadas de apresentação.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Adaptadores ficam no centro e as portas na borda externa.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O domínio define <strong>portas</strong> (interfaces); os <strong>adaptadores</strong> as implementam para falar com DB, UI, APIs. Isso isola o núcleo dos detalhes de tecnologia.</div>
+      </div>
+
+      <!-- ============================ DESCOBERTA / EMENTA ============================ -->
+      <h2 id="storytelling"><span class="h2-kicker">Descoberta · da sua ementa</span>Domain Storytelling</h2>
+      <p><span class="lead-term">Domain Storytelling</span> (Stefan Hofer & Henning Schwentner) é uma técnica <strong>colaborativa de descoberta</strong>: domain experts <em>narram histórias</em> de como o trabalho acontece, e um facilitador as desenha em tempo real com uma notação pictográfica simples — <strong>atores</strong>, <strong>objetos de trabalho</strong> e <strong>atividades</strong> numeradas em sequência.</p>
+      <div class="card reveal">
+        <h4>Elementos da notação</h4>
+        <ul>
+          <li><strong>Atores</strong> (pessoas/sistemas que agem) — bonecos/ícones.</li>
+          <li><strong>Objetos de trabalho</strong> (documentos, itens manipulados).</li>
+          <li><strong>Atividades</strong> = setas <strong>numeradas</strong> mostrando a sequência da história.</li>
+        </ul>
+        <p>Serve para <strong>construir a linguagem ubíqua</strong>, alinhar entendimento e revelar fronteiras de bounded contexts. É concreta (conta uma história específica), não abstrata.</p>
+      </div>
+
+      <h2 id="event-storming"><span class="h2-kicker">Descoberta · da sua ementa</span>Event Storming</h2>
+      <p><span class="lead-term">Event Storming</span> (Alberto Brandolini) é um workshop colaborativo com <strong>post-its coloridos</strong> numa parede, partindo dos <strong>Domain Events</strong> (laranja, no passado) para explorar o domínio rapidamente. A cor de cada post-it tem significado fixo:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Cor (convenção)</th><th>Elemento</th><th>Significado</th></tr></thead>
+          <tbody>
+            <tr><td>🟧 Laranja</td><td><strong>Domain Event</strong></td><td>Algo que aconteceu (no passado). Ponto de partida.</td></tr>
+            <tr><td>🟦 Azul</td><td><strong>Command</strong></td><td>Ação/decisão que dispara um evento.</td></tr>
+            <tr><td>🟨 Amarelo</td><td><strong>Aggregate</strong></td><td>Onde os comandos batem e os eventos nascem.</td></tr>
+            <tr><td>🟪 Lilás</td><td><strong>Policy</strong></td><td>Regra "sempre que… então…" (reação a evento).</td></tr>
+            <tr><td>🟩 Verde</td><td><strong>Read Model</strong></td><td>Informação que um ator consulta para decidir.</td></tr>
+            <tr><td>🩷 Rosa</td><td><strong>External System</strong></td><td>Sistema externo envolvido.</td></tr>
+            <tr><td>🟥 Vermelho</td><td><strong>Hot Spot</strong></td><td>Dúvida, conflito ou problema a resolver.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card reveal">
+        <h4>Os três níveis de Event Storming</h4>
+        <ol>
+          <li><strong>Big Picture:</strong> visão ampla do negócio inteiro; descobre subdomínios e fronteiras.</li>
+          <li><strong>Process Level:</strong> aprofunda um processo específico (comandos, políticas, read models).</li>
+          <li><strong>Design Level:</strong> detalhe fino até os agregados — quase pronto para virar código.</li>
+        </ol>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Não confunda</span>
+        <p><strong>Domain Storytelling</strong> = narrar <em>histórias</em> com atores/atividades numeradas (foco em fluxo de trabalho e linguagem). <strong>Event Storming</strong> = explorar via <em>eventos</em> em post-its coloridos numa parede (foco em descobrir o domínio por eventos). Ambos são técnicas de <strong>descoberta colaborativa</strong>, mas com notações e pontos de partida diferentes.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">No Event Storming, qual elemento é o <strong>ponto de partida</strong> do workshop e é escrito no tempo passado?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Domain Event (post-it laranja), ex.: "Pedido Confirmado".</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Command (post-it azul), ex.: "Confirmar Pedido".</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Aggregate (post-it amarelo).</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Hot Spot (post-it vermelho).</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Event Storming <em>parte dos eventos de domínio</em> (laranja, no passado) e a partir deles descobre comandos, agregados e políticas. Por isso o nome "Event" Storming.</div>
+      </div>
+
+      <h2 id="requisitos"><span class="h2-kicker">Descoberta · da sua ementa</span>Levantamento de requisitos · DoR · DoD</h2>
+      <p>No fluxo ágil que costuma acompanhar DDD, dois critérios formalizam quando algo está pronto para entrar e para sair do desenvolvimento:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th></th><th>Definition of Ready (DoR)</th><th>Definition of Done (DoD)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Pergunta</strong></td><td>Esta tarefa está pronta para <em>começar</em>?</td><td>Esta tarefa está pronta para ser considerada <em>concluída</em>?</td></tr>
+            <tr><td><strong>Momento</strong></td><td><strong>Antes</strong> de puxar para a sprint/dev.</td><td><strong>Depois</strong> do desenvolvimento, antes de entregar.</td></tr>
+            <tr><td><strong>Exemplos de critérios</strong></td><td>História clara, critérios de aceite definidos, estimada, sem bloqueios, dependências conhecidas.</td><td>Código revisado, testes passando, integrado, documentado, critérios de aceite atendidos, deployável.</td></tr>
+            <tr><td><strong>Foco</strong></td><td>Qualidade da <strong>entrada</strong>.</td><td>Qualidade da <strong>saída</strong>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 Como lembrar</span>
+        <p><strong>Ready</strong> = portão de <strong>entrada</strong> (pronto pra começar). <strong>Done</strong> = portão de <strong>saída</strong> (pronto pra entregar). Pegadinha clássica: trocar as definições entre si, ou dizer que DoD é "definido pelo cliente" — na prática, a DoD é acordada pelo <strong>time</strong> e aplica-se a todos os itens.</p>
+      </div>
+
+      <!-- ============================ FLASHCARDS ============================ -->
+      <h2 id="flashcards"><span class="h2-kicker">Auto-teste</span>Flashcards — clique para virar</h2>
+      <p>Teste-se rápido. Pense na resposta <strong>antes</strong> de clicar.</p>
+
+      <div class="flashgrid reveal">
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que distingue uma Entidade de um Value Object?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">A <strong>identidade</strong>. Entidade tem id próprio e contínuo (igualdade por identidade, mutável). VO é definido pelos atributos (igualdade por valor, imutável).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é uma Aggregate Root?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">A entidade que é a <strong>única porta de entrada</strong> do agregado e a <strong>fronteira de consistência</strong> — protege as invariantes. Acesso externo só por ela.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Core, Supporting e Generic subdomain — diferença?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Core</strong> = diferencial competitivo (melhor esforço). <strong>Supporting</strong> = necessário mas não diferencial. <strong>Generic</strong> = comum a todos, comprar pronto.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é um Bounded Context?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Fronteira explícita onde um modelo de domínio e sua <strong>Linguagem Ubíqua</strong> são válidos e consistentes. O mesmo termo pode diferir entre contextos.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Para que serve uma Anticorruption Layer (ACL)?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Traduzir e <strong>isolar</strong> o modelo do seu contexto do modelo de um sistema externo/legado ruim, evitando "contaminação". Padrão de Context Mapping.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Domain Service × Application Service?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Domain</strong> = lógica de negócio sem dono natural (camada domínio). <strong>Application</strong> = orquestração/transação, <strong>sem regra de negócio</strong> (camada de aplicação).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Qual é o anti-padrão "Anemic Domain Model"?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Classes de domínio só com dados (getters/setters) e toda a lógica em services. <strong>Viola encapsulamento</strong>; Fowler o critica. No DDD, comportamento vive na entidade/agregado.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Event Storming × Domain Storytelling?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Ambos são descoberta colaborativa. <strong>Event Storming</strong>: post-its coloridos a partir de <em>eventos</em>. <strong>Domain Storytelling</strong>: desenhar <em>histórias</em> com atores/atividades numeradas.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">DoR × DoD?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Ready</strong> = portão de entrada (pronto p/ começar: claro, estimado, sem bloqueio). <strong>Done</strong> = portão de saída (pronto p/ entregar: testado, revisado, integrado).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Regra de dependência (Hexagonal/Onion/Clean)?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">A dependência aponta <strong>para dentro</strong>, em direção ao domínio. UI/DB/frameworks são "detalhes" na borda; o domínio não os conhece (Dependency Inversion).</div></div>
+        </div></div>
+      </div>
+
+      <!-- ============================ GLOSSÁRIO ============================ -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>Domínio</dt><dd>A esfera de conhecimento/atividade do negócio que o software atende.</dd></div>
+        <div class="gloss-item"><dt>Subdomínio</dt><dd>Parte do domínio. Tipos: core, supporting, generic.</dd></div>
+        <div class="gloss-item"><dt>Linguagem Ubíqua</dt><dd>Vocabulário comum entre devs e experts, válido dentro de um bounded context.</dd></div>
+        <div class="gloss-item"><dt>Bounded Context</dt><dd>Fronteira onde um modelo e sua linguagem são consistentes.</dd></div>
+        <div class="gloss-item"><dt>Context Map</dt><dd>Documento das relações entre bounded contexts (ACL, OHS, Conformist…).</dd></div>
+        <div class="gloss-item"><dt>Entidade</dt><dd>Objeto com identidade própria e contínua; igualdade por id.</dd></div>
+        <div class="gloss-item"><dt>Value Object</dt><dd>Objeto sem identidade; definido por atributos; imutável.</dd></div>
+        <div class="gloss-item"><dt>Aggregate</dt><dd>Cluster de objetos tratado como unidade de consistência.</dd></div>
+        <div class="gloss-item"><dt>Aggregate Root</dt><dd>Entidade-porta do agregado; garante invariantes.</dd></div>
+        <div class="gloss-item"><dt>Domain Event</dt><dd>Fato relevante ocorrido no domínio (no passado).</dd></div>
+        <div class="gloss-item"><dt>Repository</dt><dd>Abstração de persistência por agregado (coleção em memória).</dd></div>
+        <div class="gloss-item"><dt>Factory</dt><dd>Encapsula criação de objetos/agregados complexos e válidos.</dd></div>
+        <div class="gloss-item"><dt>Invariante</dt><dd>Regra que deve ser sempre verdadeira dentro de um agregado.</dd></div>
+        <div class="gloss-item"><dt>Consistência eventual</dt><dd>Estado entre agregados converge ao longo do tempo, via eventos.</dd></div>
+      </dl>
+
+      <!-- ============================ PEGADINHAS ============================ -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas & checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li><strong>Core domain</strong> = vantagem competitiva, <em>não</em> "o maior/mais complexo".</li>
+          <li><strong>Linguagem Ubíqua</strong> vale <em>dentro</em> de um bounded context, não para a empresa toda.</li>
+          <li><strong>Bounded Context ≠ microsserviço</strong> (relacionados, não sinônimos).</li>
+          <li><strong>Entidade</strong> = identidade; <strong>VO</strong> = valor/imutável.</li>
+          <li><strong>Agregado</strong>: acesso só pela raiz; referencie outros agregados por <strong>ID</strong>; 1 transação ≈ 1 agregado.</li>
+          <li><strong>Repository</strong> recupera/persiste; <strong>Factory</strong> cria.</li>
+          <li><strong>Domain Service</strong> tem regra de negócio; <strong>Application Service</strong> só orquestra.</li>
+          <li><strong>ACL</strong> protege/traduz; <strong>Conformist</strong> se submete.</li>
+          <li><strong>Anemic Domain Model</strong> = anti-padrão.</li>
+          <li><strong>Event Storming</strong> parte de <em>eventos</em> (laranja); <strong>Domain Storytelling</strong> parte de <em>histórias</em>.</li>
+          <li><strong>DoR</strong> = entrada; <strong>DoD</strong> = saída.</li>
+          <li>Arquiteturas DDD: dependência aponta <strong>para o domínio</strong>.</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="index.html"><div class="dir">← Voltar</div><div class="ttl">Hub de Revisão</div></a>
+          <a href="index.html#topicos" class="next"><div class="dir">Próximo tópico →</div><div class="ttl">Escolher no Hub</div></a>
+        </div>
+        <div>Tópico 01 · Domain-Driven Design · material de revisão para a prova final. Base: Evans, Vernon, Brandolini, Hofer & Schwentner.</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

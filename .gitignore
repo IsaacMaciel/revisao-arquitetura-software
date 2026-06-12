@@ -1,0 +1,13 @@
+# Arquivo de instruções internas (não publicar)
+LLM-INSTRUCTIONS.md
+
+# Artefatos internos do Claude Code
+.claude/
+
+# macOS
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DevOps — CI/CD — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão densa de DevOps, IaC e CI/CD para prova de múltipla escolha: cultura DevOps e CALMS, os 3 caminhos, Continuous Integration × Delivery × Deployment, pipeline e estágios, estratégias de deploy (blue-green/canary/rolling), GitHub Actions, pirâmide de testes e qualidade de código." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 05 · DevOps / CI-CD</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">Conceitos de CI/CD</div>
+      <a href="#oque">O que é DevOps</a>
+      <a href="#calms">CALMS & os 3 caminhos</a>
+      <a href="#ci-cd-cd">CI × Delivery × Deployment</a>
+      <a href="#pipeline">O pipeline e seus estágios</a>
+      <a href="#branching">Trunk-based × feature branch</a>
+      <a href="#deploy">Estratégias de deploy</a>
+      <a href="#iac">IaC como prática DevOps</a>
+
+      <div class="group-label">GitHub na prática</div>
+      <a href="#actions">GitHub Actions</a>
+      <a href="#protecao">Branch protection & PR</a>
+      <a href="#gitflow">GitFlow × trunk-based</a>
+      <a href="#commits-secrets">Commits, secrets & reuso</a>
+
+      <div class="group-label">Testes no CI</div>
+      <a href="#piramide">Pirâmide de testes</a>
+      <a href="#quality-gate">Quality gate & testes no merge</a>
+
+      <div class="group-label">Qualidade do código</div>
+      <a href="#estatica">Análise estática & SonarQube</a>
+      <a href="#seguranca">Security scanning & dependências</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 05 · DevOps · CI/CD</span>
+        <h1>DevOps — IaC & CI/CD</h1>
+        <p class="lede"><em>DevOps</em> não é uma ferramenta nem um cargo — é uma <strong>cultura</strong> que une desenvolvimento e operações para entregar valor de forma <strong>contínua, rápida e segura</strong>. Seu motor técnico é o <strong>pipeline de CI/CD</strong>: automação que leva código do <em>commit</em> à produção, com testes e portas de qualidade no caminho. Infraestrutura vira código (<strong>IaC</strong>), entregas viram rotina e o medo de fazer deploy desaparece.</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como DevOps/CI-CD cai na prova</span>
+        <p>Espere: (1) <strong>a distinção exata</strong> entre Continuous Integration × Continuous Delivery × Continuous <em>Deployment</em> (a diferença é o deploy em produção: manual vs automático) — quase certo; (2) <strong>estratégias de deploy</strong> (blue-green × canary × rolling) — qual reduz risco como; (3) a <strong>hierarquia do GitHub Actions</strong> (workflow → job → step → action; o que é runner/trigger); (4) a <strong>pirâmide de testes</strong> (base = unitários, topo = e2e) e por que invertê-la é antipadrão; (5) <strong>qualidade de código</strong> (análise estática, quality gate, SAST × DAST, code coverage); (6) <strong>CALMS</strong> e os <strong>3 caminhos</strong> do DevOps.</p>
+      </div>
+
+      <!-- ============================ O QUE É DEVOPS ============================ -->
+      <h2 id="oque"><span class="h2-kicker">Aula 1 · fundamentos</span>O que é DevOps</h2>
+      <p><span class="lead-term">DevOps</span> é uma <strong>cultura e conjunto de práticas</strong> que aproxima <strong>Dev</strong>elopment e <strong>Op</strong>erations para reduzir o tempo entre escrever código e ele rodar em produção — sem sacrificar estabilidade. Combate os <strong>silos</strong> tradicionais ("o dev joga o código por cima do muro e a operação que se vire") com responsabilidade compartilhada, automação e feedback rápido.</p>
+
+      <div class="card reveal">
+        <h4>O que DevOps NÃO é (pegadinhas comuns)</h4>
+        <ul>
+          <li><strong>Não é</strong> uma ferramenta (Jenkins, GitHub Actions, Docker são <em>habilitadores</em>, não "o DevOps").</li>
+          <li><strong>Não é</strong> um cargo isolado ("o time de DevOps") — idealmente é responsabilidade de todos.</li>
+          <li><strong>Não é</strong> só automação: é cultura + automação + medição + compartilhamento.</li>
+          <li><strong>Não é</strong> sinônimo de CI/CD — CI/CD é a <em>prática técnica central</em> que dá vida à cultura DevOps.</li>
+        </ul>
+      </div>
+
+      <div class="tldr">
+        <div class="t-head">TL;DR</div>
+        <ul>
+          <li>DevOps = <strong>cultura</strong> de colaboração Dev+Ops + automação + feedback contínuo.</li>
+          <li>Objetivo: entregar valor <strong>rápido, frequente e confiável</strong>, derrubando silos.</li>
+          <li>CI/CD é o <strong>pipeline</strong> que materializa essa cultura tecnicamente.</li>
+        </ul>
+      </div>
+
+      <!-- ============================ CALMS & 3 CAMINHOS ============================ -->
+      <h2 id="calms"><span class="h2-kicker">Aula 1 · cultura</span>CALMS & os Três Caminhos</h2>
+      <p>O modelo <span class="lead-term">CALMS</span> (popularizado por Jez Humble) descreve os cinco pilares de uma cultura DevOps madura:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Letra</th><th>Pilar</th><th>Significa</th></tr></thead>
+          <tbody>
+            <tr><td><strong>C</strong></td><td>Culture</td><td>Colaboração, responsabilidade compartilhada, sem culpa (blameless).</td></tr>
+            <tr><td><strong>A</strong></td><td>Automation</td><td>Automatizar build, teste, deploy e provisionamento (IaC).</td></tr>
+            <tr><td><strong>L</strong></td><td>Lean</td><td>Fluxo enxuto, lotes pequenos, eliminar desperdício.</td></tr>
+            <tr><td><strong>M</strong></td><td>Measurement</td><td>Medir tudo (métricas, monitoramento, DORA) para melhorar.</td></tr>
+            <tr><td><strong>S</strong></td><td>Sharing</td><td>Compartilhar conhecimento, ferramentas e feedback entre times.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mnemonic reveal">
+        <div class="m-head">Mnemônico — os 5 pilares</div>
+        <div class="m-word"><b>C</b>ulture · <b>A</b>utomation · <b>L</b>ean · <b>M</b>easurement · <b>S</b>haring = <b>CALMS</b></div>
+        <ul>
+          <li>"Quem faz DevOps fica <b>CALM</b>(S)" — calmo, porque o deploy deixou de ser um evento de pânico.</li>
+        </ul>
+      </div>
+
+      <p>O <strong>The DevOps Handbook</strong> (Kim, Humble, Debois, Willis) organiza tudo em <span class="lead-term">Três Caminhos</span>:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Caminho</th><th>Princípio</th><th>Foco na prática</th></tr></thead>
+          <tbody>
+            <tr><td><strong>1º — Flow</strong></td><td>Fluxo (esquerda → direita)</td><td>Acelerar a entrega de Dev para Ops: lotes pequenos, automação, limitar WIP, pipeline rápido.</td></tr>
+            <tr><td><strong>2º — Feedback</strong></td><td>Feedback (direita → esquerda)</td><td>Encurtar e amplificar loops: detectar e corrigir problemas cedo (fail fast, monitoramento, telemetria).</td></tr>
+            <tr><td><strong>3º — Aprendizado contínuo</strong></td><td>Continual Learning & Experimentation</td><td>Cultura de experimentação, repetição, aprender com falhas (post-mortems blameless).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">No <em>The DevOps Handbook</em>, qual a ordem e o foco dos Três Caminhos?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>1º Feedback, 2º Flow, 3º Aprendizado — começa medindo antes de produzir.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>1º Automação, 2º Cultura, 3º Compartilhamento — é o mesmo que CALMS.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>1º Flow (Dev→Ops), 2º Feedback (Ops→Dev), 3º Aprendizado e experimentação contínuos.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>1º Deploy, 2º Rollback, 3º Monitoramento — o ciclo de entrega.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A ordem é <strong>Flow → Feedback → Aprendizado contínuo</strong>. (A) inverte os dois primeiros; (B) confunde com o modelo <strong>CALMS</strong> (que são pilares, não os caminhos); (D) lista etapas operacionais, não os caminhos do Handbook.</div>
+      </div>
+
+      <!-- ============================ CI × CD × CD ============================ -->
+      <h2 id="ci-cd-cd"><span class="h2-kicker">Aula 1 · o conceito mais cobrado</span>CI × Continuous Delivery × Continuous Deployment</h2>
+      <p>Esta é <strong>a</strong> distinção que mais cai. Os três se encadeiam, e a sigla "CD" é ambígua de propósito — pode significar <em>Delivery</em> ou <em>Deployment</em>:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Prática</th><th>O que automatiza</th><th>Até onde vai automaticamente</th><th>Deploy em produção é…</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Continuous Integration (CI)</strong></td><td>Integrar código frequentemente: a cada push, roda build + testes automatizados.</td><td>Até gerar um <strong>artefato validado</strong> (build verde).</td><td>—  (não chega a produção)</td></tr>
+            <tr><td><strong>Continuous Delivery (CD)</strong></td><td>Tudo do CI + manter o artefato <strong>sempre pronto para ir a produção</strong> (deploy automatizado até staging).</td><td>Até o ambiente de staging/pré-produção; o release de produção fica <strong>a um clique</strong>.</td><td><strong>Manual</strong> — decisão de negócio aperta o botão.</td></tr>
+            <tr><td><strong>Continuous Deployment (CD)</strong></td><td>Tudo do Delivery, mas <strong>sem o botão</strong>: toda mudança que passa nos testes vai a produção sozinha.</td><td>Até <strong>produção</strong>, automaticamente.</td><td><strong>Automático</strong> — nenhuma intervenção humana.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — Delivery NÃO é Deployment</span>
+        <p>A diferença <strong>única e decisiva</strong> entre Continuous <em>Delivery</em> e Continuous <em>Deployment</em> é o <strong>deploy em produção</strong>: no <strong>Delivery</strong> ele é <strong>manual</strong> (aprovação/clique humano — o software está <em>pronto</em> para entregar, mas alguém decide quando); no <strong>Deployment</strong> ele é <strong>automático</strong> (toda mudança aprovada nos testes sobe sozinha). Frase-âncora: <em>"Todo Deployment é um Delivery, mas nem todo Delivery é um Deployment."</em></p>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 A regra de ouro do CI</span>
+        <p>CI sem testes automatizados não é CI — é só "rodar build". O coração do CI é <strong>integrar cedo e com frequência</strong> (idealmente várias vezes ao dia, em main) e ter uma <strong>suíte de testes</strong> que dá o veredito em minutos. Branches longevas que ficam dias sem integrar são o oposto de CI (merge hell).</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Uma equipe tem um pipeline que builda, testa e implanta automaticamente em staging; a ida para produção exige um clique de aprovação de um gerente. Qual prática melhor descreve isso?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Continuous Deployment — porque o deploy é totalmente automatizado.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Continuous Delivery — o artefato está sempre pronto, mas o deploy em produção é uma decisão manual.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Continuous Integration — porque há build e testes no pipeline.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>DevOps puro — não é nenhuma das três.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Clique manual para produção = <strong>Continuous Delivery</strong>. (A) erra porque <em>Deployment</em> exige produção <strong>automática</strong>, sem clique; (C) descreve só a primeira etapa — CI para no artefato, não chega a staging/produção; (D) DevOps é a cultura, não uma das três práticas técnicas.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual afirmação sobre Continuous Integration está correta?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>CI integra mudanças com frequência em um branch principal, disparando build e testes automatizados a cada integração.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>CI implanta automaticamente cada commit em produção.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>CI é a prática de manter feature branches longevas e integrá-las só no fim do sprint.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>CI dispensa testes, pois apenas verifica se o código compila.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> CI = integrar cedo/frequente + build e testes automáticos. (B) descreve Continuous <strong>Deployment</strong>; (C) é o <em>oposto</em> de CI (gera merge hell); (D) CI sem testes não cumpre seu propósito — o que valida a integração são os testes.</div>
+      </div>
+
+      <!-- ============================ PIPELINE ============================ -->
+      <h2 id="pipeline"><span class="h2-kicker">Aula 1 · pipeline</span>O pipeline e seus estágios</h2>
+      <p>O <span class="lead-term">pipeline de CI/CD</span> é a sequência automatizada de estágios que uma mudança atravessa, do commit à produção. Cada estágio só roda se o anterior passou — é o princípio <strong>fail fast</strong>: falhe cedo, barato e visível.</p>
+
+      <div class="diagram reveal">
+        <div class="flow" style="gap:6px;flex-wrap:wrap">
+          <div class="node">Commit / Push</div>
+          <span class="arrow-h">→</span>
+          <div class="node">Build</div>
+          <span class="arrow-h">→</span>
+          <div class="node accent">Test<br><small style="color:var(--text-2)">unit · integração · quality gate</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node">Artefato</div>
+          <span class="arrow-h">→</span>
+          <div class="node">Deploy staging</div>
+          <span class="arrow-h">→</span>
+          <div class="node">Deploy prod</div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:#e91e63"></span> <b>Fail fast:</b> se qualquer estágio falha, o pipeline para e dá feedback imediato — nada avança quebrado. O artefato é gerado <b>uma vez</b> e promovido entre ambientes (build once, deploy many).</span></div>
+      </div>
+
+      <div class="card reveal">
+        <h4>Conceitos-chave do pipeline</h4>
+        <ul>
+          <li><strong>Artefato (build artifact):</strong> o pacote imutável gerado pelo build (jar, imagem Docker, bundle). Princípio <strong>build once, deploy many</strong> — o <em>mesmo</em> artefato é promovido entre ambientes; nunca se rebuilda por ambiente.</li>
+          <li><strong>Ambientes & promotion:</strong> dev → staging/QA → produção. "Promover" = mover o artefato já testado para o próximo ambiente, com config externa ao binário.</li>
+          <li><strong>Fail fast:</strong> os estágios mais rápidos e baratos (lint, unit) vêm primeiro; os caros (e2e, deploy) por último.</li>
+          <li><strong>Rollback:</strong> capacidade de voltar à versão anterior rapidamente se um deploy der problema (reverter o artefato/imagem ou trocar o roteamento).</li>
+          <li><strong>Idempotência & repetibilidade:</strong> rodar o pipeline duas vezes com o mesmo input produz o mesmo resultado.</li>
+        </ul>
+      </div>
+
+      <!-- ============================ BRANCHING ============================ -->
+      <h2 id="branching"><span class="h2-kicker">Aula 1 · integração</span>Trunk-based × feature branch</h2>
+      <p>A estratégia de branches afeta diretamente o "Continuous" do CI. Duas abordagens centrais:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Critério</th><th>Trunk-Based Development</th><th>Feature Branch (longeva)</th></tr></thead>
+          <tbody>
+            <tr><td>Onde integra</td><td>Direto em <code>main</code> (ou branches de vida curtíssima &lt; 1 dia).</td><td>Em branches que vivem dias/semanas até o merge.</td></tr>
+            <tr><td>Frequência de merge</td><td>Várias vezes ao dia.</td><td>Esparsa — só quando a feature "termina".</td></tr>
+            <tr><td>Risco de conflito</td><td>Baixo (lotes pequenos).</td><td>Alto (merge hell, integração tardia).</td></tr>
+            <tr><td>Aderência ao CI</td><td>Alta — é o ideal para CI verdadeiro.</td><td>Baixa — adia a integração, contraria o "Continuous".</td></tr>
+            <tr><td>Features incompletas</td><td>Protegidas por <strong>feature flags</strong>.</td><td>Escondidas no branch.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — CI exige integração frequente</span>
+        <p>"Continuous Integration" e "trabalhar em feature branches por semanas" são <strong>incompatíveis</strong>. Quanto mais tempo o código fica fora do tronco, maior o conflito de integração. Por isso o <strong>trunk-based</strong> (com feature flags para esconder o inacabado) é a estratégia mais alinhada ao CI.</p>
+      </div>
+
+      <!-- ============================ DEPLOY ============================ -->
+      <h2 id="deploy"><span class="h2-kicker">Aula 1 · release</span>Estratégias de deploy</h2>
+      <p>Como colocar uma nova versão em produção minimizando risco e downtime. As três mais cobradas:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Estratégia</th><th>Como funciona</th><th>Vantagem distintiva</th><th>Rollback</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Blue-Green</strong></td><td>Dois ambientes idênticos: <em>blue</em> (atual) e <em>green</em> (novo). Sobe a nova versão no green e <strong>troca todo o tráfego de uma vez</strong>.</td><td>Zero-downtime; rollback instantâneo (volta o tráfego pro blue).</td><td>Imediato — basta redirecionar para o ambiente antigo.</td></tr>
+            <tr><td><strong>Canary</strong></td><td>Libera a nova versão para uma <strong>pequena fração</strong> de usuários (ex.: 5%), monitora métricas e aumenta gradualmente.</td><td>Limita o "raio de impacto" de uma falha; valida com tráfego real.</td><td>Rápido — corta o tráfego dos poucos usuários afetados.</td></tr>
+            <tr><td><strong>Rolling</strong></td><td>Substitui as instâncias <strong>aos poucos, em lotes</strong> (ex.: 2 de 10 por vez) até trocar todas. Não há ambiente duplicado.</td><td>Não precisa do dobro de infraestrutura.</td><td>Mais lento — precisa reverter instância por instância; coexistem duas versões durante a transição.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 A diferença que a prova explora</span>
+        <p><strong>Blue-Green</strong> troca <em>100% do tráfego de uma vez</em> (precisa de dois ambientes completos). <strong>Canary</strong> expõe a nova versão a uma <em>porcentagem crescente</em> de usuários (foco em reduzir risco com tráfego real). <strong>Rolling</strong> substitui <em>instâncias em lotes</em> sem duplicar o ambiente. Não confunda "gradual por % de usuários" (canary) com "gradual por instâncias" (rolling).</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Você quer liberar uma nova versão para apenas 5% dos usuários, observar erros e latência por algumas horas e só então expandir para 100%. Qual estratégia de deploy é essa?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Blue-Green — sobe a nova versão em paralelo e troca o tráfego de uma vez.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Rolling — substitui as instâncias em lotes.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Canary — libera para uma fração de usuários e expande gradualmente conforme as métricas.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Big-bang — implanta tudo para todos simultaneamente.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Liberar para uma <strong>fração de usuários</strong> e crescer monitorando = <strong>Canary</strong>. (A) Blue-Green troca 100% de uma vez (não há fração de usuários); (B) Rolling é gradual por <em>instâncias</em>, não por porcentagem de usuários; (D) big-bang é o oposto — máximo risco, sem gradualidade.</div>
+      </div>
+
+      <!-- ============================ IAC ============================ -->
+      <h2 id="iac"><span class="h2-kicker">Aula 1 · infra</span>IaC como prática DevOps</h2>
+      <p><span class="lead-term">Infrastructure as Code (IaC)</span> é tratar a infraestrutura (servidores, redes, bancos, clusters) como <strong>código versionado</strong> em vez de cliques manuais. É o pilar "Automation" do CALMS aplicado a Ops. <em>(Terraform e Docker têm páginas próprias — Tópicos 03 e 04; aqui IaC entra como peça do pipeline DevOps.)</em></p>
+      <div class="card reveal">
+        <h4>Por que IaC importa no pipeline</h4>
+        <ul>
+          <li><strong>Versionada:</strong> a infra mora no Git, com histórico, review e rollback como qualquer código.</li>
+          <li><strong>Idempotência:</strong> aplicar a mesma definição N vezes leva ao <em>mesmo</em> estado — não cria recursos duplicados. Distingue a abordagem <strong>declarativa</strong> (descrevo o estado desejado; ex.: Terraform) da <strong>imperativa</strong> (descrevo os passos).</li>
+          <li><strong>Reprodutibilidade:</strong> elimina o "funciona na minha máquina"/snowflake servers — ambientes idênticos sob demanda.</li>
+          <li><strong>Provisionamento no pipeline:</strong> o CI/CD pode criar/atualizar a infra antes de implantar o app (containers como unidade de deploy).</li>
+        </ul>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Idempotência vs "rodar de novo"</span>
+        <p><strong>Idempotente</strong> não quer dizer "não faz nada na segunda vez" — quer dizer que o <strong>estado final é o mesmo</strong> independentemente de quantas vezes você aplica. Um script imperativo que faz <code>criar_servidor</code> sem checar duplica recursos; um IaC declarativo converge para o estado desejado.</p>
+      </div>
+
+      <!-- ============================ GITHUB ACTIONS ============================ -->
+      <h2 id="actions"><span class="h2-kicker">Aula 2 · GitHub</span>GitHub Actions — a hierarquia</h2>
+      <p>O GitHub Actions é a plataforma de CI/CD nativa do GitHub. Saber a <strong>hierarquia exata</strong> (e o que cada peça é) cai direto:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Conceito</th><th>É…</th><th>Contém / relação</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Workflow</strong></td><td>Processo automatizado definido num arquivo YAML em <code>.github/workflows/</code>.</td><td>Contém um ou mais <em>jobs</em>; é disparado por um <em>trigger</em>.</td></tr>
+            <tr><td><strong>Trigger (<code>on</code>)</strong></td><td>O evento que dispara o workflow (push, pull_request, schedule, workflow_dispatch…).</td><td>Pertence ao workflow.</td></tr>
+            <tr><td><strong>Job</strong></td><td>Conjunto de <em>steps</em> que roda numa mesma máquina (runner). Jobs rodam em <strong>paralelo</strong> por padrão (use <code>needs</code> para sequenciar).</td><td>Contém <em>steps</em>; executa num <em>runner</em>.</td></tr>
+            <tr><td><strong>Step</strong></td><td>Uma tarefa única dentro de um job: roda um comando (<code>run</code>) ou usa uma <em>action</em> (<code>uses</code>).</td><td>Steps de um mesmo job rodam <strong>em sequência</strong> e compartilham o filesystem.</td></tr>
+            <tr><td><strong>Action</strong></td><td>Unidade reutilizável empacotada (ex.: <code>actions/checkout</code>) chamada por um step via <code>uses</code>.</td><td>Invocada por um step.</td></tr>
+            <tr><td><strong>Runner</strong></td><td>A máquina (hosted pelo GitHub ou self-hosted) que executa um job.</td><td>Executa um job por vez.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <pre><div class="code-head"><span class="lang">yaml</span> .github/workflows/ci.yml</div><code><span class="c-key">name</span>: CI
+<span class="c-key">on</span>:                          <span class="c-com"># trigger</span>
+  <span class="c-key">push</span>:
+    <span class="c-key">branches</span>: [<span class="c-str">main</span>]
+  <span class="c-key">pull_request</span>:
+
+<span class="c-key">jobs</span>:
+  <span class="c-key">test</span>:                       <span class="c-com"># job</span>
+    <span class="c-key">runs-on</span>: <span class="c-str">ubuntu-latest</span>   <span class="c-com"># runner</span>
+    <span class="c-key">strategy</span>:
+      <span class="c-key">matrix</span>:                 <span class="c-com"># matrix build: roda em várias versões</span>
+        <span class="c-key">node</span>: [<span class="c-num">16</span>, <span class="c-num">18</span>, <span class="c-num">20</span>]
+    <span class="c-key">steps</span>:                    <span class="c-com"># steps rodam em sequência</span>
+      - <span class="c-key">uses</span>: <span class="c-str">actions/checkout@v4</span>          <span class="c-com"># action reutilizável</span>
+      - <span class="c-key">uses</span>: <span class="c-str">actions/setup-node@v4</span>
+        <span class="c-key">with</span>:
+          <span class="c-key">node-version</span>: ${{ matrix.node }}
+      - <span class="c-key">run</span>: <span class="c-str">npm ci</span>                       <span class="c-com"># step de comando</span>
+      - <span class="c-key">run</span>: <span class="c-str">npm test</span>
+        <span class="c-key">env</span>:
+          <span class="c-key">API_KEY</span>: ${{ secrets.API_KEY }}      <span class="c-com"># secret, nunca em texto puro</span>
+</code></pre>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">No GitHub Actions, qual sequência descreve corretamente a hierarquia de cima para baixo?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Step → Job → Workflow → Action (steps agrupam jobs).</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Job → Workflow → Step → Runner (jobs contêm workflows).</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Action → Step → Workflow → Job (actions contêm tudo).</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Workflow → Job → Step → (cada step pode usar uma Action), rodando num Runner.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A hierarquia é <strong>Workflow ⊃ Job ⊃ Step</strong>, e cada step pode invocar uma <strong>Action</strong>; o job roda num <strong>Runner</strong>. As demais invertem a relação de continência (um workflow contém jobs, não o contrário; um job contém steps, não o contrário).</div>
+      </div>
+
+      <!-- ============================ BRANCH PROTECTION ============================ -->
+      <h2 id="protecao"><span class="h2-kicker">Aula 2 · governança</span>Branch protection, PR reviews & required checks</h2>
+      <p>O GitHub transforma o pipeline em <strong>porta de qualidade do merge</strong> com regras de proteção de branch:</p>
+      <div class="card reveal">
+        <h4>Mecanismos de proteção</h4>
+        <ul>
+          <li><strong>Branch protection rules:</strong> proíbem push direto em <code>main</code>; tudo entra via Pull Request.</li>
+          <li><strong>Required reviews:</strong> exige aprovação de N revisores (e/ou de code owners) antes do merge.</li>
+          <li><strong>Required status checks:</strong> o merge só libera se os checks do CI (build, testes, lint, quality gate) ficarem <strong>verdes</strong> — o pipeline vira porta de entrada.</li>
+          <li><strong>Up-to-date branch:</strong> exige que a branch esteja atualizada com main antes de mergear.</li>
+          <li><strong>Linear history / no force-push:</strong> protege o histórico.</li>
+        </ul>
+      </div>
+      <div class="callout reveal">
+        <span class="tag">💡 O CI como guardião do merge</span>
+        <p>Com <strong>required status checks</strong>, código que quebra os testes <em>não consegue</em> ser mergeado em main. É assim que "testes como porta de merge" (próxima seção) se materializa no GitHub — a configuração de proteção liga o resultado do pipeline ao botão de merge.</p>
+      </div>
+
+      <!-- ============================ GITFLOW ============================ -->
+      <h2 id="gitflow"><span class="h2-kicker">Aula 2 · workflow de branches</span>GitFlow × Trunk-Based</h2>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Critério</th><th>GitFlow</th><th>Trunk-Based / GitHub Flow</th></tr></thead>
+          <tbody>
+            <tr><td>Branches de longa duração</td><td>Várias: <code>main</code>, <code>develop</code>, <code>release/*</code>, <code>hotfix/*</code>, <code>feature/*</code>.</td><td>Essencialmente uma: <code>main</code> (+ branches curtíssimas).</td></tr>
+            <tr><td>Complexidade</td><td>Alta (cerimônia de release, vários merges).</td><td>Baixa (PR curto → merge → deploy).</td></tr>
+            <tr><td>Cadência de release</td><td>Releases agendados/empacotados.</td><td>Releases contínuos, frequentes.</td></tr>
+            <tr><td>Aderência a CI/CD contínuo</td><td>Menor — integração tardia via <code>develop</code>/<code>release</code>.</td><td>Maior — pensado para entrega contínua.</td></tr>
+            <tr><td>Quando usa</td><td>Produtos com versionamento explícito, múltiplas versões em campo.</td><td>SaaS/web com deploy frequente.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ============================ COMMITS, SECRETS, REUSO ============================ -->
+      <h2 id="commits-secrets"><span class="h2-kicker">Aula 2 · práticas</span>Conventional Commits, secrets & reuso</h2>
+      <div class="card reveal">
+        <h4>Boas práticas no GitHub</h4>
+        <ul>
+          <li><strong>Conventional Commits:</strong> mensagens padronizadas (<code>feat:</code>, <code>fix:</code>, <code>chore:</code>, <code>docs:</code>…) que permitem changelog e versionamento semântico automáticos.</li>
+          <li><strong>Secrets:</strong> credenciais ficam em <em>GitHub Secrets</em> (criptografados), nunca em texto puro no YAML nem no repositório. Acessadas via <code>${{ secrets.NOME }}</code>; não são expostas em logs nem para PRs de forks.</li>
+          <li><strong>Matrix builds:</strong> rodam o mesmo job em combinações (várias versões de SO/runtime) em paralelo — amplia cobertura sem duplicar YAML.</li>
+          <li><strong>Reusable workflows:</strong> workflows chamados por outros (<code>workflow_call</code>), evitando copiar/colar pipeline entre repositórios (DRY de pipeline).</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Sua aplicação precisa de uma chave de API para rodar os testes no CI. Qual é a prática correta no GitHub Actions?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Colocar a chave em texto puro no arquivo <code>ci.yml</code> versionado.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Armazenar em GitHub Secrets e referenciá-la via <code>${{ secrets.API_KEY }}</code> no workflow.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Hardcodar a chave dentro do código-fonte da aplicação.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Imprimir a chave nos logs do job para facilitar o debug.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Segredos vão em <strong>GitHub Secrets</strong> (criptografados) e são injetados por referência. (A) e (C) expõem a credencial no repositório (vazamento); (D) imprimir em log é justamente o que o mascaramento de secrets tenta evitar — nunca logar segredos.</div>
+      </div>
+
+      <!-- ============================ PIRÂMIDE DE TESTES ============================ -->
+      <h2 id="piramide"><span class="h2-kicker">Aula 3 · testes no CI</span>A pirâmide de testes</h2>
+      <p>A <span class="lead-term">pirâmide de testes</span> (Mike Cohn) orienta a <strong>proporção</strong> de cada tipo de teste no pipeline: muitos rápidos e baratos na base, poucos lentos e caros no topo.</p>
+      <div class="diagram reveal">
+        <div class="layers">
+          <div class="layer l1"><span class="ll">topo</span> <strong>E2E / UI</strong> — poucos, lentos, caros, frágeis. Validam o sistema inteiro.</div>
+          <div class="layer l2"><span class="ll">meio</span> <strong>Integração</strong> — quantidade média. Testam módulos/serviços conversando (DB, API).</div>
+          <div class="layer l3"><span class="ll">base</span> <strong>Unitários</strong> — muitos, rápidos, baratos, estáveis. Testam unidades isoladas.</div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:#e91e63"></span> Base larga (unitários) → topo estreito (e2e). Inverter — muitos e2e e poucos unitários — é o antipadrão <b>"cone de sorvete"</b> (ice-cream cone): suíte lenta e instável.</span></div>
+      </div>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Nível</th><th>Escopo</th><th>Velocidade / custo</th><th>Quantidade</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Unitários</strong></td><td>Uma unidade isolada (função/classe), sem dependências externas.</td><td>Muito rápidos / baratos.</td><td>Muitos (base).</td></tr>
+            <tr><td><strong>Integração</strong></td><td>Várias unidades juntas + recursos reais (banco, fila, API).</td><td>Médios.</td><td>Quantidade média.</td></tr>
+            <tr><td><strong>E2E / UI</strong></td><td>O sistema inteiro pela ótica do usuário (browser, fluxo completo).</td><td>Lentos / caros / frágeis.</td><td>Poucos (topo).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — o cone de sorvete</span>
+        <p>O antipadrão é a <strong>pirâmide invertida</strong> ("ice-cream cone"): poucos testes unitários e muitos e2e. Resultado: feedback lento, builds instáveis (flaky) e CI que ninguém confia. A base larga de <strong>unitários</strong> é o que dá ao pipeline um veredito rápido e confiável.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Segundo a pirâmide de testes, qual configuração de suíte é a recomendada?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Muitos testes unitários (base), quantidade média de integração, poucos e2e (topo).</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Muitos e2e na base, poucos unitários no topo — para cobrir o sistema completo.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Apenas testes e2e, pois cobrem todos os níveis de uma vez.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Quantidades iguais de cada tipo, para equilíbrio.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A pirâmide pede <strong>base larga de unitários</strong> e topo estreito de e2e. (B) é o antipadrão "cone de sorvete" (invertido); (C) só e2e = suíte lenta, frágil e cara; (D) ignora a relação custo/velocidade entre os níveis.</div>
+      </div>
+
+      <!-- ============================ QUALITY GATE ============================ -->
+      <h2 id="quality-gate"><span class="h2-kicker">Aula 3 · porta de qualidade</span>Quality gate & testes como porta de merge</h2>
+      <p>Rodar testes no pipeline só tem valor se um resultado ruim <strong>bloqueia</strong> o avanço. O <span class="lead-term">quality gate</span> é o conjunto de critérios objetivos (testes passando, cobertura mínima, zero vulnerabilidades críticas, sem code smells acima do limite) que a mudança precisa cumprir para prosseguir/mergear.</p>
+      <div class="card reveal">
+        <h4>Como os testes viram porta de merge</h4>
+        <ul>
+          <li>O job de testes roda a cada PR/push (CI).</li>
+          <li>O resultado vira um <strong>required status check</strong> no branch protection.</li>
+          <li>Falhou → o botão de merge fica bloqueado; passou → libera.</li>
+          <li>O quality gate pode somar regras de cobertura e de análise estática (SonarQube), não só "passou/falhou".</li>
+        </ul>
+      </div>
+      <div class="callout reveal">
+        <span class="tag">💡 Conexão com Clean Architecture (Tópico 02)</span>
+        <p>Os testes do pipeline seguem a regra <strong>F.I.R.S.T.</strong> (Fast, Independent, Repeatable, Self-validating, Timely) — especialmente <em>Fast</em> e <em>Self-validating</em>, que tornam o CI rápido e automático. O <strong>TDD</strong> (Red→Green→Refactor) produz justamente a base de unitários da pirâmide. Veja a página <a href="clean-architecture.html#clean-tests">02 · Clean Architecture</a>.</p>
+      </div>
+
+      <!-- ============================ ANÁLISE ESTÁTICA ============================ -->
+      <h2 id="estatica"><span class="h2-kicker">Aula 4 · qualidade</span>Análise estática, linters & SonarQube</h2>
+      <p>Além dos testes (que executam o código), o pipeline avalia a <strong>qualidade do código-fonte sem rodá-lo</strong> — a <span class="lead-term">análise estática</span>:</p>
+      <div class="card reveal">
+        <h4>Ferramentas e conceitos</h4>
+        <ul>
+          <li><strong>Linter:</strong> verifica estilo, padrões e erros prováveis (ESLint, Flake8). Roda como step do CI.</li>
+          <li><strong>Análise estática (SonarQube):</strong> detecta <em>code smells</em>, bugs, duplicação, complexidade e calcula o <strong>débito técnico</strong>.</li>
+          <li><strong>Code coverage:</strong> % de linhas/ramos exercitados pelos testes. É um <em>indicador</em>, não garantia de qualidade — 100% de cobertura com asserções fracas não significa código correto.</li>
+          <li><strong>Code smells:</strong> sinais de design ruim (métodos longos, duplicação, classes grandes) — não são bugs, mas aumentam o custo de manutenção.</li>
+          <li><strong>Débito técnico:</strong> o "custo" acumulado de atalhos no código; o quality gate impede que ele cresça sem controle.</li>
+        </ul>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Cobertura alta ≠ código bom</span>
+        <p><strong>Code coverage</strong> mede <em>o que foi executado</em> pelos testes, não <em>se foi verificado corretamente</em>. Dá para ter 95% de cobertura sem nenhuma asserção significativa. Use cobertura como piso (quality gate), não como prova de qualidade.</p>
+      </div>
+
+      <!-- ============================ SEGURANÇA ============================ -->
+      <h2 id="seguranca"><span class="h2-kicker">Aula 4 · segurança</span>Security scanning & dependências</h2>
+      <p>Segurança "shift-left" entra no pipeline (DevSecOps). Distinção que cai: <strong>SAST × DAST</strong>.</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Técnica</th><th>O que analisa</th><th>Quando</th><th>Analogia</th></tr></thead>
+          <tbody>
+            <tr><td><strong>SAST</strong> (Static App Security Testing)</td><td>O <strong>código-fonte parado</strong> (caixa-branca) — procura vulnerabilidades no código.</td><td>Cedo, no build/CI (não precisa rodar a app).</td><td>Revisar a planta da casa.</td></tr>
+            <tr><td><strong>DAST</strong> (Dynamic App Security Testing)</td><td>A <strong>aplicação em execução</strong> (caixa-preta) — ataca a app rodando.</td><td>Mais tarde, contra um ambiente de teste em execução.</td><td>Testar as fechaduras da casa pronta.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card reveal">
+        <h4>Higiene de dependências</h4>
+        <ul>
+          <li><strong>Dependabot:</strong> monitora dependências e abre PRs automáticos para versões vulneráveis/desatualizadas.</li>
+          <li><strong>SCA (Software Composition Analysis):</strong> varre dependências de terceiros em busca de CVEs conhecidas.</li>
+          <li><strong>Secret scanning:</strong> detecta credenciais acidentalmente commitadas.</li>
+          <li>Tudo pode virar <strong>quality gate</strong>: vulnerabilidade crítica → pipeline barra o merge.</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual é a diferença entre SAST e DAST?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>SAST testa a aplicação em execução; DAST analisa o código-fonte parado.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Ambos exigem a aplicação rodando; a diferença é só a ferramenta.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>SAST analisa o código-fonte estaticamente (caixa-branca, sem executar); DAST testa a aplicação em execução (caixa-preta).</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>SAST é análise de cobertura de testes; DAST é análise de dependências.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> <strong>SAST = estático/código parado (caixa-branca)</strong>; <strong>DAST = dinâmico/app rodando (caixa-preta)</strong>. (A) inverte os dois; (B) erra porque SAST justamente <em>não</em> roda a aplicação; (D) confunde com coverage e SCA — nenhum dos dois é SAST/DAST.</div>
+      </div>
+
+      <!-- ============================ FLASHCARDS ============================ -->
+      <h2 id="flashcards"><span class="h2-kicker">Auto-teste</span>Flashcards — clique para virar</h2>
+      <p>Pense na resposta <strong>antes</strong> de clicar.</p>
+      <div class="flashgrid reveal">
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Delivery × Deployment: qual a única diferença?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">O deploy em <strong>produção</strong>: Delivery é <strong>manual</strong> (clique/aprovação); Deployment é <strong>automático</strong>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é Continuous Integration?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Integrar código com <strong>frequência</strong> em main, disparando <strong>build + testes automatizados</strong> a cada integração.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que significa CALMS?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>C</strong>ulture · <strong>A</strong>utomation · <strong>L</strong>ean · <strong>M</strong>easurement · <strong>S</strong>haring — os pilares da cultura DevOps.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Os Três Caminhos do DevOps?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">1º <strong>Flow</strong> (Dev→Ops) · 2º <strong>Feedback</strong> (Ops→Dev) · 3º <strong>Aprendizado contínuo</strong> e experimentação.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Blue-Green × Canary?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Blue-Green</strong>: dois ambientes, troca 100% do tráfego de uma vez. <strong>Canary</strong>: libera para uma % crescente de usuários.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é deploy Rolling?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Substitui as <strong>instâncias em lotes</strong> até trocar todas, sem ambiente duplicado. Duas versões coexistem durante a transição.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Hierarquia do GitHub Actions?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Workflow ⊃ Job ⊃ Step</strong>; cada step pode usar uma <strong>Action</strong>; o job roda num <strong>Runner</strong>; disparado por um <strong>trigger (on)</strong>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Jobs e steps: paralelos ou sequenciais?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Jobs</strong>: paralelos por padrão (use <code>needs</code> para sequenciar). <strong>Steps</strong> dentro de um job: sempre em <strong>sequência</strong>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Como fica a pirâmide de testes?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Base larga de <strong>unitários</strong>, meio de <strong>integração</strong>, topo estreito de <strong>e2e</strong>. Inverter = antipadrão "cone de sorvete".</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">SAST × DAST?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>SAST</strong>: código-fonte parado (caixa-branca, sem rodar). <strong>DAST</strong>: aplicação em execução (caixa-preta).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é "build once, deploy many"?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Gerar o <strong>artefato uma única vez</strong> e <strong>promovê-lo</strong> entre ambientes (config externa), nunca rebuildar por ambiente.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Idempotência em IaC?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Aplicar a mesma definição N vezes leva ao <strong>mesmo estado final</strong> — sem duplicar recursos. Típico da abordagem <strong>declarativa</strong>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Code coverage prova qualidade?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Não.</strong> Mede o que os testes <em>executaram</em>, não se <em>verificaram</em> corretamente. É um piso de quality gate, não garantia.</div></div>
+        </div></div>
+      </div>
+
+      <!-- ============================ GLOSSÁRIO ============================ -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>DevOps</dt><dd>Cultura + práticas que unem Dev e Ops para entregar valor de forma contínua, rápida e confiável.</dd></div>
+        <div class="gloss-item"><dt>CI (Continuous Integration)</dt><dd>Integrar código frequentemente com build e testes automatizados a cada integração.</dd></div>
+        <div class="gloss-item"><dt>Continuous Delivery</dt><dd>Artefato sempre pronto para produção; o deploy de produção é uma decisão <strong>manual</strong>.</dd></div>
+        <div class="gloss-item"><dt>Continuous Deployment</dt><dd>Toda mudança aprovada nos testes vai a produção <strong>automaticamente</strong>, sem clique.</dd></div>
+        <div class="gloss-item"><dt>Pipeline</dt><dd>Sequência automatizada de estágios (build → test → deploy) do commit à produção.</dd></div>
+        <div class="gloss-item"><dt>Fail fast</dt><dd>Estágios rápidos/baratos primeiro; falha barra o avanço e dá feedback imediato.</dd></div>
+        <div class="gloss-item"><dt>Artefato</dt><dd>Pacote imutável do build (jar, imagem, bundle); "build once, deploy many".</dd></div>
+        <div class="gloss-item"><dt>Blue-Green</dt><dd>Dois ambientes idênticos; troca 100% do tráfego de uma vez. Rollback instantâneo.</dd></div>
+        <div class="gloss-item"><dt>Canary</dt><dd>Libera a nova versão a uma fração crescente de usuários, monitorando métricas.</dd></div>
+        <div class="gloss-item"><dt>Rolling deploy</dt><dd>Substitui instâncias em lotes; sem ambiente duplicado.</dd></div>
+        <div class="gloss-item"><dt>IaC</dt><dd>Infraestrutura como código versionado; idempotente e reprodutível.</dd></div>
+        <div class="gloss-item"><dt>Idempotência</dt><dd>Aplicar N vezes leva ao mesmo estado final, sem efeitos duplicados.</dd></div>
+        <div class="gloss-item"><dt>Workflow / Job / Step (Actions)</dt><dd>Workflow contém jobs; job contém steps; step usa comandos ou actions.</dd></div>
+        <div class="gloss-item"><dt>Quality gate</dt><dd>Critérios objetivos (testes, cobertura, vulnerabilidades) que barram o merge se não cumpridos.</dd></div>
+        <div class="gloss-item"><dt>SAST × DAST</dt><dd>SAST analisa código parado (caixa-branca); DAST testa a app em execução (caixa-preta).</dd></div>
+      </dl>
+
+      <!-- ============================ PEGADINHAS ============================ -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas & checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li><strong>Delivery × Deployment</strong>: a única diferença é o deploy em produção — Delivery = <em>manual</em>; Deployment = <em>automático</em>.</li>
+          <li>"Todo <strong>Deployment</strong> é um <strong>Delivery</strong>, mas nem todo Delivery é um Deployment."</li>
+          <li><strong>CI</strong> para no artefato validado; não chega a staging nem a produção sozinho.</li>
+          <li><strong>DevOps</strong> é cultura, não ferramenta nem cargo; <strong>CALMS</strong> = Culture, Automation, Lean, Measurement, Sharing.</li>
+          <li>Os <strong>Três Caminhos</strong>: 1º Flow, 2º Feedback, 3º Aprendizado contínuo (não confundir com CALMS).</li>
+          <li><strong>Blue-Green</strong> = troca 100% de uma vez (2 ambientes); <strong>Canary</strong> = % crescente de usuários; <strong>Rolling</strong> = instâncias em lotes.</li>
+          <li><strong>GitHub Actions</strong>: Workflow ⊃ Job ⊃ Step; step usa Action; job roda em Runner; disparado por trigger (<code>on</code>).</li>
+          <li><strong>Jobs</strong> são paralelos por padrão; <strong>steps</strong> de um job são sequenciais.</li>
+          <li><strong>Pirâmide de testes</strong>: base de unitários, topo de e2e. Inverter = "cone de sorvete" (antipadrão).</li>
+          <li><strong>Quality gate</strong> + required status checks = testes viram porta de merge.</li>
+          <li><strong>SAST</strong> = estático/caixa-branca (código parado); <strong>DAST</strong> = dinâmico/caixa-preta (app rodando).</li>
+          <li><strong>Code coverage</strong> não prova qualidade — só mede o que foi executado.</li>
+          <li><strong>Trunk-based</strong> é o que mais combina com CI; feature branches longevas geram merge hell.</li>
+          <li><strong>Secrets</strong> em GitHub Secrets, nunca em texto puro no YAML ou no código.</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="docker.html"><div class="dir">← Tópico anterior</div><div class="ttl">04 · Docker</div></a>
+          <a href="index.html#topicos" class="next"><div class="dir">Próximo tópico →</div><div class="ttl">Escolher no Hub</div></a>
+        </div>
+        <div>Tópico 05 · DevOps / CI-CD · material de revisão para a prova final. Base: documentação do GitHub Actions; Jez Humble &amp; David Farley, "Continuous Delivery"; Kim, Humble, Debois &amp; Willis, "The DevOps Handbook".</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

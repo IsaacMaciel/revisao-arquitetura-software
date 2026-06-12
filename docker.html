@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Docker &amp; Containerização — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão densa de Docker e containerização para prova de múltipla escolha: container vs VM, imagem vs container, Dockerfile, CMD vs ENTRYPOINT, volumes vs bind mounts, orquestração (Compose, Swarm, Kubernetes), multi-stage build, segurança e AWS ECS." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 04 · Docker</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">Fundamentos</div>
+      <a href="#oque">O que é Docker</a>
+      <a href="#container-vm">Container × VM</a>
+      <a href="#imagem-container">Imagem × Container</a>
+      <a href="#engine">Engine, daemon e CLI</a>
+
+      <div class="group-label">Gerência de contêineres</div>
+      <a href="#ciclo">Ciclo de vida & comandos</a>
+      <a href="#imagens">Imagens & layers</a>
+      <a href="#dockerfile">Dockerfile</a>
+      <a href="#cmd-entrypoint">CMD × ENTRYPOINT</a>
+      <a href="#volumes">Volumes & bind mounts</a>
+      <a href="#redes">Redes, portas & registries</a>
+
+      <div class="group-label">Orquestração</div>
+      <a href="#orquestracao">Por que orquestrar</a>
+      <a href="#compose-k8s">Compose × Swarm × K8s</a>
+      <a href="#k8s-conceitos">Conceitos de Kubernetes</a>
+
+      <div class="group-label">Prática</div>
+      <a href="#boas-praticas">Melhores práticas</a>
+      <a href="#multistage">Multi-stage build</a>
+      <a href="#debug">Solução de problemas</a>
+
+      <div class="group-label">Segurança & nuvem</div>
+      <a href="#seguranca">Segurança de contêineres</a>
+      <a href="#ecs">AWS ECS</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 04 · Docker</span>
+        <h1>Docker &amp; Containerização</h1>
+        <p class="lede">Container é um processo <em>isolado</em> do host que compartilha o <strong>kernel</strong> do sistema operacional — não uma máquina virtual. Docker empacota a aplicação e suas dependências numa <strong>imagem</strong> imutável que roda igual em qualquer lugar (<em>"build once, run anywhere"</em>), resolvendo o clássico <em>"funciona na minha máquina"</em>. Da imagem ao cluster gerenciado: <strong>Dockerfile → imagem → container → orquestração → ECS</strong>.</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como Docker cai na prova</span>
+        <p>Espere: (1) <strong>container × VM</strong> — kernel compartilhado vs hypervisor/SO convidado (quase certo); (2) <strong>imagem × container</strong> — molde imutável vs instância em execução; (3) <strong>CMD × ENTRYPOINT</strong> e o papel das instruções do Dockerfile; (4) <strong>volume × bind mount</strong>; (5) <strong>Compose × Swarm × Kubernetes</strong> e os objetos do K8s (pod, deployment, service); (6) <strong>multi-stage build</strong> e boas práticas (não rodar como root, evitar <code>latest</code>, ordem das camadas); (7) <strong>ECS</strong>: task definition × task × service e <strong>Fargate × EC2</strong>.</p>
+      </div>
+
+      <!-- ============================ O QUE É ============================ -->
+      <h2 id="oque"><span class="h2-kicker">Fundamentos</span>O que é Docker</h2>
+      <p>Docker é uma plataforma de <span class="lead-term">containerização</span>: empacota código, runtime, bibliotecas e configurações numa única unidade portável — a <strong>imagem</strong> — que executa como um <strong>container</strong>, um processo isolado do restante do sistema. O isolamento é uma feature do <strong>kernel Linux</strong>, não uma virtualização de hardware.</p>
+      <div class="card reveal">
+        <h4>Os dois pilares do isolamento (kernel Linux)</h4>
+        <ul>
+          <li><strong>Namespaces</strong> — <em>o que o processo enxerga</em>. Isolam visão de PIDs, rede, montagens, usuários, hostname. Cada container "acha" que tem seu próprio SO.</li>
+          <li><strong>cgroups</strong> (control groups) — <em>o que o processo pode usar</em>. Limitam e medem CPU, memória, I/O por container.</li>
+          <li><strong>Union filesystem</strong> (overlay) — empilha camadas read-only da imagem + uma camada gravável do container.</li>
+        </ul>
+      </div>
+      <div class="tldr">
+        <div class="t-head">TL;DR</div>
+        <ul>
+          <li>Container = <strong>processo isolado</strong> que compartilha o kernel do host.</li>
+          <li>Isolamento vem de <strong>namespaces</strong> (visão) + <strong>cgroups</strong> (limites de recurso).</li>
+          <li><strong>Imagem</strong> é o molde imutável; <strong>container</strong> é a instância em execução.</li>
+        </ul>
+      </div>
+
+      <!-- ============================ CONTAINER VM ============================ -->
+      <h2 id="container-vm"><span class="h2-kicker">Distinção central</span>Container × Máquina Virtual</h2>
+      <p>É a distinção <strong>mais cobrada</strong>. A diferença fundamental: a <strong>VM virtualiza o hardware</strong> e carrega um <strong>SO convidado completo</strong> sobre um <em>hypervisor</em>; o <strong>container virtualiza o SO</strong> e <strong>compartilha o kernel</strong> do host, sem SO convidado.</p>
+
+      <div class="diagram reveal">
+        <div class="layers">
+          <div class="layer l1"><span class="ll">Container</span> App A · App B · App C — cada um isolado por namespaces/cgroups</div>
+          <div class="layer l2"><span class="ll">Docker Engine</span> daemon que cria os contêineres compartilhando o kernel</div>
+          <div class="layer l3"><span class="ll">SO host (kernel único)</span> compartilhado por TODOS os contêineres — sem SO convidado</div>
+          <div class="layer l4"><span class="ll">Infraestrutura / hardware</span> servidor ou VM</div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span> No modelo de containers não há hypervisor nem SO convidado: o kernel é único e compartilhado.</span></div>
+      </div>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Critério</th><th>Container</th><th>Máquina Virtual</th></tr></thead>
+          <tbody>
+            <tr><td><strong>O que virtualiza</strong></td><td>O <strong>sistema operacional</strong> (nível de processo).</td><td>O <strong>hardware</strong> (via hypervisor).</td></tr>
+            <tr><td><strong>Kernel</strong></td><td><strong>Compartilha</strong> o kernel do host.</td><td>Tem o <strong>próprio kernel</strong> (SO convidado completo).</td></tr>
+            <tr><td><strong>Tamanho</strong></td><td>MB — só app + dependências.</td><td>GB — SO inteiro embutido.</td></tr>
+            <tr><td><strong>Boot / startup</strong></td><td>Segundos ou menos.</td><td>Minutos.</td></tr>
+            <tr><td><strong>Isolamento</strong></td><td>No nível do SO (namespaces/cgroups) — mais fraco.</td><td>No nível do hardware — mais forte.</td></tr>
+            <tr><td><strong>Densidade</strong></td><td>Muitos por host.</td><td>Poucas por host.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p>"Cada container tem seu próprio sistema operacional" é <strong>falso</strong>. O container <strong>compartilha o kernel</strong> do host; o que ele tem de próprio é o <em>userland</em> (bibliotecas, binários) da imagem. Quem carrega um SO convidado completo com kernel próprio é a <strong>VM</strong>. Por isso containers Linux precisam de um kernel Linux (no Windows/macOS, o Docker roda uma VM Linux leve por baixo).</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual é a diferença <em>fundamental</em> entre um container e uma máquina virtual?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Containers usam mais memória e bootam mais devagar que VMs.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Cada container roda seu próprio sistema operacional convidado sobre um hypervisor.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Containers compartilham o kernel do SO host (virtualizam o SO); VMs virtualizam o hardware e carregam um SO convidado completo.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Não há diferença técnica; "container" é apenas o nome moderno para VM.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Container = virtualização <strong>no nível do SO</strong>, kernel compartilhado, leve e rápido. (A) inverte os fatos (containers são mais leves/rápidos). (B) descreve a <strong>VM</strong> (hypervisor + SO convidado). (D) confunde dois conceitos distintos.</div>
+      </div>
+
+      <!-- ============================ IMAGEM CONTAINER ============================ -->
+      <h2 id="imagem-container"><span class="h2-kicker">Distinção central</span>Imagem × Container</h2>
+      <p>Outra troca clássica de prova. A <span class="lead-term">imagem</span> é um artefato <strong>imutável e estático</strong> (um molde, empacotado em camadas); o <span class="lead-term">container</span> é uma <strong>instância em execução</strong> daquela imagem, com uma camada gravável própria por cima.</p>
+      <div class="callout reveal">
+        <span class="tag">💡 Analogia que ajuda na prova</span>
+        <p>Imagem está para container assim como <strong>classe</strong> está para <strong>objeto</strong> (ou <strong>receita</strong> para <strong>prato</strong>): de <em>uma</em> imagem você cria <em>vários</em> containers independentes. <code>docker run</code> = instanciar a imagem.</p>
+      </div>
+
+      <!-- ============================ ENGINE ============================ -->
+      <h2 id="engine"><span class="h2-kicker">Arquitetura</span>Engine: daemon, CLI e API</h2>
+      <p>O <strong>Docker Engine</strong> é cliente-servidor. A arquitetura é mais cobrada na forma de "quem faz o quê":</p>
+      <ul>
+        <li><strong>Docker daemon (<code>dockerd</code>)</strong> — processo servidor de longa duração que constrói imagens, executa e gerencia containers, redes e volumes.</li>
+        <li><strong>Docker CLI (<code>docker</code>)</strong> — cliente de linha de comando que envia ordens ao daemon pela <strong>REST API</strong>.</li>
+        <li><strong>Registry</strong> — repositório de imagens (Docker Hub, Amazon ECR). <code>push</code> envia, <code>pull</code> baixa.</li>
+      </ul>
+
+      <!-- ============================ CICLO ============================ -->
+      <h2 id="ciclo"><span class="h2-kicker">Gerência</span>Ciclo de vida & comandos</h2>
+      <p>O container transita por estados: <strong>created → running → paused/stopped → removed</strong>. Os comandos essenciais:</p>
+      <div class="diagram reveal">
+        <div class="flow" style="gap:6px;flex-wrap:wrap">
+          <div class="node">imagem</div>
+          <span class="arrow-h">→ run →</span>
+          <div class="node accent">running</div>
+          <span class="arrow-h">→ stop →</span>
+          <div class="node">stopped</div>
+          <span class="arrow-h">→ start →</span>
+          <div class="node accent">running</div>
+          <span class="arrow-h">→ rm →</span>
+          <div class="node">removed</div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span> <code>run</code> cria + inicia; <code>start</code> reinicia um container já criado; <code>rm</code> só remove containers parados.</span></div>
+      </div>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Comando</th><th>Faz</th></tr></thead>
+          <tbody>
+            <tr><td><code>docker run</code></td><td><strong>Cria e inicia</strong> um container a partir de uma imagem (= create + start).</td></tr>
+            <tr><td><code>docker ps</code> / <code>ps -a</code></td><td>Lista containers em execução / todos (inclui parados).</td></tr>
+            <tr><td><code>docker stop</code> / <code>start</code></td><td>Para (SIGTERM→SIGKILL) / reinicia um container existente.</td></tr>
+            <tr><td><code>docker exec -it</code></td><td>Roda um comando <strong>dentro</strong> de um container em execução (ex.: abrir um shell para debug).</td></tr>
+            <tr><td><code>docker logs</code></td><td>Mostra a saída <code>stdout</code>/<code>stderr</code> do processo principal.</td></tr>
+            <tr><td><code>docker rm</code> / <code>rmi</code></td><td>Remove um container parado / uma imagem.</td></tr>
+            <tr><td><code>docker build -t</code></td><td>Constrói uma imagem a partir de um Dockerfile, com uma tag.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ============================ IMAGENS LAYERS ============================ -->
+      <h2 id="imagens"><span class="h2-kicker">Gerência</span>Imagens, camadas & cache</h2>
+      <p>Uma imagem é uma pilha de <span class="lead-term">camadas (layers)</span> read-only, uma por instrução do Dockerfile que altera o filesystem. As camadas são empilhadas por um <strong>union filesystem</strong>; o container adiciona no topo uma fina <strong>camada gravável</strong> (copy-on-write). Camadas são <strong>compartilhadas e cacheadas</strong> entre imagens — economizam disco e aceleram o build.</p>
+      <div class="diagram reveal">
+        <div class="layers">
+          <div class="layer l1"><span class="ll">Camada gravável (container)</span> mudanças em runtime — efêmeras, somem com o <code>rm</code></div>
+          <div class="layer l2"><span class="ll">Layer · CMD/COPY app</span> read-only — código da aplicação</div>
+          <div class="layer l3"><span class="ll">Layer · RUN deps</span> read-only — dependências instaladas</div>
+          <div class="layer l4"><span class="ll">Layer · FROM base</span> read-only — imagem base (ex.: node:18-alpine)</div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span> Imagem = camadas read-only (compartilháveis/cacheáveis). Só a camada gravável do topo é por-container e some no <code>rm</code>.</span></div>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — cache invalida em cascata</span>
+        <p>Quando uma camada muda, <strong>todas as camadas seguintes são reconstruídas</strong> (o cache invalida em cascata). Por isso copie o <code>package.json</code> e instale dependências <em>antes</em> de copiar o código-fonte: o código muda toda hora, as dependências não. Inverter a ordem joga fora o cache do <code>npm install</code> a cada build.</p>
+      </div>
+
+      <!-- ============================ DOCKERFILE ============================ -->
+      <h2 id="dockerfile"><span class="h2-kicker">Gerência</span>Dockerfile — instruções</h2>
+      <p>O <span class="lead-term">Dockerfile</span> é a receita declarativa da imagem. Saiba o papel de cada instrução:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Instrução</th><th>O que faz</th><th>Cria camada?</th></tr></thead>
+          <tbody>
+            <tr><td><code>FROM</code></td><td>Define a <strong>imagem base</strong> (primeira instrução). Inicia um <em>stage</em>.</td><td>Sim (a base)</td></tr>
+            <tr><td><code>RUN</code></td><td>Executa comando <strong>no build</strong> (ex.: instalar pacotes).</td><td>Sim</td></tr>
+            <tr><td><code>COPY</code> / <code>ADD</code></td><td>Copia arquivos do host para a imagem. <code>ADD</code> ainda extrai tar/baixa URL (prefira <code>COPY</code>).</td><td>Sim</td></tr>
+            <tr><td><code>WORKDIR</code></td><td>Define o diretório de trabalho dos comandos seguintes.</td><td>Metadado</td></tr>
+            <tr><td><code>ENV</code></td><td>Variável de ambiente disponível em build <strong>e</strong> runtime.</td><td>Metadado</td></tr>
+            <tr><td><code>ARG</code></td><td>Variável só de <strong>build-time</strong> (não persiste no runtime).</td><td>Metadado</td></tr>
+            <tr><td><code>EXPOSE</code></td><td><strong>Documenta</strong> a porta que o app usa — NÃO publica a porta sozinho.</td><td>Metadado</td></tr>
+            <tr><td><code>USER</code></td><td>Define o usuário que roda os comandos/o processo (segurança).</td><td>Metadado</td></tr>
+            <tr><td><code>CMD</code> / <code>ENTRYPOINT</code></td><td>Definem o que executa <strong>quando o container inicia</strong> (runtime).</td><td>Metadado</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — EXPOSE não publica porta</span>
+        <p><code>EXPOSE 8080</code> é <strong>documentação/metadado</strong>: não abre nem mapeia porta nenhuma. Para realmente publicar é preciso <code>docker run -p 8080:8080</code> (host:container). Trocar EXPOSE por "publica a porta para o host" é alternativa errada típica.</p>
+      </div>
+
+      <!-- ============================ CMD ENTRYPOINT ============================ -->
+      <h2 id="cmd-entrypoint"><span class="h2-kicker">Distinção central</span>CMD × ENTRYPOINT</h2>
+      <p>Confusão garantida em prova. Ambas dizem o que roda no start, mas com papéis distintos:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Critério</th><th>CMD</th><th>ENTRYPOINT</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Papel</strong></td><td>Comando/argumentos <strong>padrão</strong> (default).</td><td>O <strong>executável fixo</strong> do container.</td></tr>
+            <tr><td><strong>Argumentos no <code>run</code></strong></td><td><strong>Substituem</strong> totalmente o CMD.</td><td>São <strong>anexados</strong> como argumentos ao ENTRYPOINT.</td></tr>
+            <tr><td><strong>Quantidade efetiva</strong></td><td>Só o último CMD vale.</td><td>Só o último ENTRYPOINT vale.</td></tr>
+            <tr><td><strong>Uso típico</strong></td><td>Container flexível, comando default sobrescrevível.</td><td>Container "vira um binário" (sempre executa <em>aquilo</em>).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout reveal">
+        <span class="tag">💡 Combinando os dois</span>
+        <p>O padrão idiomático é <code>ENTRYPOINT</code> = o executável fixo e <code>CMD</code> = os <strong>argumentos default</strong>. Ex.: <code>ENTRYPOINT ["python","app.py"]</code> + <code>CMD ["--port","8080"]</code>. Rodar <code>docker run img --port 9000</code> troca só os argumentos (CMD), mantendo o executável.</p>
+      </div>
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Um Dockerfile tem <code>ENTRYPOINT ["python","app.py"]</code> e <code>CMD ["--debug"]</code>. O que acontece ao rodar <code>docker run minha-img --port 9000</code>?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>O comando vira <code>--port 9000</code> e o ENTRYPOINT é ignorado.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Executa <code>python app.py --port 9000</code>: o argumento do <code>run</code> substitui o CMD e é anexado ao ENTRYPOINT.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Executa <code>python app.py --debug --port 9000</code>, somando CMD e o argumento.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Dá erro: não se pode passar argumentos quando há ENTRYPOINT.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Argumentos do <code>run</code> <strong>substituem o CMD</strong> e são <strong>anexados ao ENTRYPOINT</strong>. (A) ignora o ENTRYPOINT, que é fixo. (C) erra ao somar (o <code>--debug</code> foi substituído). (D) é falso — passar argumentos é o uso normal do ENTRYPOINT.</div>
+      </div>
+
+      <!-- ============================ VOLUMES ============================ -->
+      <h2 id="volumes"><span class="h2-kicker">Gerência</span>Volumes × Bind Mounts</h2>
+      <p>A camada gravável do container é <strong>efêmera</strong> — some com o <code>rm</code>. Para <strong>persistir</strong> ou compartilhar dados há dois mecanismos, comparados em prova:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Critério</th><th>Volume</th><th>Bind Mount</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Onde fica</strong></td><td>Em área <strong>gerenciada pelo Docker</strong> (<code>/var/lib/docker/volumes</code>).</td><td>Em um <strong>caminho qualquer do host</strong> escolhido por você.</td></tr>
+            <tr><td><strong>Gerência</strong></td><td>Pelo Docker (<code>docker volume create/ls/rm</code>).</td><td>Pelo sistema de arquivos do host.</td></tr>
+            <tr><td><strong>Portabilidade</strong></td><td>Alta — desacoplado da estrutura do host.</td><td>Baixa — depende do layout do host.</td></tr>
+            <tr><td><strong>Uso recomendado</strong></td><td><strong>Produção</strong>: dados de banco, persistência durável.</td><td><strong>Desenvolvimento</strong>: montar o código-fonte para hot-reload.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p>Dados gravados <em>dentro</em> do container (sem volume/mount) <strong>não persistem</strong>: vão para a camada gravável efêmera e somem ao remover o container. Para dados duráveis em produção, a recomendação é <strong>volume</strong> (gerenciado pelo Docker), não bind mount.</p>
+      </div>
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Você precisa que os dados de um PostgreSQL em container sobrevivam à recriação do container, em produção. Qual a abordagem recomendada?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Usar um <strong>volume</strong> gerenciado pelo Docker, montado no diretório de dados do banco.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Gravar tudo no filesystem do container; o Docker persiste automaticamente.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Usar um bind mount apontando para um caminho do host — é a opção mais portável para produção.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Aumentar o tamanho da imagem para caber os dados.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> <strong>Volume</strong> é o mecanismo de persistência recomendado e portável para produção. (B) é falso — a camada do container é efêmera. (C) inverte: bind mount é <em>menos</em> portável (acoplado ao host), indicado para desenvolvimento. (D) confunde imagem (read-only) com dados de runtime.</div>
+      </div>
+
+      <!-- ============================ REDES ============================ -->
+      <h2 id="redes"><span class="h2-kicker">Gerência</span>Redes, portas & registries</h2>
+      <ul>
+        <li><strong>Redes:</strong> drivers <code>bridge</code> (padrão, containers no mesmo host se enxergam por nome), <code>host</code> (usa a pilha de rede do host) e <code>none</code> (sem rede). Em uma rede definida pelo usuário, containers resolvem uns aos outros por <strong>nome de serviço</strong> (DNS interno).</li>
+        <li><strong>Portas:</strong> <code>-p host:container</code> publica a porta. <code>EXPOSE</code> apenas documenta.</li>
+        <li><strong>Registries:</strong> imagens vivem em um <strong>registry</strong> (Docker Hub público, ou privado como Amazon ECR). <code>docker push</code>/<code>pull</code> sincronizam. Tags identificam versões (<code>app:1.2.0</code>).</li>
+      </ul>
+
+      <!-- ============================ ORQUESTRAÇÃO ============================ -->
+      <h2 id="orquestracao"><span class="h2-kicker">Orquestração</span>Por que orquestrar</h2>
+      <p>Rodar <em>um</em> container é fácil; rodar <strong>centenas em vários hosts</strong> exige um orquestrador. Ele cuida de: <strong>scheduling</strong> (onde rodar), <strong>scaling</strong> (subir/descer réplicas), <strong>self-healing</strong> (recriar containers mortos), <strong>service discovery</strong> e <strong>load balancing</strong>, <strong>rolling updates/rollback</strong> e gestão de configuração/secrets.</p>
+
+      <!-- ============================ COMPOSE K8S ============================ -->
+      <h2 id="compose-k8s"><span class="h2-kicker">Distinção central</span>Compose × Swarm × Kubernetes</h2>
+      <p>Os três são confundidos. O eixo de distinção é <strong>escopo</strong>: Compose orquestra em <em>um host</em> (dev); Swarm e Kubernetes orquestram um <em>cluster</em> (multi-host, produção).</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Ferramenta</th><th>Escopo</th><th>Para que serve</th><th>Quando usar</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Docker Compose</strong></td><td>Um único host.</td><td>Definir e subir <strong>múltiplos containers</strong> juntos via um <code>docker-compose.yml</code>.</td><td>Desenvolvimento local e ambientes simples.</td></tr>
+            <tr><td><strong>Docker Swarm</strong></td><td>Cluster (multi-host).</td><td>Orquestrador <strong>nativo do Docker</strong>, simples de configurar.</td><td>Clusters pequenos/médios, quando a simplicidade vale mais que recursos.</td></tr>
+            <tr><td><strong>Kubernetes (K8s)</strong></td><td>Cluster (multi-host).</td><td>Orquestrador <strong>padrão de mercado</strong>: rico, extensível, complexo.</td><td>Produção em escala, com auto-scaling, self-healing avançado, ecossistema.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — Compose não é orquestrador de cluster</span>
+        <p><strong>Docker Compose ≠ Kubernetes</strong>. Compose é uma ferramenta para definir e rodar <em>multi-container em um host</em> (foco em dev), <strong>sem</strong> clustering, self-healing ou scaling multi-nó. Quem orquestra cluster é o <strong>Swarm</strong> ou o <strong>Kubernetes</strong>. Atribuir auto-scaling de cluster ao Compose é erro clássico.</p>
+      </div>
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual afirmação distingue corretamente Docker Compose de Kubernetes?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Ambos são orquestradores de cluster equivalentes; a escolha é só de sintaxe.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Compose faz auto-scaling e self-healing em vários nós; Kubernetes só roda em um host.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Kubernetes serve apenas para desenvolvimento local; Compose é para produção em escala.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Compose define/sobe múltiplos containers em um único host (foco em dev); Kubernetes orquestra containers em um cluster multi-host com scaling e self-healing.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O eixo é <strong>escopo</strong>: Compose = um host; K8s = cluster. (A) os iguala indevidamente. (B) e (C) invertem completamente os papéis das duas ferramentas.</div>
+      </div>
+
+      <!-- ============================ K8S CONCEITOS ============================ -->
+      <h2 id="k8s-conceitos"><span class="h2-kicker">Orquestração</span>Conceitos de Kubernetes</h2>
+      <p>Mesmo em prova de Docker, os objetos básicos do K8s costumam aparecer:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Objeto</th><th>É</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Pod</strong></td><td>A <strong>menor unidade deployável</strong>: um ou mais containers que compartilham rede e armazenamento. (No K8s você não roda containers soltos, mas pods.)</td></tr>
+            <tr><td><strong>ReplicaSet</strong></td><td>Mantém um número-alvo de <strong>réplicas</strong> de um pod sempre rodando (self-healing).</td></tr>
+            <tr><td><strong>Deployment</strong></td><td>Gerencia ReplicaSets de forma declarativa; faz <strong>rolling update</strong> e <strong>rollback</strong>.</td></tr>
+            <tr><td><strong>Service</strong></td><td>Endpoint de rede <strong>estável</strong> (IP/DNS) que faz <strong>load balancing</strong> entre os pods, que são efêmeros.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout reveal">
+        <span class="tag">💡 Por que existe o Service</span>
+        <p>Pods nascem e morrem (e mudam de IP). O <strong>Service</strong> dá um nome/IP fixo e distribui o tráfego entre as réplicas atuais — desacoplando quem chama de <em>quantos</em> e <em>quais</em> pods existem no momento.</p>
+      </div>
+
+      <!-- ============================ BOAS PRÁTICAS ============================ -->
+      <h2 id="boas-praticas"><span class="h2-kicker">Prática</span>Melhores práticas de imagem</h2>
+      <div class="card reveal">
+        <h4>Imagens pequenas, rápidas e limpas</h4>
+        <ul>
+          <li><strong>Imagem base mínima:</strong> prefira <code>alpine</code>, <code>slim</code> ou <strong>distroless</strong> — menos peso e menor superfície de ataque.</li>
+          <li><strong>.dockerignore:</strong> evite enviar <code>node_modules</code>, <code>.git</code>, segredos e lixo ao contexto de build (build mais rápido e seguro).</li>
+          <li><strong>Um processo por container:</strong> cada container faz <em>uma</em> coisa (web, db, cache em containers separados). Facilita escalar e observar.</li>
+          <li><strong>Tags explícitas, não <code>latest</code>:</strong> fixe versões (<code>app:1.4.2</code>) para builds reproduzíveis.</li>
+          <li><strong>Ordem das instruções:</strong> o que muda pouco (deps) vem antes do que muda muito (código), para aproveitar o cache de layers.</li>
+          <li><strong>Multi-stage build:</strong> separe o ambiente de build do artefato final.</li>
+        </ul>
+      </div>
+      <div class="mnemonic reveal">
+        <div class="m-head">Mnemônico — imagem enxuta</div>
+        <div class="m-word">"<b>B</b>ase mínima · <b>I</b>gnore (.dockerignore) · <b>O</b>rdem do cache · <b>M</b>ulti-stage" → <b>BIOM</b></div>
+        <ul>
+          <li>Os quatro movimentos que mais reduzem tamanho, tempo de build e superfície de ataque.</li>
+        </ul>
+      </div>
+      <div class="callout danger reveal">
+        <span class="tag">✗ Anti-prática — usar <code>latest</code> em produção</span>
+        <p>Depender da tag <code>latest</code> em produção quebra a <strong>reprodutibilidade</strong>: dois deploys do "mesmo" <code>latest</code> podem puxar imagens diferentes, e o rollback fica impreciso. <strong>Fixe sempre uma versão imutável</strong> (ou um digest <code>@sha256:...</code>).</p>
+      </div>
+
+      <!-- ============================ MULTISTAGE ============================ -->
+      <h2 id="multistage"><span class="h2-kicker">Prática</span>Multi-stage build</h2>
+      <p>O <span class="lead-term">multi-stage build</span> usa <strong>vários <code>FROM</code></strong> no mesmo Dockerfile: um <em>stage</em> de build (com compiladores, SDKs, dependências de dev) gera o artefato; o <em>stage</em> final, partindo de uma base mínima, <strong>copia só o artefato</strong> e descarta todo o peso de build. Resultado: imagem final pequena e sem ferramentas de compilação.</p>
+      <pre><div class="code-head"><span class="lang">dockerfile</span></div><code><span class="c-com"># --- Stage 1: build (pesado, descartado) ---</span>
+<span class="c-kw">FROM</span> node:18-alpine <span class="c-key">AS</span> build
+<span class="c-kw">WORKDIR</span> /app
+<span class="c-kw">COPY</span> package*.json ./
+<span class="c-kw">RUN</span> npm ci                 <span class="c-com"># deps antes do código → cache</span>
+<span class="c-kw">COPY</span> . .
+<span class="c-kw">RUN</span> npm run build          <span class="c-com"># gera /app/dist</span>
+
+<span class="c-com"># --- Stage 2: imagem final (mínima) ---</span>
+<span class="c-kw">FROM</span> node:18-alpine
+<span class="c-kw">WORKDIR</span> /app
+<span class="c-kw">ENV</span> NODE_ENV=production
+<span class="c-kw">COPY</span> --from=build /app/dist ./dist
+<span class="c-kw">COPY</span> --from=build /app/node_modules ./node_modules
+<span class="c-kw">RUN</span> addgroup -S app <span class="c-key">&&</span> adduser -S app -G app
+<span class="c-kw">USER</span> app                   <span class="c-com"># não roda como root</span>
+<span class="c-kw">EXPOSE</span> 3000
+<span class="c-kw">CMD</span> [<span class="c-str">"node"</span>, <span class="c-str">"dist/server.js"</span>]</code></pre>
+      <div class="callout reveal">
+        <span class="tag">💡 O ganho do multi-stage</span>
+        <p>Compiladores, <code>devDependencies</code> e arquivos intermediários ficam só no <em>stage</em> de build e <strong>nunca entram</strong> na imagem final. Você ganha tamanho menor, build mais limpo e <strong>menos superfície de ataque</strong> — sem precisar de scripts manuais de limpeza.</p>
+      </div>
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual é o principal benefício de um multi-stage build?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Permite rodar vários containers a partir de um único Dockerfile, em paralelo.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Substitui a necessidade de um registry para distribuir a imagem.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Separa o ambiente de build do artefato final, copiando só o necessário para uma imagem final pequena e sem ferramentas de compilação.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Faz o container compartilhar o kernel do host de forma mais eficiente.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Multi-stage isola o <em>build</em> (pesado) da imagem final (mínima), reduzindo tamanho e superfície de ataque. (A) confunde com orquestração. (B) registry é outro assunto. (D) o compartilhamento de kernel é inerente a todo container, não vem do multi-stage.</div>
+      </div>
+
+      <!-- ============================ DEBUG ============================ -->
+      <h2 id="debug"><span class="h2-kicker">Prática</span>Solução de problemas</h2>
+      <div class="card reveal">
+        <h4>O trio de debug</h4>
+        <ul>
+          <li><strong><code>docker logs &lt;container&gt;</code></strong> — primeira parada: vê o <code>stdout</code>/<code>stderr</code> do processo principal. Use <code>-f</code> para acompanhar ao vivo.</li>
+          <li><strong><code>docker exec -it &lt;container&gt; sh</code></strong> — abre um shell <em>dentro</em> do container <strong>em execução</strong> para inspecionar o ambiente.</li>
+          <li><strong><code>docker inspect &lt;container|imagem&gt;</code></strong> — metadados em JSON: rede, montagens, variáveis, config — para entender <em>como</em> foi criado.</li>
+        </ul>
+      </div>
+      <div class="callout reveal">
+        <span class="tag">💡 Container que sobe e morre</span>
+        <p>Se o container <strong>sai imediatamente</strong>, lembre: ele vive enquanto o <strong>processo principal (PID 1)</strong> viver. App que roda em background, ou comando que termina, derruba o container. Olhe os <code>logs</code> e cheque o <code>CMD</code>/<code>ENTRYPOINT</code>.</p>
+      </div>
+
+      <!-- ============================ SEGURANÇA ============================ -->
+      <h2 id="seguranca"><span class="h2-kicker">Segurança</span>Segurança de contêineres</h2>
+      <p>Como o container compartilha o kernel, descuidos têm impacto direto no host. Princípios cobrados:</p>
+      <div class="card reveal">
+        <h4>Defesa em profundidade</h4>
+        <ul>
+          <li><strong>Não rodar como root</strong> — defina um <code>USER</code> não privilegiado. Container root + escape = host comprometido (<strong>least privilege</strong>).</li>
+          <li><strong>Base mínima / distroless</strong> — menos pacotes = menor <strong>superfície de ataque</strong> e menos CVEs.</li>
+          <li><strong>Scan de vulnerabilidades</strong> — analise imagens (Trivy, Snyk, ECR scan) no pipeline.</li>
+          <li><strong>Secrets fora da imagem</strong> — nunca embuta senha/token via <code>ENV</code> ou <code>COPY</code>; eles ficam nas camadas. Use secret manager / variáveis injetadas em runtime.</li>
+          <li><strong>Imagens confiáveis / assinadas</strong> — use fontes oficiais e verificação de assinatura (Docker Content Trust / cosign).</li>
+        </ul>
+      </div>
+      <div class="callout danger reveal">
+        <span class="tag">✗ Anti-prática — rodar como root e enfiar secrets na imagem</span>
+        <p>Rodar o processo como <strong>root</strong> dá ao processo privilégios totais dentro do container (e risco ao host num escape). E embutir senha/token via <code>ENV</code> ou <code>COPY</code> <strong>grava o segredo numa camada</strong> da imagem — qualquer um com a imagem extrai. Use <code>USER</code> não-root e injete secrets em <strong>runtime</strong>.</p>
+      </div>
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual é a melhor forma de fornecer uma senha de banco a um container, do ponto de vista de segurança?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Definir <code>ENV DB_PASS=...</code> no Dockerfile para a senha viajar junto com a imagem.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Injetar o segredo em <strong>runtime</strong> (secret manager / variável passada no deploy), mantendo-o <strong>fora</strong> das camadas da imagem.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span><code>COPY senha.txt</code> para dentro da imagem e ler o arquivo no app.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Rodar o container como root para ter permissão de acessar a senha.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Segredos devem ficar <strong>fora da imagem</strong> e ser injetados em runtime. (A) e (C) gravam o segredo numa camada — extraível por quem tiver a imagem. (D) é irrelevante para o problema e ainda viola o least privilege.</div>
+      </div>
+
+      <!-- ============================ ECS ============================ -->
+      <h2 id="ecs"><span class="h2-kicker">Nuvem · AWS</span>Elastic Container Service (ECS)</h2>
+      <p>O <span class="lead-term">ECS</span> é o orquestrador de containers gerenciado da AWS. Hierarquia de objetos (memorize a ordem):</p>
+      <div class="diagram reveal">
+        <div class="flow" style="gap:6px;flex-wrap:wrap">
+          <div class="node">Task Definition<br><small style="color:var(--text-2)">o "molde" (imagem, CPU, mem, portas)</small></div>
+          <span class="arrow-h">→ instancia →</span>
+          <div class="node accent">Task<br><small style="color:var(--text-2)">execução de 1+ container</small></div>
+          <span class="arrow-h">← mantém N ←</span>
+          <div class="node">Service<br><small style="color:var(--text-2)">N tasks + LB + self-heal</small></div>
+          <span class="arrow-h">↳ roda em ↳</span>
+          <div class="node">Cluster<br><small style="color:var(--text-2)">capacidade (Fargate/EC2)</small></div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span> Task Definition é o molde (≈ Dockerfile do ECS); a Task é a instância; o Service mantém N tasks rodando.</span></div>
+      </div>
+      <ul>
+        <li><strong>Cluster</strong> — agrupamento lógico de capacidade de computação onde as tasks rodam.</li>
+        <li><strong>Task Definition</strong> — <em>blueprint</em>: qual imagem, CPU/memória, portas, variáveis, role. É o "molde".</li>
+        <li><strong>Task</strong> — uma <strong>instância em execução</strong> de uma task definition (um ou mais containers juntos).</li>
+        <li><strong>Service</strong> — mantém um número desejado de tasks no ar, com <strong>load balancer</strong> e <strong>self-healing</strong> (≈ Deployment do K8s).</li>
+        <li><strong>ECR</strong> — Elastic Container Registry: onde o ECS puxa as imagens (o "Docker Hub privado" da AWS).</li>
+      </ul>
+      <h3>Fargate × EC2 launch type</h3>
+      <p>O <strong>launch type</strong> decide quem provê e gerencia os servidores onde as tasks rodam:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Critério</th><th>Fargate</th><th>EC2</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Modelo</strong></td><td><strong>Serverless</strong>: a AWS provê e gerencia a infra.</td><td>Você gerencia as <strong>instâncias EC2</strong> do cluster.</td></tr>
+            <tr><td><strong>Responsabilidade do SO/patch</strong></td><td>Da AWS — você não vê o servidor.</td><td>Sua — patch, scaling e capacidade das instâncias.</td></tr>
+            <tr><td><strong>Cobrança</strong></td><td>Por <strong>vCPU/memória da task</strong> enquanto roda.</td><td>Pelas <strong>instâncias EC2</strong> provisionadas (rodando ou não).</td></tr>
+            <tr><td><strong>Controle</strong></td><td>Menos controle, menos operação.</td><td>Controle total (GPU, tipos específicos, daemons no host).</td></tr>
+            <tr><td><strong>Quando usar</strong></td><td>Simplicidade, cargas variáveis, menos ops.</td><td>Controle fino, custo otimizável em alta densidade, requisitos especiais.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout reveal">
+        <span class="tag">💡 ECS × EKS (comparação leve)</span>
+        <p><strong>ECS</strong> é o orquestrador <em>proprietário</em> da AWS, mais simples e integrado. <strong>EKS</strong> (Elastic Kubernetes Service) é <strong>Kubernetes gerenciado</strong> — escolha-o quando você quer o ecossistema/portabilidade do K8s. Ambos podem usar Fargate como capacidade.</p>
+      </div>
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Sua equipe quer rodar containers no ECS sem gerenciar nenhum servidor, pagando apenas pelos recursos da task enquanto ela executa. Qual launch type?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span><strong>Fargate</strong> — modelo serverless: a AWS gerencia a infra e você paga por vCPU/memória da task.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span><strong>EC2</strong> — porque é o único que não cobra pelas instâncias provisionadas.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Nenhum: ECS sempre exige que você mantenha um cluster de VMs próprio.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>EKS, pois é o único modo serverless do ECS.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> <strong>Fargate</strong> é o launch type serverless: sem servidores para gerenciar, cobrança por recurso da task. (B) inverte — o EC2 cobra pelas instâncias provisionadas. (C) é falso (Fargate existe justamente para isso). (D) confunde EKS (Kubernetes gerenciado), que não é um launch type do ECS.</div>
+      </div>
+
+      <!-- ============================ FLASHCARDS ============================ -->
+      <h2 id="flashcards"><span class="h2-kicker">Auto-teste</span>Flashcards — clique para virar</h2>
+      <p>Pense na resposta <strong>antes</strong> de clicar.</p>
+      <div class="flashgrid reveal">
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Diferença fundamental container × VM?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Container <strong>compartilha o kernel</strong> do host (virtualiza o SO); VM virtualiza o <strong>hardware</strong> e carrega um SO convidado completo.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Imagem × container?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Imagem = molde <strong>imutável</strong> em camadas (≈ classe). Container = <strong>instância em execução</strong> da imagem (≈ objeto).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Namespaces × cgroups?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Namespaces</strong>: o que o processo <em>enxerga</em> (isolamento de visão). <strong>cgroups</strong>: o que ele <em>pode usar</em> (limites de CPU/memória).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">CMD × ENTRYPOINT?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>CMD</strong> = argumentos default (substituídos por args do <code>run</code>). <strong>ENTRYPOINT</strong> = executável fixo (args do <code>run</code> são anexados).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que EXPOSE faz?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Apenas <strong>documenta</strong> a porta. Para publicar de verdade: <code>docker run -p host:container</code>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Volume × bind mount?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Volume</strong>: gerenciado pelo Docker, portável (produção). <strong>Bind mount</strong>: caminho do host, acoplado (dev/hot-reload).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Por que copiar deps antes do código no Dockerfile?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Aproveitar o <strong>cache de camadas</strong>: o que muda pouco (deps) vem antes; mudar uma camada <strong>invalida as seguintes</strong>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é multi-stage build?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Vários <code>FROM</code>: um stage de build (pesado) gera o artefato; o final copia só ele, ficando <strong>pequeno</strong> e sem ferramentas de build.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Compose × Swarm × K8s?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Compose</strong>: multi-container em 1 host (dev). <strong>Swarm</strong>: cluster nativo simples. <strong>K8s</strong>: cluster, padrão de mercado, rico e complexo.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Pod, Deployment e Service no K8s?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Pod</strong>: menor unidade deployável. <strong>Deployment</strong>: gerencia réplicas + rolling update. <strong>Service</strong>: endpoint estável + load balancing.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Duas regras de ouro de segurança?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Não rodar como <strong>root</strong> (<code>USER</code> não-privilegiado) e manter <strong>secrets fora da imagem</strong> (injetar em runtime).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">ECS: task definition × task × service?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Task definition</strong> = molde (imagem, CPU/mem). <strong>Task</strong> = instância em execução. <strong>Service</strong> = mantém N tasks + LB + self-healing.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Fargate × EC2 launch type?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Fargate</strong>: serverless, AWS gerencia infra, paga por recurso da task. <strong>EC2</strong>: você gerencia as instâncias, controle total.</div></div>
+        </div></div>
+      </div>
+
+      <!-- ============================ GLOSSÁRIO ============================ -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>Container</dt><dd>Processo isolado que compartilha o kernel do host; instância de uma imagem.</dd></div>
+        <div class="gloss-item"><dt>Imagem</dt><dd>Artefato imutável em camadas que serve de molde para containers.</dd></div>
+        <div class="gloss-item"><dt>Namespaces</dt><dd>Recurso do kernel que isola a <em>visão</em> do processo (PID, rede, mounts).</dd></div>
+        <div class="gloss-item"><dt>cgroups</dt><dd>Limitam e medem os <em>recursos</em> (CPU, memória, I/O) de um container.</dd></div>
+        <div class="gloss-item"><dt>Layer (camada)</dt><dd>Unidade read-only da imagem, criada por instrução; compartilhável e cacheável.</dd></div>
+        <div class="gloss-item"><dt>Dockerfile</dt><dd>Receita declarativa que descreve como construir a imagem.</dd></div>
+        <div class="gloss-item"><dt>CMD</dt><dd>Comando/argumentos default do container; substituível no <code>run</code>.</dd></div>
+        <div class="gloss-item"><dt>ENTRYPOINT</dt><dd>Executável fixo do container; args do <code>run</code> são anexados a ele.</dd></div>
+        <div class="gloss-item"><dt>Volume</dt><dd>Persistência gerenciada pelo Docker, recomendada para dados em produção.</dd></div>
+        <div class="gloss-item"><dt>Bind mount</dt><dd>Monta um caminho do host no container; acoplado ao host, útil em dev.</dd></div>
+        <div class="gloss-item"><dt>Registry</dt><dd>Repositório de imagens (Docker Hub, Amazon ECR); <code>push</code>/<code>pull</code>.</dd></div>
+        <div class="gloss-item"><dt>Multi-stage build</dt><dd>Dockerfile com vários <code>FROM</code> para separar build do artefato final mínimo.</dd></div>
+        <div class="gloss-item"><dt>Pod</dt><dd>Menor unidade deployável do Kubernetes; 1+ containers que compartilham rede/storage.</dd></div>
+        <div class="gloss-item"><dt>Task Definition (ECS)</dt><dd>Blueprint da task: imagem, CPU/memória, portas; instanciada como Task.</dd></div>
+        <div class="gloss-item"><dt>Fargate</dt><dd>Launch type serverless do ECS/EKS: a AWS gerencia a infraestrutura.</dd></div>
+      </dl>
+
+      <!-- ============================ PEGADINHAS ============================ -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas & checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li><strong>Container compartilha o kernel</strong> do host (não tem SO próprio); a <strong>VM</strong> é que carrega SO convidado + hypervisor.</li>
+          <li><strong>Imagem</strong> = molde imutável; <strong>container</strong> = instância em execução (≈ classe/objeto).</li>
+          <li><strong>Namespaces</strong> = visão isolada; <strong>cgroups</strong> = limites de recurso.</li>
+          <li><strong>CMD</strong> é substituível pelos args do <code>run</code>; <strong>ENTRYPOINT</strong> é fixo e recebe os args anexados.</li>
+          <li><strong>EXPOSE</strong> só documenta — quem publica porta é o <code>-p host:container</code>.</li>
+          <li>Mudar uma camada <strong>invalida as seguintes</strong>: copie deps antes do código (cache).</li>
+          <li><strong>Volume</strong> (gerenciado, produção) × <strong>bind mount</strong> (host, dev); camada do container é efêmera.</li>
+          <li><strong>Compose</strong> = 1 host (dev); <strong>Swarm/Kubernetes</strong> = cluster (produção). Compose não é orquestrador de cluster.</li>
+          <li>K8s: <strong>Pod</strong> (menor unidade) → <strong>Deployment</strong> (réplicas/rolling) → <strong>Service</strong> (endpoint estável + LB).</li>
+          <li><strong>Multi-stage</strong> separa build do artefato → imagem pequena, sem ferramentas de build.</li>
+          <li>Segurança: <strong>não rodar como root</strong> (<code>USER</code>), base mínima/distroless, <strong>secrets fora da imagem</strong>, evitar <code>latest</code>.</li>
+          <li>ECS: <strong>Task Definition</strong> (molde) → <strong>Task</strong> (instância) → <strong>Service</strong> (N tasks + LB). <strong>Fargate</strong> = serverless; <strong>EC2</strong> = você gerencia as instâncias.</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="terraform.html"><div class="dir">← Tópico anterior</div><div class="ttl">03 · Terraform</div></a>
+          <a href="index.html#topicos" class="next"><div class="dir">Próximo tópico →</div><div class="ttl">Escolher no Hub</div></a>
+        </div>
+        <div>Tópico 04 · Docker &amp; Containerização · material de revisão para a prova final. Base: documentação oficial Docker e AWS ECS.</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

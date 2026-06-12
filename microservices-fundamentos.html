@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Microsserviços: Fundamentos &amp; Comunicação — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão densa de Microsserviços para prova de múltipla escolha: monólito vs microsserviços vs SOA, decomposição por capability e bounded context, comunicação síncrona e assíncrona, API Gateway, BFF, API Composition e CQRS." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 06 · Microsserviços</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">Fundamentos</div>
+      <a href="#estrategias">Estratégias & Padrões</a>
+      <a href="#monolito-vs-micro">Monólito × Microsserviços × SOA</a>
+      <a href="#decomposicao">Decomposição de Serviços</a>
+      <a href="#tamanho">Tamanho & Monólito Distribuído</a>
+
+      <div class="group-label">Comunicação</div>
+      <a href="#comunicacao">Comunicação entre Processos</a>
+      <a href="#sincrona-assincrona">Síncrona × Assíncrona</a>
+      <a href="#idempotencia">Idempotência & Entrega</a>
+
+      <div class="group-label">API Gateway</div>
+      <a href="#api-gateway">API Gateway</a>
+      <a href="#bff">BFF — Backend for Frontend</a>
+
+      <div class="group-label">Contratos & Queries</div>
+      <a href="#modelo-api">Modelo de API</a>
+      <a href="#queries">Implementando Queries</a>
+      <a href="#cqrs">API Composition × CQRS</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 06 · Microsserviços</span>
+        <h1>Fundamentos &amp; Comunicação</h1>
+        <p class="lede">Microsserviços não são uma tecnologia — são um <em>estilo arquitetural</em> que decompõe uma aplicação em serviços pequenos, coesos e deployáveis de forma independente, cada um responsável por uma capacidade de negócio. A vantagem vem acompanhada de um custo real: complexidade de rede, dados distribuídos e novas classes de falha. Compreender <strong>quando usar</strong> e como os serviços se <strong>comunicam</strong> é o cerne desta revisão.</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como Microsserviços (fundamentos) cai na prova</span>
+        <p>Espere: (1) <strong>distinção monólito × microsserviços × SOA</strong> — conceitos trocados é a pegadinha clássica; (2) <strong>decomposição por business capability vs. bounded context (DDD)</strong> — diferença de critério; (3) <strong>comunicação síncrona × assíncrona</strong> e o impacto no acoplamento; (4) <strong>API Gateway × BFF</strong> — responsabilidades e quando usar cada um; (5) <strong>API Composition × CQRS</strong> para queries que cruzam serviços; (6) <strong>monólito distribuído</strong> como anti-padrão — pior dos dois mundos.</p>
+      </div>
+
+      <!-- ====================== ESTRATÉGIAS ====================== -->
+      <h2 id="estrategias"><span class="h2-kicker">Aula 1</span>Estratégias &amp; Padrões de Microsserviços</h2>
+      <p>Um <span class="lead-term">microsserviço</span> é um serviço pequeno, autônomo, com responsabilidade única e <strong>deployável de forma independente</strong>. A aplicação como um todo é composta pela colaboração desses serviços. Cada serviço possui seu <strong>próprio processo</strong>, sua <strong>própria base de dados</strong> (Database-per-Service) e se comunica via rede.</p>
+
+      <div class="card reveal">
+        <h4>Por que microsserviços existem?</h4>
+        <ul>
+          <li><strong>Escalabilidade independente:</strong> escale só o serviço que está sobrecarregado, não a aplicação inteira.</li>
+          <li><strong>Deploy independente:</strong> equipes deployam sem coordenar com outras equipes.</li>
+          <li><strong>Isolamento de falhas:</strong> a falha de um serviço não derruba o sistema inteiro (se bem projetado).</li>
+          <li><strong>Liberdade tecnológica:</strong> cada serviço pode usar a tecnologia mais adequada à sua necessidade.</li>
+          <li><strong>Times autônomos (Lei de Conway):</strong> a estrutura do sistema reflete a estrutura da organização.</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <h4>O "Microservices Tax" — o custo real</h4>
+        <ul>
+          <li>Latência e falhas de rede entre serviços.</li>
+          <li>Consistência eventual em vez de transações ACID.</li>
+          <li>Complexidade operacional: observabilidade, service discovery, orquestração.</li>
+          <li>Overhead de desenvolvimento e teste de contratos entre serviços.</li>
+          <li>Dados distribuídos tornam queries simples em desafios complexos.</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Quando NÃO usar microsserviços</span>
+        <p>Microsserviços <strong>não são a solução padrão</strong>. Evite quando: o time é pequeno e não tem maturidade operacional; o domínio ainda não está bem compreendido (mudanças frequentes de boundary custam caro); a aplicação é simples ou de baixo tráfego; a infraestrutura (CI/CD, observabilidade, service mesh) não está pronta. <strong>Comece com um monólito modular</strong> e migre se/quando a complexidade justificar.</p>
+      </div>
+
+      <!-- ====================== MONÓLITO VS MICRO ====================== -->
+      <h2 id="monolito-vs-micro"><span class="h2-kicker">Aula 1 · comparação</span>Monólito × Microsserviços × SOA</h2>
+      <p>A prova adora trocar esses três estilos. Entenda a distinção pelo <strong>critério de serviço</strong>, <strong>protocolo</strong> e <strong>granularidade</strong>:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr><th>Critério</th><th>Monólito</th><th>SOA</th><th>Microsserviços</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Unidade de deploy</strong></td><td>Aplicação inteira</td><td>Serviço (grande/médio)</td><td>Serviço pequeno e focado</td></tr>
+            <tr><td><strong>Granularidade</strong></td><td>Componentes internos</td><td>Serviços de negócio (coarsa)</td><td>Capacidade única (fina)</td></tr>
+            <tr><td><strong>Protocolo de comunicação</strong></td><td>Chamadas internas (em-processo)</td><td>ESB / SOAP / WS-*</td><td>REST, gRPC, mensageria leve</td></tr>
+            <tr><td><strong>Banco de dados</strong></td><td>Único banco compartilhado</td><td>Compartilhado (frequente)</td><td>Database-per-Service (isolado)</td></tr>
+            <tr><td><strong>Integração central</strong></td><td>Não (tudo local)</td><td><strong>ESB</strong> (enterprise service bus)</td><td>Não — "smart endpoints, dumb pipes"</td></tr>
+            <tr><td><strong>Autonomia do time</strong></td><td>Baixa (deploy acoplado)</td><td>Baixa (acoplado via ESB)</td><td>Alta (deploy independente)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: SOA ≠ Microsserviços</span>
+        <p>SOA usa um <strong>ESB como barramento central</strong> (lógica de roteamento, transformação e orquestração fica no barramento). Microsserviços seguem o princípio oposto: <em>"smart endpoints, dumb pipes"</em> — os serviços contêm a lógica, o transporte é burro. SOA tipicamente tem serviços de granularidade maior e banco compartilhado.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão 1</span>
+        <p class="q-text">Qual das seguintes afirmações distingue corretamente SOA de microsserviços?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>SOA usa serviços pequenos e autônomos com database-per-service, enquanto microsserviços usam banco compartilhado e ESB central.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>SOA centraliza a lógica de integração no ESB ("smart pipe"), enquanto microsserviços colocam a lógica nos próprios serviços ("smart endpoints, dumb pipes").</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>SOA e microsserviços são sinônimos: ambos promovem serviços independentes sem banco compartilhado.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Microsserviços exigem ESB para comunicação, enquanto SOA usa REST direto entre serviços.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A distinção central é o papel do barramento: SOA concentra orquestração/transformação no ESB; microsserviços são "dumb pipes" (Kafka, HTTP simples) com lógica nos endpoints. (A) inverte os atributos; (C) iguala os dois; (D) inverte os protocolos.</div>
+      </div>
+
+      <!-- ====================== DECOMPOSIÇÃO ====================== -->
+      <h2 id="decomposicao"><span class="h2-kicker">Aula 1 · decomposição</span>Estratégias de Decomposição</h2>
+      <p>Como definir os limites entre serviços é a decisão mais crítica. Há dois critérios principais:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr><th>Critério</th><th>Por Business Capability</th><th>Por Subdomínio / Bounded Context (DDD)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Base de decomposição</strong></td><td>O que a empresa <em>faz</em> (capacidade organizacional estável)</td><td>O que o domínio <em>modela</em> (linguagem ubíqua + fronteira conceitual)</td></tr>
+            <tr><td><strong>Ponto de partida</strong></td><td>Organograma / mapa de capacidades do negócio</td><td>Bounded Contexts do modelo de domínio (DDD)</td></tr>
+            <tr><td><strong>Estabilidade</strong></td><td>Alta (capacidades mudam devagar)</td><td>Alta (bounded context é intencional)</td></tr>
+            <tr><td><strong>Critério de boundary</strong></td><td>Resultado de negócio que o serviço entrega</td><td>Contexto com linguagem coesa; sem modelo ambíguo</td></tr>
+            <tr><td><strong>Quem define</strong></td><td>Analista de negócio / arquiteto</td><td>Time de produto + DDD (Event Storming)</td></tr>
+            <tr><td><strong>Referência</strong></td><td>Richardson — Microservices Patterns</td><td>Evans — Domain-Driven Design</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 Cross-link: DDD &amp; Bounded Context</span>
+        <p>Os conceitos de <strong>Bounded Context</strong> e <strong>linguagem ubíqua</strong> são detalhados no <a href="ddd.html">Tópico 01 — DDD</a>. Em microsserviços, um Bounded Context é frequentemente um bom candidato a boundary de serviço — mas nem todo serviço precisa ser um único BC (às vezes um BC é particionado por motivos operacionais).</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão 2</span>
+        <p class="q-text">Ao decompor um sistema de e-commerce em microsserviços usando a estratégia de <em>business capability</em>, qual critério deve guiar os limites de cada serviço?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>O tamanho do código: cada serviço deve ter menos de 500 linhas.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>A tecnologia de persistência: serviços que usam o mesmo banco ficam juntos.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>A capacidade organizacional estável que o serviço entrega (ex.: Pedidos, Pagamentos, Catálogo).</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>O bounded context derivado da linguagem ubíqua do domínio.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Business capability parte do <strong>o que a empresa faz</strong> — uma capacidade estável do negócio (Pedidos, Pagamentos, Inventário). (A) usa tamanho de código, que nunca foi o critério correto. (B) é anti-padrão (banco compartilhado acopla serviços). (D) é a estratégia DDD/bounded context, que é uma estratégia <em>diferente</em> (correta mas não a pedida).</div>
+      </div>
+
+      <!-- ====================== TAMANHO ====================== -->
+      <h2 id="tamanho"><span class="h2-kicker">Aula 1 · tamanho</span>Tamanho de Serviço &amp; Monólito Distribuído</h2>
+      <p>Não existe uma métrica de linhas de código para "micro". O que importa é que o serviço seja <strong>coeso</strong> (responsabilidade única), <strong>deployável independentemente</strong> e <strong>compreensível por um time pequeno</strong>. Sam Newman sugere pensar em termos de <em>bounded context</em> e capacidade de ser mantido sem coordenar com outros times.</p>
+
+      <div class="callout danger reveal">
+        <span class="tag">✗ Anti-padrão: Monólito Distribuído</span>
+        <p>O <span class="lead-term">monólito distribuído</span> ocorre quando você divide fisicamente a aplicação em "serviços" mas eles continuam <strong>fortemente acoplados</strong> — compartilham banco de dados, dependem de chamadas síncronas em cadeia, ou precisam ser deployados juntos. Você pega o pior dos dois mundos: a complexidade da rede de microsserviços <em>sem</em> a autonomia e escalabilidade independente. <strong>É o sinal mais comum de falha na adoção de microsserviços.</strong></p>
+      </div>
+
+      <div class="mnemonic reveal">
+        <div class="m-head">Mnemônico — critério de "micro" saudável</div>
+        <div class="m-word">"<b>C</b>oeso · <b>A</b>utônomo · <b>D</b>eployável"</div>
+        <ul>
+          <li><b>C</b>oeso: responsabilidade única e modelo de dados próprio.</li>
+          <li><b>A</b>utônomo: pode ser desenvolvido e alterado sem coordenar com outros serviços.</li>
+          <li><b>D</b>eployável: pode ser colocado em produção independentemente dos demais.</li>
+        </ul>
+      </div>
+
+      <!-- ====================== COMUNICAÇÃO ====================== -->
+      <h2 id="comunicacao"><span class="h2-kicker">Aula 2</span>Comunicação entre Processos</h2>
+      <p>Serviços se comunicam pela rede — o que traz falhas e latências inexistentes em chamadas em-processo. Há dois estilos fundamentais de interação (one-to-one e one-to-many) e dois modos de invocação (síncrona e assíncrona):</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr><th>Estilo</th><th>One-to-One</th><th>One-to-Many (Publish-Subscribe)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Síncrono</strong></td><td>REST / gRPC (request-response direto)</td><td>— (não comum: broadcast síncrono é raro)</td></tr>
+            <tr><td><strong>Assíncrono</strong></td><td>Message Queue (ponto-a-ponto)</td><td>Pub/Sub: tópicos (Kafka, RabbitMQ)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card reveal">
+        <h4>Protocolos de comunicação</h4>
+        <ul>
+          <li><strong>REST (HTTP/JSON):</strong> amplamente adotado, human-readable, sem schema formal (mas OpenAPI compensa). Adequado para APIs públicas e integração heterogênea.</li>
+          <li><strong>gRPC (HTTP/2 + Protocol Buffers):</strong> tipado, binário, eficiente. Ideal para comunicação interna de alta performance entre serviços. Suporta streaming bidirecional.</li>
+          <li><strong>Mensageria (Kafka, RabbitMQ, SQS):</strong> desacoplamento temporal; o produtor não espera o consumidor. Suporta replay (Kafka) e roteamento complexo.</li>
+        </ul>
+      </div>
+
+      <!-- ====================== SÍNCRONO × ASSÍNCRONO ====================== -->
+      <h2 id="sincrona-assincrona"><span class="h2-kicker">Aula 2 · comparação</span>Síncrona × Assíncrona — Acoplamento</h2>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr><th>Critério</th><th>Comunicação Síncrona</th><th>Comunicação Assíncrona</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Disponibilidade</strong></td><td>Ambos precisam estar <em>up</em> ao mesmo tempo</td><td>Produtor envia; consumidor processa quando disponível</td></tr>
+            <tr><td><strong>Acoplamento temporal</strong></td><td><strong>Alto</strong> — falha do downstream causa falha no upstream</td><td><strong>Baixo</strong> — desacoplamento temporal via broker</td></tr>
+            <tr><td><strong>Acoplamento de contrato</strong></td><td>API explícita (contrato forte entre cliente e servidor)</td><td>Esquema de mensagem (contrato menos rígido em tempo de execução)</td></tr>
+            <tr><td><strong>Latência</strong></td><td>Resposta imediata (se o servidor responde)</td><td>Eventual — o chamador não espera a resposta</td></tr>
+            <tr><td><strong>Complexidade</strong></td><td>Mais simples de implementar e depurar</td><td>Mais complexo: ordering, idempotência, dead-letter queues</td></tr>
+            <tr><td><strong>Quando usar</strong></td><td>Leituras, operações que precisam de resposta imediata</td><td>Escrita, eventos de domínio, workloads de longa duração</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: request-response ≠ sempre síncrono</span>
+        <p>É possível implementar <strong>request-response assíncrono</strong>: o cliente envia uma mensagem a uma fila, inclui um <em>reply-to channel</em>, e aguarda a resposta em outro canal. O padrão é assíncrono no transporte mas simula semântica de chamada. Não confunda o <em>padrão de interação</em> (request-response vs. event) com o <em>mecanismo</em> (HTTP vs. mensageria).</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão 3</span>
+        <p class="q-text">Um time está projetando um fluxo de "processar pagamento" em microsserviços. O serviço de Pedidos chama o serviço de Pagamentos via REST e aguarda a confirmação antes de prosseguir. Qual é o principal risco desta abordagem?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>O serviço de Pagamentos não conseguirá escalar independentemente.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>REST não é suportado para comunicação interna entre microsserviços.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>O serviço de Pedidos precisará compartilhar banco de dados com Pagamentos.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Alto acoplamento temporal: se o serviço de Pagamentos estiver indisponível, o serviço de Pedidos também falha.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Comunicação síncrona cria <strong>acoplamento temporal</strong> — a disponibilidade do Pedidos depende diretamente da disponibilidade do Pagamentos. Se Pagamentos sair, Pedidos falha junto. (A) está errado: escalabilidade independente não é impedida por REST. (B) é falso: REST é o protocolo mais comum. (C) não tem relação com o protocolo de comunicação.</div>
+      </div>
+
+      <!-- ====================== IDEMPOTÊNCIA ====================== -->
+      <h2 id="idempotencia"><span class="h2-kicker">Aula 2 · garantias</span>Idempotência &amp; Garantias de Entrega</h2>
+      <p>Em sistemas distribuídos, a rede pode <strong>duplicar</strong> ou <strong>perder</strong> mensagens. A estratégia correta depende da garantia de entrega que o broker oferece:</p>
+
+      <div class="card reveal">
+        <h4>Garantias de entrega</h4>
+        <ul>
+          <li><strong>At-most-once (no máximo uma vez):</strong> pode perder mensagens; nunca duplica. Adequado para métricas não críticas.</li>
+          <li><strong>At-least-once (pelo menos uma vez):</strong> nunca perde; pode duplicar. O consumidor deve ser <strong>idempotente</strong>. É o padrão mais comum em sistemas de negócio.</li>
+          <li><strong>Exactly-once (exatamente uma vez):</strong> sem perda e sem duplicata. Muito caro de implementar; só Kafka (com transactions) e poucos brokers suportam de forma nativa. Prefira at-least-once + idempotência.</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Idempotência não é opcional com at-least-once</span>
+        <p>Se o broker garante at-least-once, o consumidor <strong>deve</strong> ser idempotente — processar a mesma mensagem duas vezes deve produzir o mesmo resultado que processá-la uma vez. Técnicas: chave de idempotência, verificar se o evento já foi processado antes de agir, ou usar operações naturalmente idempotentes (atualizar com valor absoluto, não incremento).</p>
+      </div>
+
+      <!-- ====================== API GATEWAY ====================== -->
+      <h2 id="api-gateway"><span class="h2-kicker">Aula 3</span>API Gateway</h2>
+      <p>O <span class="lead-term">API Gateway</span> é o ponto de entrada único (<em>single entry point</em>) para os clientes externos. Sem ele, clientes precisariam conhecer e chamar cada microsserviço individualmente — o que expõe detalhes internos, multiplica chamadas de rede e dificulta cross-cutting concerns.</p>
+
+      <div class="diagram reveal">
+        <div class="flow" style="flex-wrap:wrap;gap:8px">
+          <div class="node">Web App</div>
+          <div class="node">Mobile App</div>
+          <div class="node">Third Party</div>
+          <span class="arrow-h">→</span>
+          <div class="node accent">API Gateway<br><small style="color:#aaa">entry point único</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node">Serviço<br>Pedidos</div>
+          <div class="node">Serviço<br>Usuários</div>
+          <div class="node">Serviço<br>Catálogo</div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:#e91e63"></span> API Gateway roteia, agrega e aplica cross-cutting concerns antes de encaminhar para os microsserviços downstream.</span></div>
+      </div>
+
+      <div class="card reveal">
+        <h4>Responsabilidades do API Gateway</h4>
+        <ul>
+          <li><strong>Roteamento de requisições:</strong> encaminha cada request para o serviço correto com base em path, método ou header.</li>
+          <li><strong>Composição/Agregação:</strong> une respostas de múltiplos serviços em uma única resposta para o cliente (evita N round-trips).</li>
+          <li><strong>Autenticação &amp; Autorização:</strong> valida tokens (JWT, OAuth2) antes de encaminhar.</li>
+          <li><strong>Rate limiting &amp; Throttling:</strong> protege os serviços downstream de sobrecargas.</li>
+          <li><strong>SSL termination:</strong> encerra TLS no gateway; comunicação interna pode ser mais simples.</li>
+          <li><strong>Logging, tracing &amp; monitoring:</strong> ponto centralizado para observabilidade.</li>
+          <li><strong>Transformação de protocolo:</strong> ex.: REST externo → gRPC interno.</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ API Gateway pode virar gargalo e God Object</span>
+        <p>Se o API Gateway começa a conter <strong>lógica de negócio</strong> (regras de validação, cálculos), torna-se um gargalo e um ponto único de falha sofisticado. Ele deve conter <em>cross-cutting concerns</em>, não regras de domínio. Um gateway monolítico que orquestra tudo reproduz o problema do ESB do SOA.</p>
+      </div>
+
+      <!-- ====================== BFF ====================== -->
+      <h2 id="bff"><span class="h2-kicker">Aula 3 · BFF</span>BFF — Backend for Frontend</h2>
+      <p>O padrão <span class="lead-term">Backend for Frontend (BFF)</span> — cunhado por Sam Newman — resolve um problema do API Gateway genérico: clientes diferentes (web, mobile, third-party) têm necessidades distintas de dados e formatos. Um único gateway genérico precisa servir todos, e o resultado são compromissos ruins para todos.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr><th>Critério</th><th>API Gateway genérico</th><th>BFF (por tipo de cliente)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Instâncias</strong></td><td>Uma única para todos os clientes</td><td>Uma por tipo de cliente (Web BFF, Mobile BFF, Public API BFF)</td></tr>
+            <tr><td><strong>Responsabilidade</strong></td><td>Roteamento + cross-cutting (genérico)</td><td>Adaptação de dados + composição <em>para aquele cliente específico</em></td></tr>
+            <tr><td><strong>Evolução</strong></td><td>Qualquer mudança afeta todos os clientes</td><td>Cada BFF evolui com o time/cliente que o consome</td></tr>
+            <tr><td><strong>Autonomia do time</strong></td><td>Baixa — time centralizado gerencia o gateway</td><td>Alta — time do cliente controla seu BFF</td></tr>
+            <tr><td><strong>Overhead</strong></td><td>Menor (uma instância)</td><td>Maior (N instâncias + manutenção por time)</td></tr>
+            <tr><td><strong>Quando usar</strong></td><td>Quando os clientes têm necessidades similares</td><td>Quando há clientes com formatos/dados muito distintos</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 BFF não substitui o API Gateway — geralmente coexistem</span>
+        <p>É comum ter um <strong>API Gateway na borda</strong> (TLS, autenticação, rate limiting) com <strong>BFFs atrás dele</strong>. O Gateway trata os cross-cutting concerns globais; cada BFF adapta os dados para o seu tipo de cliente antes de compor a resposta.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão 4</span>
+        <p class="q-text">Uma empresa tem um aplicativo mobile iOS e uma SPA web com necessidades de dados muito diferentes. O time de mobile precisa de endpoints otimizados para baixo consumo de dados, enquanto o web precisa de agregações mais ricas. Qual padrão é mais adequado?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>BFF (Backend for Frontend): um BFF para mobile e outro para web, cada um adaptado para o seu cliente.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>API Gateway genérico: um único ponto de entrada que serve todos os clientes com o mesmo contrato.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Os clientes chamam os microsserviços diretamente, sem gateway.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>GraphQL Federation no lugar de API Gateway ou BFF.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> BFF é a resposta canônica quando clientes têm necessidades muito diferentes. (B) resultaria num gateway "engordado" com lógica de adaptação para todos os clientes, acoplando a evolução de mobile e web. (C) expõe os serviços internos e multiplica round-trips. (D) é uma alternativa válida em alguns contextos, mas não é o padrão canônico da questão.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão 5</span>
+        <p class="q-text">Qual das seguintes responsabilidades NÃO pertence ao API Gateway e sim a uma camada de negócio downstream?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Validação de token JWT e autenticação do cliente.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Rate limiting e throttling por cliente.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Calcular o desconto de um pedido com base nas regras de fidelidade do cliente.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Roteamento do request para o microsserviço correto baseado no path.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Calcular desconto de fidelidade é <strong>regra de negócio</strong> — pertence ao microsserviço de Pedidos ou Promoções, nunca ao gateway. (A), (B) e (D) são cross-cutting concerns legítimos do API Gateway.</div>
+      </div>
+
+      <!-- ====================== MODELO DE API ====================== -->
+      <h2 id="modelo-api"><span class="h2-kicker">Aula 4</span>Modelo de API para Microsserviços</h2>
+      <p>A API é o <strong>contrato público</strong> de um microsserviço. Uma vez publicada, qualquer quebra de contrato quebra os consumidores. A gestão de contratos é um problema central em sistemas distribuídos.</p>
+
+      <div class="card reveal">
+        <h4>Versionamento de API</h4>
+        <ul>
+          <li><strong>Versionamento na URL</strong> (<code>/v1/orders</code>, <code>/v2/orders</code>): simples e visível, mas proliferação de versões pode ser custosa.</li>
+          <li><strong>Versionamento por header</strong> (<code>Accept: application/vnd.uxwp.v2+json</code>): mais RESTful, mas menos descoberto por clientes.</li>
+          <li><strong>Evolução compatível (non-breaking changes):</strong> adicionar campos opcionais, novos endpoints — compatível com versões anteriores sem versão nova.</li>
+          <li><strong>Breaking changes</strong> exigem: nova versão + período de coexistência + deprecação da versão antiga.</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <h4>Consumer-Driven Contracts (CDC)</h4>
+        <p>Em vez do produtor definir a API e os consumidores se adaptarem, o padrão <strong>Consumer-Driven Contracts</strong> (Pact, Spring Cloud Contract) inverte: cada consumidor especifica o que precisa da API; o produtor garante que satisfaz todos os contratos. <strong>Detecta breaking changes automaticamente no CI.</strong></p>
+        <ul>
+          <li>Consumidor escreve um <em>contract</em> (que request faz e o que espera receber).</li>
+          <li>Produtor roda os contratos de todos os consumidores como testes.</li>
+          <li>Se o produtor quebra o contrato de qualquer consumidor, o build falha.</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ OpenAPI descreve, CDC garante</span>
+        <p><strong>OpenAPI/Swagger</strong> documenta a API — é um contrato de documentação. <strong>Consumer-Driven Contracts</strong> garantem compatibilidade em tempo de CI — é um contrato de comportamento executável. São complementares, não substitutos.</p>
+      </div>
+
+      <!-- ====================== QUERIES ====================== -->
+      <h2 id="queries"><span class="h2-kicker">Aula 5</span>Implementando Queries</h2>
+      <p>Em um monólito, uma query pode fazer <code>JOIN</code> entre tabelas de qualquer módulo. Em microsserviços, cada serviço tem seu próprio banco — <strong>joins distribuídos via SQL são proibidos</strong>. Como, então, exibir dados que cruzam serviços?</p>
+
+      <div class="callout danger reveal">
+        <span class="tag">✗ Anti-padrão: Banco Compartilhado para fazer JOIN</span>
+        <p>Dar acesso de múltiplos serviços ao mesmo banco para permitir JOINs quebra o isolamento do Database-per-Service. Você volta ao problema do monólito: mudanças de schema de um serviço afetam todos os outros que leem aquele banco.</p>
+      </div>
+
+      <!-- ====================== API COMPOSITION × CQRS ====================== -->
+      <h2 id="cqrs"><span class="h2-kicker">Aula 5 · padrões de query</span>API Composition × CQRS</h2>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr><th>Critério</th><th>API Composition</th><th>CQRS (Command Query Responsibility Segregation)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Mecanismo</strong></td><td>Chama N serviços, une as respostas em memória</td><td>View separada (read model) pre-populada por eventos</td></tr>
+            <tr><td><strong>Quando é suficiente</strong></td><td>Queries simples, dados não muito grandes, latência aceitável</td><td>Queries complexas, dados de múltiplos serviços, alta performance</td></tr>
+            <tr><td><strong>Consistência</strong></td><td>Forte (dados lidos em tempo real de cada serviço)</td><td>Eventual (view é atualizada por eventos; pode estar levemente desatualizada)</td></tr>
+            <tr><td><strong>Complexidade</strong></td><td>Baixa — o compositor faz chamadas e mescla</td><td>Alta — envolve event sourcing ou CDC, sincronização de view store</td></tr>
+            <tr><td><strong>Problema com in-memory join</strong></td><td>Pode retornar grandes conjuntos de dados; agregação é custosa</td><td>O read model pode ter filtros e paginação nativos</td></tr>
+            <tr><td><strong>Escalabilidade de leitura</strong></td><td>Limitada pelo serviço mais lento da composição</td><td>Alta — read model é independente dos serviços de escrita</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 CQRS aprofundado no Tópico 07</span>
+        <p>CQRS (Command Query Responsibility Segregation) e Event Sourcing são tratados em profundidade no <strong>Tópico 07 — Microsserviços: Dados &amp; Queries</strong>. Aqui, o ponto essencial é entender <em>por que ele existe</em>: queries que cruzam serviços não podem usar JOIN de banco — CQRS mantém um read model separado atualizado por eventos.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão 6</span>
+        <p class="q-text">Um relatório precisa combinar dados de Pedidos, Clientes e Inventário em tempo real. Usando microsserviços com database-per-service, qual abordagem de query está sendo usada se o sistema chama os três serviços separadamente e une as respostas na camada de aplicação?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>CQRS — o sistema mantém um read model separado para consultas complexas.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>API Composition — chama múltiplos serviços e une os resultados em memória.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Event Sourcing — reconstrói o estado a partir do log de eventos.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Shared Database — os serviços compartilham o banco para permitir o JOIN.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Chamar N serviços e unir as respostas na camada de aplicação é exatamente <strong>API Composition</strong>. (A) seria CQRS se houvesse um read model pré-construído por eventos. (C) Event Sourcing trata de persistência, não de query federation. (D) é o anti-padrão a ser evitado.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão 7</span>
+        <p class="q-text">Uma empresa tem um microsserviço de Pedidos e outro de Clientes, cada um com seu banco. O time precisa de uma tela de dashboard que liste pedidos com nome do cliente e status em tempo real, com filtros e paginação eficiente. API Composition não é suficiente. Qual estratégia resolve?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Criar uma tabela compartilhada entre os dois bancos para o dashboard.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Fazer o serviço de Pedidos consumir diretamente o banco do serviço de Clientes.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Usar API Composition com paginação manual na camada de aplicação.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>CQRS: manter um read model dedicado para o dashboard, alimentado por eventos dos dois serviços.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Quando API Composition não é suficiente (paginação, filtros complexos, performance), <strong>CQRS</strong> é a resposta: um read model denormalized, alimentado por eventos, otimizado para as queries do dashboard. (A) e (B) violam o isolamento de Database-per-Service. (C) API Composition com paginação manual é ineficiente e problemático para grandes volumes.</div>
+      </div>
+
+      <!-- ====================== FLASHCARDS ====================== -->
+      <h2 id="flashcards"><span class="h2-kicker">Auto-teste</span>Flashcards — clique para virar</h2>
+      <p>Pense na resposta <strong>antes</strong> de clicar.</p>
+      <div class="flashgrid reveal">
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é um microsserviço? Defina em uma frase.</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Serviço pequeno, <strong>coeso</strong>, com <strong>responsabilidade única</strong>, base de dados própria e deployável de forma <strong>independente</strong>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é monólito distribuído?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Anti-padrão: serviços fisicamente separados mas <strong>fortemente acoplados</strong> (banco compartilhado, deploy conjunto). Pior dos dois mundos — complexidade de rede sem autonomia.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Qual é a principal diferença entre SOA e microsserviços?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">SOA usa <strong>ESB</strong> com lógica centralizada no barramento ("smart pipe"). Microsserviços: <strong>"smart endpoints, dumb pipes"</strong> — lógica nos serviços, transporte burro.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Decomposição por business capability vs. por bounded context: qual é o critério de cada?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Business capability</strong>: o que a empresa <em>faz</em> (capacidade organizacional). <strong>Bounded context (DDD)</strong>: fronteira de linguagem ubíqua e modelo coeso do domínio.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é acoplamento temporal e qual tipo de comunicação o causa?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Acoplamento temporal</strong>: ambos os serviços precisam estar up ao mesmo tempo para a operação ter sucesso. Causado pela <strong>comunicação síncrona</strong> (REST/gRPC direto).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que significa at-least-once delivery? O que o consumidor precisa garantir?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Nunca perde mensagem, mas pode <strong>duplicar</strong>. O consumidor deve ser <strong>idempotente</strong>: processar a mesma mensagem N vezes = mesmo resultado que 1 vez.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Responsabilidades do API Gateway (liste 4).</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Roteamento</strong>, <strong>agregação</strong> de respostas, <strong>autenticação/autorização</strong>, <strong>rate limiting</strong>. Também: SSL termination, logging, transformação de protocolo.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é BFF e quando usar?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Backend for Frontend</strong>: um gateway por tipo de cliente (Web, Mobile). Usar quando clientes têm necessidades de dados muito diferentes e precisam de adaptação específica.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é Consumer-Driven Contract?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">O <strong>consumidor</strong> especifica o contrato da API de que precisa; o <strong>produtor</strong> valida no CI que satisfaz todos os contratos. Detecta breaking changes automaticamente (ferramentas: Pact).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">API Composition: como funciona e qual é sua limitação principal?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Chama N serviços e <strong>une as respostas em memória</strong>. Limitação: ineficiente para grandes volumes, paginação complexa e filtros avançados.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Por que CQRS existe em microsserviços?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Porque <strong>JOINs de banco são proibidos</strong> entre serviços. CQRS mantém um <strong>read model separado</strong>, alimentado por eventos, otimizado para as queries que cruzam serviços.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">"Smart endpoints, dumb pipes" — o que significa?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Princípio de microsserviços: a <strong>lógica fica nos serviços</strong> (endpoints inteligentes); o transporte (HTTP, Kafka) é <strong>burro</strong> — sem orquestração no barramento. Oposto do ESB do SOA.</div></div>
+        </div></div>
+      </div>
+
+      <!-- ====================== GLOSSÁRIO ====================== -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>Microsserviço</dt><dd>Serviço pequeno, coeso, com responsabilidade única, banco próprio e deploy independente.</dd></div>
+        <div class="gloss-item"><dt>Monólito Distribuído</dt><dd>Anti-padrão: serviços fisicamente separados mas fortemente acoplados via banco compartilhado ou deploy conjunto.</dd></div>
+        <div class="gloss-item"><dt>SOA (Service-Oriented Architecture)</dt><dd>Estilo arquitetural com serviços de granularidade maior integrados via ESB central; lógica de integração no barramento.</dd></div>
+        <div class="gloss-item"><dt>ESB (Enterprise Service Bus)</dt><dd>Barramento central do SOA que orquestra, transforma e roteia mensagens entre serviços.</dd></div>
+        <div class="gloss-item"><dt>Business Capability</dt><dd>Capacidade organizacional estável (o que a empresa faz) usada como critério de decomposição de serviços.</dd></div>
+        <div class="gloss-item"><dt>Bounded Context</dt><dd>Fronteira de DDD onde um modelo de domínio e sua linguagem ubíqua são válidos; critério DDD de decomposição de serviços.</dd></div>
+        <div class="gloss-item"><dt>Acoplamento Temporal</dt><dd>Dependência de disponibilidade simultânea entre serviços, causada pela comunicação síncrona.</dd></div>
+        <div class="gloss-item"><dt>At-least-once delivery</dt><dd>Garantia de entrega de mensagem: nunca perde, mas pode duplicar. Exige consumidores idempotentes.</dd></div>
+        <div class="gloss-item"><dt>Idempotência</dt><dd>Propriedade de uma operação que produz o mesmo resultado independentemente de quantas vezes é executada.</dd></div>
+        <div class="gloss-item"><dt>API Gateway</dt><dd>Ponto de entrada único para clientes externos; lida com roteamento, cross-cutting concerns (auth, rate limit, logging).</dd></div>
+        <div class="gloss-item"><dt>BFF (Backend for Frontend)</dt><dd>Variação do API Gateway: um backend dedicado por tipo de cliente, que adapta e compõe dados para aquele cliente específico.</dd></div>
+        <div class="gloss-item"><dt>Consumer-Driven Contract</dt><dd>Padrão onde o consumidor define o contrato que o produtor deve satisfazer; detecta breaking changes no CI.</dd></div>
+        <div class="gloss-item"><dt>API Composition</dt><dd>Padrão de query que chama múltiplos serviços e une as respostas em memória para montar o resultado final.</dd></div>
+        <div class="gloss-item"><dt>CQRS (Command Query Responsibility Segregation)</dt><dd>Padrão que separa os modelos de escrita (commands) e leitura (queries) em stores distintos, alimentando o read model por eventos.</dd></div>
+      </dl>
+
+      <!-- ====================== PEGADINHAS ====================== -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas &amp; checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li><strong>Monólito distribuído</strong> = serviços separados mas acoplados — é anti-padrão, não um estilo válido.</li>
+          <li><strong>SOA vs. Microsserviços:</strong> SOA tem ESB ("smart pipe"); microsserviços têm "smart endpoints, dumb pipes". Não são sinônimos.</li>
+          <li><strong>Business capability</strong> (o que a empresa faz) ≠ <strong>bounded context</strong> (fronteira de modelo/linguagem do DDD) — são dois critérios distintos de decomposição.</li>
+          <li><strong>Síncrono</strong> = acoplamento temporal alto; <strong>assíncrono</strong> = desacoplamento temporal via broker.</li>
+          <li><strong>API Gateway</strong> faz cross-cutting concerns; <strong>BFF</strong> faz adaptação específica por tipo de cliente. Podem coexistir na mesma arquitetura.</li>
+          <li>API Gateway <strong>não deve conter lógica de negócio</strong> — senão vira ESB disfarçado.</li>
+          <li><strong>at-least-once</strong> = pode duplicar; consumidor deve ser <strong>idempotente</strong>.</li>
+          <li><strong>API Composition</strong> = une respostas em memória (simples, consistência forte, mas ineficiente para volumes grandes).</li>
+          <li><strong>CQRS</strong> = read model separado, alimentado por eventos (consistência eventual, alta performance para queries complexas). Detalhado no Tópico 07.</li>
+          <li>Banco compartilhado entre serviços para fazer JOIN é <strong>anti-padrão</strong> — viola Database-per-Service.</li>
+          <li><strong>OpenAPI</strong> documenta; <strong>Consumer-Driven Contract</strong> valida no CI — são complementares.</li>
+          <li>gRPC = binário, tipado, eficiente; REST = textual (JSON), human-readable, mais fácil para APIs públicas.</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="cicd-devops.html"><div class="dir">← Tópico anterior</div><div class="ttl">05 · DevOps / CI-CD</div></a>
+          <a href="microservices-dados.html" class="next"><div class="dir">Próximo tópico →</div><div class="ttl">07 · Microsserviços: Dados &amp; Queries</div></a>
+        </div>
+        <div>Tópico 06 · Microsserviços: Fundamentos &amp; Comunicação · material de revisão para a prova final. Base: Chris Richardson — <em>Microservices Patterns</em>; Sam Newman — <em>Building Microservices</em>.</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

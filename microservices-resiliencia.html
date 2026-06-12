@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Microsserviços: Resiliência — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão densa de Resiliência em Microsserviços para prova de múltipla escolha: falhas parciais, Circuit Breaker, Retry, Bulkhead, Fallback, Service Mesh, Chaos Engineering." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 08 · Microsserviços</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">Fundamentos</div>
+      <a href="#introducao">Por que sistemas distribuídos falham</a>
+      <a href="#falacias">Falácias da computação distribuída</a>
+      <a href="#conceitos">Resiliência × Disponibilidade × Tolerância</a>
+
+      <div class="group-label">Padrões de Resiliência</div>
+      <a href="#circuit-breaker">Circuit Breaker</a>
+      <a href="#retry">Retry com backoff e jitter</a>
+      <a href="#timeout">Timeout</a>
+      <a href="#bulkhead">Bulkhead</a>
+      <a href="#fallback">Fallback, Rate Limiting e Idempotência</a>
+      <a href="#mnemônico-padroes">Mnemônico — padrões</a>
+
+      <div class="group-label">Prática</div>
+      <a href="#bibliotecas">Resilience4j & Hystrix</a>
+      <a href="#observabilidade">Observabilidade</a>
+
+      <div class="group-label">Service Mesh</div>
+      <a href="#service-mesh">O que é Service Mesh</a>
+      <a href="#sidecar">Sidecar Proxy & Envoy</a>
+      <a href="#planes">Data Plane × Control Plane</a>
+      <a href="#istio">Istio & Linkerd</a>
+
+      <div class="group-label">Chaos Engineering</div>
+      <a href="#chaos">Princípios do Chaos Engineering</a>
+      <a href="#experimentos">Experimentos e Game Days</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <!-- ============================= HERO ============================= -->
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 08 · Microsserviços</span>
+        <h1>Resiliência</h1>
+        <p class="lede">Em sistemas distribuídos, <em>falha não é exceção — é norma</em>. Resiliência é a capacidade de <strong>absorver falhas parciais sem parar o sistema inteiro</strong>. Dominar os padrões (Circuit Breaker, Retry, Bulkhead, Fallback), o controle de tráfego via <strong>Service Mesh</strong> e a cultura de <strong>Chaos Engineering</strong> é o coração desta aula e um prato cheio para múltipla escolha.</p>
+      </header>
+
+      <!-- ============================= CALLOUT PROVA ============================= -->
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como Resiliência cai na prova</span>
+        <p>Espere: (1) os <strong>três estados do Circuit Breaker</strong> (closed/open/half-open) — quase certo; (2) <strong>quando usar Retry vs. Circuit Breaker</strong> (não são a mesma coisa); (3) <strong>Bulkhead</strong> — o que isola e por quê; (4) <strong>o que um Service Mesh tira do código da aplicação</strong>; (5) a diferença entre <strong>data plane e control plane</strong>; (6) o que <em>não</em> é Chaos Engineering (não é "quebrar por quebrar" aleatoriamente). Falácias da computação distribuída também aparecem como enunciado.</p>
+      </div>
+
+      <!-- ============================= INTRODUÇÃO ============================= -->
+      <h2 id="introducao"><span class="h2-kicker">Aula 1 · Fundamentos</span>Por que sistemas distribuídos falham</h2>
+      <p>Quando você divide uma aplicação monolítica em microsserviços, ganha escalabilidade e autonomia de deploy — mas a chamada de função local vira uma <strong>chamada de rede</strong>. Redes falham. Serviços ficam lentos. Isso muda tudo.</p>
+
+      <div class="card reveal">
+        <h4>Tipos de falha em sistemas distribuídos</h4>
+        <ul>
+          <li><strong>Falha de colapso (crash failure):</strong> o serviço para completamente.</li>
+          <li><strong>Falha de omissão:</strong> o serviço recebe a mensagem mas não responde.</li>
+          <li><strong>Falha de temporização (timing failure):</strong> o serviço responde, mas muito devagar — causa cascata de timeouts.</li>
+          <li><strong>Falha de desempenho degradado:</strong> o serviço opera parcialmente — parte das requisições falham ou ficam lentas.</li>
+          <li><strong>Falha bizantina:</strong> o serviço responde de forma incorreta ou arbitrária (corrupção, bugs de estado).</li>
+        </ul>
+      </div>
+
+      <p>O pior cenário não é o serviço que está completamente down — é o serviço que <strong>responde devagar</strong>. Threads ficam presas aguardando, conexões se esgotam, buffers enchem e o problema se propaga para cima: é a <strong>cascading failure</strong> (falha em cascata).</p>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: falha parcial é mais perigosa que falha total</span>
+        <p>Um serviço que responde em <strong>30 segundos</strong> pode ser mais destrutivo que um serviço totalmente indisponível. Com timeout correto, uma falha total é isolada rapidamente. Sem timeout, threads e recursos acumulam até o sistema inteiro travar.</p>
+      </div>
+
+      <div class="diagram reveal">
+        <div class="flow" style="flex-wrap:wrap;gap:8px">
+          <div class="node">Cliente</div>
+          <span class="arrow-h">→</span>
+          <div class="node accent">Serviço A<br><small style="color:var(--text-2)">aguardando B…</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node" style="opacity:.5">Serviço B<br><small style="color:var(--text-2)">lento / down</small></div>
+        </div>
+        <div class="legend"><span>Threads de A ficam bloqueadas esperando B. Se A recebe mais requisições, esgota o thread pool. A vira o novo "B" para quem chama A.</span></div>
+      </div>
+
+      <!-- ============================= FALÁCIAS ============================= -->
+      <h2 id="falacias"><span class="h2-kicker">Aula 1 · Fundamentos</span>As 8 Falácias da Computação Distribuída</h2>
+      <p>Formuladas por Peter Deutsch (e outros da Sun Microsystems), as <strong>8 falácias</strong> são suposições erradas que desenvolvedores novatos fazem ao construir sistemas distribuídos. Cada uma é fonte de bugs reais.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>#</th><th>Falácia (suposição incorreta)</th><th>Por que ela machuca</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>A rede é confiável</td><td>Pacotes se perdem; conexões caem sem aviso.</td></tr>
+            <tr><td>2</td><td>A latência é zero</td><td>Chamadas de rede sempre têm custo de tempo; ignorar isso causa timeouts inesperados.</td></tr>
+            <tr><td>3</td><td>A banda é infinita</td><td>Serializar objetos grandes em alta frequência satura links.</td></tr>
+            <tr><td>4</td><td>A rede é segura</td><td>Sem mTLS/autenticação, qualquer participante na rede pode interceptar ou falsificar.</td></tr>
+            <tr><td>5</td><td>A topologia não muda</td><td>IPs, rotas e instâncias mudam continuamente; hardcoded IPs quebram.</td></tr>
+            <tr><td>6</td><td>Há um único administrador</td><td>Múltiplos times, clouds e regiões — políticas de rede divergem.</td></tr>
+            <tr><td>7</td><td>O custo de transporte é zero</td><td>Chamadas de rede custam latência, dinheiro (egress) e energia.</td></tr>
+            <tr><td>8</td><td>A rede é homogênea</td><td>Diferentes stacks, protocolos e MTUs existem no mesmo sistema.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ============================= CONCEITOS ============================= -->
+      <h2 id="conceitos"><span class="h2-kicker">Aula 1 · Fundamentos</span>Resiliência × Disponibilidade × Tolerância a Falhas</h2>
+      <p>Três conceitos vizinhos que a prova adora trocar nas alternativas:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Conceito</th><th>Definição precisa</th><th>Foco</th><th>Exemplo</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Disponibilidade</strong></td>
+              <td>Proporção do tempo em que o sistema está operacional e acessível. Medida como porcentagem (99,9% = "três noves").</td>
+              <td>Uptime — o sistema está <em>em pé</em>?</td>
+              <td>SLA de 99,95% = até 4,4 h de downtime/ano.</td>
+            </tr>
+            <tr>
+              <td><strong>Tolerância a Falhas</strong></td>
+              <td>Capacidade de continuar operando <em>corretamente</em> mesmo quando componentes falham (sem degradação perceptível ao usuário).</td>
+              <td>Redundância — o sistema funciona <em>mesmo com falha</em>?</td>
+              <td>Réplicas de banco; failover automático; consensus (Raft/Paxos).</td></tr>
+            <tr>
+              <td><strong>Resiliência</strong></td>
+              <td>Capacidade de <em>absorver perturbações</em>, adaptar-se e se recuperar, mantendo funcionalidade aceitável mesmo sob condições adversas.</td>
+              <td>Recuperação — o sistema <em>sobrevive e volta</em>?</td>
+              <td>Circuit Breaker, Retry, Bulkhead, Fallback.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: disponibilidade alta ≠ resiliente</span>
+        <p>Um sistema pode ter 99,99% de disponibilidade e <strong>não ser resiliente</strong> — se um componente crítico (sem Bulkhead) falhar e derrubar tudo de uma vez, a disponibilidade cai bruscamente. Resiliência é sobre <em>conter o raio de explosão</em> de falhas parciais.</p>
+      </div>
+
+      <!-- ============================= CIRCUIT BREAKER ============================= -->
+      <h2 id="circuit-breaker"><span class="h2-kicker">Aula 2 · Padrões</span>Circuit Breaker — o coração da resiliência</h2>
+      <p>Proposto por <strong>Michael Nygard</strong> em <em>Release It!</em>, o <span class="lead-term">Circuit Breaker</span> envolve chamadas a serviços remotos e monitora falhas. Quando os erros ultrapassam um limiar, o circuito <strong>abre</strong> e rejeita chamadas imediatamente — sem esperar timeout — protegendo o chamador e dando tempo ao dependente para se recuperar.</p>
+
+      <p>O ponto mais cobrado em prova é o <strong>diagrama de estados</strong>:</p>
+
+      <div class="diagram reveal">
+        <div class="flow" style="flex-wrap:wrap;gap:12px;justify-content:center;align-items:center">
+          <div class="node accent" style="min-width:120px;text-align:center">
+            <strong>CLOSED</strong><br>
+            <small style="color:var(--text-2)">Normal — deixa passar</small>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <span style="font-size:11px;color:var(--accent-soft)">falhas &gt; limiar</span>
+            <span class="arrow-h">→</span>
+          </div>
+          <div class="node" style="min-width:120px;text-align:center;border-color:var(--accent-danger)">
+            <strong>OPEN</strong><br>
+            <small style="color:var(--text-2)">Bloqueado — falha imediata</small>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <span style="font-size:11px;color:var(--accent-warn)">timeout expirou</span>
+            <span class="arrow-h">→</span>
+          </div>
+          <div class="node" style="min-width:120px;text-align:center;border-color:var(--accent-warn)">
+            <strong>HALF-OPEN</strong><br>
+            <small style="color:var(--text-2)">Sonda — deixa passar 1</small>
+          </div>
+        </div>
+        <div class="legend" style="margin-top:12px">
+          <span>
+            <strong>HALF-OPEN → CLOSED</strong> se a requisição de sonda tiver sucesso.
+            <strong>HALF-OPEN → OPEN</strong> se a sonda falhar (volta a bloquear).
+            <strong>CLOSED → OPEN</strong> quando erros ultrapassam o limiar configurado.
+          </span>
+        </div>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: o estado half-open é o mais cobrado</span>
+        <p>Questões frequentemente omitem o <strong>HALF-OPEN</strong> ou o descrevem errado. HALF-OPEN <strong>não é "parcialmente fechado"</strong> — é um estado de <em>sonda</em>: o circuito permite <strong>uma única requisição de teste</strong> para verificar se o dependente se recuperou. Se falhar, volta a OPEN. Se tiver sucesso, vai para CLOSED.</p>
+      </div>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Estado</th><th>O que faz</th><th>Transição de saída</th></tr></thead>
+          <tbody>
+            <tr><td><strong>CLOSED</strong> (normal)</td><td>Deixa todas as requisições passarem; conta falhas e sucessos.</td><td>→ OPEN quando taxa de erro supera o limiar.</td></tr>
+            <tr><td><strong>OPEN</strong> (disparado)</td><td>Rejeita todas as requisições imediatamente com erro (fail-fast). Economiza recursos do chamador.</td><td>→ HALF-OPEN após o período de espera (sleep window).</td></tr>
+            <tr><td><strong>HALF-OPEN</strong> (sondagem)</td><td>Deixa passar um número limitado de requisições para testar a recuperação.</td><td>→ CLOSED se sucesso; → OPEN se falhar.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão 1</span>
+        <p class="q-text">Em um Circuit Breaker, o estado HALF-OPEN tem qual comportamento correto?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Rejeita 50% das requisições aleatoriamente, enquanto deixa as demais passarem normalmente.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Equivale ao estado OPEN — continua rejeitando tudo até o operador resetar manualmente.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Permite um número limitado de requisições de teste; se tiverem sucesso, o circuito fecha; se falharem, reabre.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Ativa automaticamente um fallback enquanto monitora o serviço dependente em background.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> HALF-OPEN é o estado de <em>sonda controlada</em>: deixa passar requisições limitadas para avaliar se o serviço se recuperou. (A) descreve balanceamento, não Circuit Breaker. (B) confunde com OPEN. (D) confunde com Fallback — são padrões distintos.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão 2</span>
+        <p class="q-text">Qual é a principal diferença entre o padrão Retry e o padrão Circuit Breaker?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Retry é usado apenas para erros de rede; Circuit Breaker trata qualquer tipo de falha de serviço.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Retry tenta a operação novamente com a expectativa de que o problema seja transitório; Circuit Breaker impede tentativas quando o serviço está com falha persistente, evitando cascata.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>São equivalentes — Circuit Breaker é apenas um Retry com backoff exponencial.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Circuit Breaker é implementado no servidor (dependente); Retry é implementado no cliente (chamador).</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Retry pressupõe falha <em>transitória</em> e tenta novamente — útil para falhas de rede momentâneas. Circuit Breaker detecta falha <em>persistente</em> e para de tentar, prevenindo cascata. Usar Retry sem Circuit Breaker pode piorar a situação (bombardeando um serviço já sobrecarregado). (C) é totalmente errado. (D) ambos podem ser no cliente.</div>
+      </div>
+
+      <!-- ============================= RETRY ============================= -->
+      <h2 id="retry"><span class="h2-kicker">Aula 2 · Padrões</span>Retry com Backoff Exponencial e Jitter</h2>
+      <p>O padrão <span class="lead-term">Retry</span> é correto para falhas <strong>transitórias</strong> — erros de rede momentâneos, sobrecarga passageira. Mas retry ingênuo (imediato, em loop) piora a situação quando o serviço já está sobrecarregado.</p>
+
+      <div class="card reveal">
+        <h4>As três variações de Retry</h4>
+        <ul>
+          <li><strong>Retry simples:</strong> tenta N vezes com intervalo fixo. Problema: "thundering herd" — muitos clientes tentando ao mesmo tempo no mesmo instante.</li>
+          <li><strong>Backoff exponencial:</strong> dobra o intervalo a cada tentativa (1s, 2s, 4s, 8s…). Reduz pressão sobre o dependente.</li>
+          <li><strong>Backoff exponencial + Jitter:</strong> adiciona aleatoriedade ao intervalo (<code>intervalo = min(cap, base * 2^n) * random(0,1)</code>). Dispersa os clientes no tempo — <strong>a solução recomendada</strong>.</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: Retry + Circuit Breaker são complementares, não concorrentes</span>
+        <p>A questão pode dizer "use Retry <em>ou</em> Circuit Breaker". A resposta correta é: use <strong>os dois juntos</strong>. O Retry trata falhas transitórias individuais; o Circuit Breaker detecta quando o padrão de falhas é persistente e para de deixar o Retry bombardear o dependente.</p>
+      </div>
+
+      <!-- ============================= TIMEOUT ============================= -->
+      <h2 id="timeout"><span class="h2-kicker">Aula 2 · Padrões</span>Timeout</h2>
+      <p>O <span class="lead-term">Timeout</span> é o padrão mais simples e o mais frequentemente esquecido. Toda chamada de rede <strong>deve ter um timeout definido</strong>. Sem ele, uma thread aguarda indefinidamente, esgotando o thread pool e causando cascata.</p>
+
+      <div class="card reveal">
+        <h4>Tipos de timeout</h4>
+        <ul>
+          <li><strong>Connection timeout:</strong> quanto tempo aguardar para estabelecer a conexão TCP.</li>
+          <li><strong>Read timeout (socket timeout):</strong> quanto tempo aguardar por dados após a conexão estabelecida.</li>
+          <li><strong>Request timeout (global):</strong> tempo total máximo da operação (inclui tentativas de retry).</li>
+        </ul>
+      </div>
+
+      <!-- ============================= BULKHEAD ============================= -->
+      <h2 id="bulkhead"><span class="h2-kicker">Aula 2 · Padrões</span>Bulkhead — isolamento de recursos</h2>
+      <p>O nome vem das divisórias estanques dos navios (<em>bulkhead</em>): se um compartimento inunda, os demais permanecem intactos. No contexto de microsserviços, o padrão <span class="lead-term">Bulkhead</span> <strong>isola recursos críticos</strong> (threads, conexões, memória) por serviço dependente, de modo que a falha em uma integração não esgote os recursos de outra.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Variação de Bulkhead</th><th>O que isola</th><th>Exemplo prático</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Thread Pool Isolation</strong></td><td>Thread pool dedicado por dependência.</td><td>Serviço de pagamento tem pool de 10 threads; se travar, não afeta o pool de 20 threads do catálogo.</td></tr>
+            <tr><td><strong>Semaphore Isolation</strong></td><td>Número máximo de requisições concorrentes por dependência (mais leve que thread pool).</td><td>Máximo de 15 chamadas simultâneas ao serviço de inventário; chamada 16 falha imediatamente.</td></tr>
+            <tr><td><strong>Connection Pool Isolation</strong></td><td>Pool de conexões de banco/HTTP por cliente.</td><td>Conexões ao banco de pedidos não competem com conexões ao banco de usuários.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: Bulkhead não é redundância</span>
+        <p>Bulkhead <strong>não duplica serviços</strong> — ele <strong>limita o impacto</strong> de uma falha contendo o "raio de explosão" (blast radius). Redundância (réplicas, failover) resolve disponibilidade. Bulkhead resolve isolamento de falhas em serviços que já estão degradados.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão 3</span>
+        <p class="q-text">Uma plataforma de e-commerce tem um único thread pool compartilhado entre chamadas ao serviço de pagamento e ao de catálogo. O serviço de pagamento fica lento e esgota todo o pool, derrubando também o catálogo. Qual padrão resolve especificamente esse problema?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Circuit Breaker — abre o circuito do serviço de pagamento e protege o catálogo.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Retry com backoff exponencial — reduz a pressão sobre o serviço de pagamento.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Timeout — define um tempo máximo para cada chamada ao pagamento, liberando threads mais cedo.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Bulkhead — isola os recursos (thread pool ou semáforo) de cada dependência, impedindo que a falha de um consuma os recursos do outro.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O isolamento de recursos entre dependências é exatamente o propósito do <strong>Bulkhead</strong>. (A) Circuit Breaker rejeita chamadas, mas não resolve o compartilhamento de pool — se threads já estão presas antes do circuito abrir, o dano está feito. (C) Timeout ajuda, mas sem Bulkhead o catálogo ainda compete pelo mesmo pool. (D) é a resposta correta: pools separados significam que o esgotamento de um não afeta o outro.</div>
+      </div>
+
+      <!-- ============================= FALLBACK, RATE LIMITING, IDEMPOTÊNCIA ============================= -->
+      <h2 id="fallback"><span class="h2-kicker">Aula 2 · Padrões</span>Fallback, Rate Limiting e Idempotência</h2>
+
+      <div class="card reveal">
+        <h4>Fallback</h4>
+        <p>Resposta alternativa quando a chamada principal falha. Formas comuns:</p>
+        <ul>
+          <li><strong>Valor em cache:</strong> retorna a última resposta válida armazenada.</li>
+          <li><strong>Resposta padrão degradada:</strong> retorna dados simplificados (ex.: lista de produtos sem preços em tempo real).</li>
+          <li><strong>Fila para processamento posterior:</strong> aceita a requisição e processa quando o dependente se recuperar.</li>
+          <li><strong>Erro explícito amigável:</strong> melhor que timeout silencioso — falha rápida com mensagem clara.</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <h4>Rate Limiting</h4>
+        <p>Controla o <strong>número de requisições</strong> por unidade de tempo, protegendo o serviço de sobrecarga. Implementações:</p>
+        <ul>
+          <li><strong>Token Bucket:</strong> bucket com capacidade N; cada requisição consome 1 token; tokens são repostos a uma taxa fixa. Permite bursts até o limite.</li>
+          <li><strong>Leaky Bucket:</strong> fila com taxa de saída fixa; entradas rápidas fazem a fila crescer e ultrapassar o limite → rejeição. Mais suavizado que Token Bucket.</li>
+          <li><strong>Fixed Window Counter:</strong> conta requisições numa janela de tempo fixa (ex.: 100 req/min). Problema: dobro na virada de janela.</li>
+          <li><strong>Sliding Window:</strong> janela deslizante suaviza o problema da virada de janela fixa.</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <h4>Idempotência</h4>
+        <p>Uma operação é <span class="lead-term">idempotente</span> quando pode ser executada múltiplas vezes e produz o <strong>mesmo resultado</strong>. Crítica para Retry: se uma requisição foi enviada, processada mas a resposta se perdeu, o Retry vai reenviar — sem idempotência, o efeito ocorre duas vezes (ex.: cobrança dupla).</p>
+        <ul>
+          <li>Implemente via <strong>chave de idempotência</strong> (idempotency key) no header da requisição.</li>
+          <li>O servidor armazena o resultado associado à chave e retorna o mesmo resultado em reenvios.</li>
+          <li>HTTP GET/HEAD são idempotentes por definição; POST geralmente não é — deve ser explicitamente tratado.</li>
+        </ul>
+      </div>
+
+      <!-- ============================= MNEMÔNICO ============================= -->
+      <h2 id="mnemônico-padroes"><span class="h2-kicker">Memorização</span>Mnemônico — padrões de resiliência</h2>
+      <div class="mnemonic reveal">
+        <div class="m-head">Mnemônico — "CRIBT" (cinco padrões principais)</div>
+        <div class="m-word"><b>C</b>ircuit Breaker · <b>R</b>etry · <b>I</b>dempotência · <b>B</b>ulkhead · <b>T</b>imeout</div>
+        <ul>
+          <li><b>C</b>ircuit Breaker — protege de cascata; três estados (Closed/Open/Half-Open)</li>
+          <li><b>R</b>etry — para falhas <em>transitórias</em>; use com backoff + jitter</li>
+          <li><b>I</b>dempotência — torna Retry seguro; chave de idempotência</li>
+          <li><b>B</b>ulkhead — isola recursos; contém o blast radius</li>
+          <li><b>T</b>imeout — base de tudo; todo call remoto precisa ter um</li>
+        </ul>
+      </div>
+
+      <!-- ============================= BIBLIOTECAS ============================= -->
+      <h2 id="bibliotecas"><span class="h2-kicker">Aula 3 · Prática</span>Resilience4j e Hystrix (legado)</h2>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Biblioteca</th><th>Status</th><th>Padrões suportados</th><th>Característica principal</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Netflix Hystrix</strong></td>
+              <td><span class="pill warn">Legado / descontinuado</span></td>
+              <td>Circuit Breaker, Fallback, Bulkhead (thread pool), timeout</td>
+              <td>Pioneiro; arquitetura baseada em RxJava e thread pool por comando. Em modo de manutenção desde 2018.</td>
+            </tr>
+            <tr>
+              <td><strong>Resilience4j</strong></td>
+              <td><span class="pill ok">Recomendado</span></td>
+              <td>Circuit Breaker, Retry, Rate Limiter, Bulkhead (semáforo/thread pool), Time Limiter, Cache</td>
+              <td>Mais leve que Hystrix; funcional/decorators; integração nativa com Spring Boot, Micronaut, Quarkus; métricas via Micrometer/Prometheus.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card reveal">
+        <h4>Health Checks</h4>
+        <p>Parte da resiliência operacional — detectar serviços doentes antes que os clientes detectem:</p>
+        <ul>
+          <li><strong>Liveness probe:</strong> o serviço está vivo? Falha → reinicia o container (Kubernetes).</li>
+          <li><strong>Readiness probe:</strong> o serviço está pronto para receber tráfego? Falha → remove do balanceador sem matar o pod.</li>
+          <li><strong>Startup probe:</strong> o serviço terminou de inicializar? Evita que liveness mate containers lentos no boot.</li>
+        </ul>
+      </div>
+
+      <!-- ============================= OBSERVABILIDADE ============================= -->
+      <h2 id="observabilidade"><span class="h2-kicker">Aula 3 · Prática</span>Observabilidade — os 3 pilares</h2>
+      <p>Não dá para ser resiliente sem visibilidade. Os <strong>3 pilares da observabilidade</strong> são frequentemente cobrados em prova:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Pilar</th><th>O que é</th><th>Ferramentas típicas</th><th>Pergunta que responde</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Logs</strong></td>
+              <td>Registros textuais de eventos discretos no tempo.</td>
+              <td>Elasticsearch + Kibana (ELK), Loki, CloudWatch Logs</td>
+              <td>"O que aconteceu?"</td>
+            </tr>
+            <tr>
+              <td><strong>Métricas</strong></td>
+              <td>Valores numéricos agregados no tempo (contadores, gauges, histogramas).</td>
+              <td>Prometheus + Grafana, Datadog, CloudWatch Metrics</td>
+              <td>"O sistema está saudável agora?"</td>
+            </tr>
+            <tr>
+              <td><strong>Tracing distribuído</strong></td>
+              <td>Rastreamento de uma requisição por todos os serviços que ela atravessa (trace + spans).</td>
+              <td>Jaeger, Zipkin, AWS X-Ray, OpenTelemetry</td>
+              <td>"Por que essa requisição ficou lenta / falhou?"</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 OpenTelemetry é o padrão emergente</span>
+        <p>O <strong>OpenTelemetry (OTel)</strong> é o projeto CNCF que unifica os três pilares numa API/SDK única, agnóstica de vendor. Um serviço instrumentado com OTel pode exportar para Jaeger, Prometheus, Datadog ou qualquer backend — sem reescrever a instrumentação.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão 4</span>
+        <p class="q-text">Um engenheiro quer identificar por qual sequência de microsserviços passou uma requisição específica que demorou 8 segundos. Qual pilar da observabilidade responde essa pergunta diretamente?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Tracing distribuído — rastreia a jornada da requisição entre serviços via trace ID e spans.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Logs — os logs de cada serviço contêm o tempo de cada operação.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Métricas — histogramas de latência mostram onde está o gargalo.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Health checks — o Readiness probe indica quais serviços estavam lentos.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O <strong>tracing distribuído</strong> é exatamente para isso: acompanhar uma única requisição (trace) pelos múltiplos serviços, com o tempo de cada segmento (span). Logs individuais por serviço não estão correlacionados sem um trace ID comum. Métricas são agregados — não rastreiam uma requisição específica. Health checks não têm relação com o diagnóstico post-hoc.</div>
+      </div>
+
+      <!-- ============================= SERVICE MESH ============================= -->
+      <h2 id="service-mesh"><span class="h2-kicker">Aula 4 · Service Mesh</span>O que é Service Mesh</h2>
+      <p>Um <span class="lead-term">Service Mesh</span> é uma camada de infraestrutura dedicada ao gerenciamento das <strong>comunicações serviço-a-serviço</strong>, implementada de forma transparente à aplicação. Em vez de cada serviço implementar retry, circuit breaker, mTLS e tracing individualmente, o mesh cuida disso para todos.</p>
+
+      <div class="card reveal">
+        <h4>O que o Service Mesh tira do código da aplicação</h4>
+        <ul>
+          <li><strong>Retry e timeout</strong> — configurados como política no mesh, não no código.</li>
+          <li><strong>Circuit Breaker</strong> — implementado no proxy, não na biblioteca do serviço.</li>
+          <li><strong>mTLS (Mutual TLS)</strong> — autenticação e criptografia entre serviços sem configuração manual por equipe.</li>
+          <li><strong>Observabilidade</strong> — traces, métricas e logs gerados automaticamente pelo proxy.</li>
+          <li><strong>Traffic shifting / canary</strong> — direcionar % do tráfego para versões diferentes sem deploy complexo.</li>
+          <li><strong>Load balancing avançado</strong> — least-request, ring hash, zone-aware.</li>
+        </ul>
+      </div>
+
+      <!-- ============================= SIDECAR ============================= -->
+      <h2 id="sidecar"><span class="h2-kicker">Aula 4 · Service Mesh</span>Sidecar Proxy e Envoy</h2>
+      <p>A implementação dominante de Service Mesh usa o padrão <span class="lead-term">Sidecar</span>: um proxy é injetado automaticamente em cada pod, ao lado do container da aplicação. Todo tráfego de rede passa pelo proxy — a aplicação não sabe que ele existe.</p>
+
+      <div class="diagram reveal">
+        <div class="flow" style="flex-wrap:wrap;gap:10px;align-items:center;justify-content:center">
+          <div class="node">
+            <strong>Pod A</strong><br>
+            <small>App Container</small><br>
+            <small>+ Sidecar (Envoy)</small>
+          </div>
+          <span class="arrow-h">→ mTLS →</span>
+          <div class="node accent">
+            <strong>Pod B</strong><br>
+            <small>App Container</small><br>
+            <small>+ Sidecar (Envoy)</small>
+          </div>
+        </div>
+        <div class="legend">O Envoy intercepta todo tráfego de entrada e saída. A app escreve em <code>localhost</code> normalmente; o sidecar roteia, criptografa, monitora e aplica políticas.</div>
+      </div>
+
+      <p>O <strong>Envoy</strong> (CNCF) é o proxy de referência usado pelo Istio e outros meshes. Oferece: filtros extensíveis (HTTP/gRPC/TCP), descoberta de serviço via xDS APIs, telemetria, health checks ativos e passivos, e muito mais.</p>
+
+      <!-- ============================= DATA PLANE × CONTROL PLANE ============================= -->
+      <h2 id="planes"><span class="h2-kicker">Aula 4 · Service Mesh</span>Data Plane × Control Plane</h2>
+      <p>A arquitetura de um Service Mesh é dividida em dois planos. Esta distinção cai muito em prova:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Plano</th><th>O que é</th><th>O que faz</th><th>Componentes (Istio)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Data Plane</strong></td>
+              <td>Os proxies sidecar (Envoy) em cada pod.</td>
+              <td>Encaminha o tráfego real entre serviços; aplica políticas em tempo real; coleta telemetria. Está no <em>caminho crítico</em> de cada requisição.</td>
+              <td>Envoy sidecar (injetado automaticamente)</td>
+            </tr>
+            <tr>
+              <td><strong>Control Plane</strong></td>
+              <td>Componentes centrais que configuram os proxies.</td>
+              <td>Distribui configurações (rotas, políticas, certificados) para os proxies via APIs xDS. <em>Não está no caminho das requisições</em>.</td>
+              <td>Istiod (Pilot + Citadel + Galley unificados)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: data plane ≠ "plano de dados do negócio"</span>
+        <p>Em Service Mesh, <strong>data plane</strong> significa o conjunto de proxies que encaminham tráfego real — não tem relação com "dados de negócio" ou data warehouse. O <strong>control plane</strong> controla os proxies mas <em>não toca no tráfego de requisições</em> em si.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão 5</span>
+        <p class="q-text">Em uma arquitetura de Service Mesh com Istio, o componente "Istiod" pertence a qual plano e qual é sua função principal?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Data Plane — é o proxy sidecar que intercepta e encaminha o tráfego entre os pods.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Data Plane — coleta métricas e traces de todos os serviços e os envia ao backend de observabilidade.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Control Plane — configura e distribui políticas (rotas, certificados, regras de tráfego) para os proxies Envoy, mas não está no caminho das requisições.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Control Plane — encaminha o tráfego de entrada do cluster (ingress gateway) para os serviços internos.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O <strong>Istiod é o Control Plane</strong> do Istio — gerencia descoberta de serviço, distribuição de configurações xDS e emissão de certificados mTLS. Ele <em>não encaminha tráfego real</em>. O proxy Envoy (sidecar) é o Data Plane. (A) e (B) descrevem o Envoy/sidecar. (D) descreve o Ingress Gateway, que também é Envoy mas num papel específico.</div>
+      </div>
+
+      <!-- ============================= ISTIO & LINKERD ============================= -->
+      <h2 id="istio"><span class="h2-kicker">Aula 4 · Service Mesh</span>Istio e Linkerd</h2>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Aspecto</th><th>Istio</th><th>Linkerd</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Proxy sidecar</strong></td><td>Envoy (C++)</td><td>Linkerd2-proxy (Rust) — mais leve</td></tr>
+            <tr><td><strong>Complexidade</strong></td><td>Alta — muitos recursos, curva de aprendizado íngreme</td><td>Menor — foco em simplicidade operacional</td></tr>
+            <tr><td><strong>mTLS automático</strong></td><td>Sim (via Citadel / Istiod)</td><td>Sim (mais simples de habilitar)</td></tr>
+            <tr><td><strong>Traffic shifting</strong></td><td>VirtualService / DestinationRule</td><td>TrafficSplit (SMI)</td></tr>
+            <tr><td><strong>Observabilidade</strong></td><td>Kiali + Jaeger + Prometheus</td><td>Viz dashboard nativo + Prometheus</td></tr>
+            <tr><td><strong>CNCF status</strong></td><td>Graduated</td><td>Graduated</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ============================= CHAOS ENGINEERING ============================= -->
+      <h2 id="chaos"><span class="h2-kicker">Aula 5 · Chaos Engineering</span>Princípios do Chaos Engineering</h2>
+      <p>O <span class="lead-term">Chaos Engineering</span> é a disciplina de realizar <strong>experimentos controlados em sistemas de produção</strong> para descobrir fragilidades antes que elas causem incidentes reais. Não é "destruir o sistema por diversão" — é ciência aplicada com hipóteses e métricas.</p>
+
+      <div class="card reveal">
+        <h4>Os 5 princípios (Netflix/Principles of Chaos)</h4>
+        <ol>
+          <li><strong>Defina um estado de equilíbrio (steady state):</strong> uma medida de comportamento normal (ex.: taxa de pedidos concluídos por segundo). É o baseline.</li>
+          <li><strong>Hipótese: o estado de equilíbrio continuará no grupo de controle E no de experimento.</strong></li>
+          <li><strong>Introduza variáveis que reflitam eventos do mundo real:</strong> falha de servidor, aumento de latência, disco cheio, partição de rede — não eventos aleatórios.</li>
+          <li><strong>Tente refutar a hipótese:</strong> se o sistema mantém o steady state, a hipótese é confirmada (para aquele experimento). Se desviar, encontrou uma fraqueza.</li>
+          <li><strong>Minimize o blast radius:</strong> comece pequeno (1 instância, 1% do tráfego); escale conforme a confiança aumenta.</li>
+        </ol>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: Chaos Engineering ≠ teste aleatório de destruição</span>
+        <p>Chaos Engineering é uma <strong>disciplina científica</strong>: hipótese → experimento controlado → observação → aprendizado. O <strong>blast radius</strong> deve ser <em>minimizado</em>, não maximizado. Executar experimentos sem hipótese ou sem monitoramento não é Chaos Engineering — é sabotagem.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão 6</span>
+        <p class="q-text">Qual afirmação descreve corretamente o conceito de "estado de equilíbrio" (steady state) em Chaos Engineering?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>É o estado em que nenhum componente do sistema está falhando — a situação ideal de 100% de disponibilidade.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>É uma medida mensurável de comportamento normal do sistema (ex.: throughput de pedidos/segundo), usada como baseline para comparar o grupo de controle com o de experimento.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>É o estado atingido após um rollback bem-sucedido, quando o sistema volta a operar sem erros.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>É a janela de manutenção programada em que experimentos de Chaos podem ser executados com segurança.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O <strong>steady state</strong> é o baseline de comportamento normal, tipicamente uma métrica de negócio (não de infraestrutura), que deve permanecer estável tanto no grupo de controle quanto no de experimento. (A) confunde com "sem falhas" — sistemas podem ter falhas e ainda estar no steady state se o impacto não é perceptível. (C) e (D) são definições inventadas.</div>
+      </div>
+
+      <!-- ============================= EXPERIMENTOS ============================= -->
+      <h2 id="experimentos"><span class="h2-kicker">Aula 5 · Chaos Engineering</span>Experimentos e Game Days</h2>
+
+      <div class="card reveal">
+        <h4>Chaos Monkey e a Simian Army (Netflix)</h4>
+        <ul>
+          <li><strong>Chaos Monkey:</strong> mata instâncias de servidor aleatoriamente em produção para garantir que o sistema sobrevive à perda de instâncias.</li>
+          <li><strong>Latency Monkey:</strong> injeta atrasos artificiais em chamadas REST para simular degradação de serviço.</li>
+          <li><strong>Chaos Gorilla:</strong> simula a indisponibilidade de uma zona de disponibilidade da AWS inteira.</li>
+          <li><strong>Chaos Kong:</strong> simula a perda de uma região inteira.</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <h4>Game Days</h4>
+        <p>Sessões planejadas onde times simulam incidentes em ambientes controlados (pode ser staging ou produção com blast radius mínimo). Objetivos:</p>
+        <ul>
+          <li>Testar runbooks e procedimentos de resposta a incidentes.</li>
+          <li>Descobrir dependências ocultas entre serviços.</li>
+          <li>Treinar os times em situações de pressão sem impacto real ao cliente.</li>
+          <li>Validar mecanismos de fallback e redundância.</li>
+        </ul>
+      </div>
+
+      <div class="tldr reveal">
+        <div class="t-head">TL;DR — Chaos Engineering</div>
+        <ul>
+          <li>Não é "quebrar coisas" — é <strong>experimento científico</strong> com hipótese e steady state.</li>
+          <li>Blast radius deve ser <strong>mínimo e controlado</strong>.</li>
+          <li>Começa em staging, escala para produção com confiança gradual.</li>
+          <li>Chaos Monkey = mata instâncias em prod. Chaos Kong = mata região inteira.</li>
+          <li>Game Days = simulação planejada com times envolvidos.</li>
+        </ul>
+      </div>
+
+      <!-- ============================= FLASHCARDS ============================= -->
+      <h2 id="flashcards"><span class="h2-kicker">Auto-teste</span>Flashcards — clique para virar</h2>
+      <p>Pense na resposta <strong>antes</strong> de clicar.</p>
+      <div class="flashgrid reveal">
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Quais são os 3 estados do Circuit Breaker?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>CLOSED</strong> (normal) → <strong>OPEN</strong> (bloqueado, fail-fast) → <strong>HALF-OPEN</strong> (sonda). HALF-OPEN volta a CLOSED no sucesso ou a OPEN na falha.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é o estado HALF-OPEN?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Estado de <strong>sonda controlada</strong>: o circuito permite um número limitado de requisições de teste para verificar se o dependente se recuperou. <em>Não é "meio aberto"</em>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Retry vs. Circuit Breaker — qual a diferença?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Retry</strong>: trata falha <em>transitória</em> individual (tenta de novo). <strong>Circuit Breaker</strong>: detecta falha <em>persistente</em> e para de tentar (previne cascata). São <strong>complementares</strong>, não alternativos.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é Bulkhead e por que usar?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Isola recursos (thread pool, semáforo, conexões) por dependência. A falha de uma integração <strong>não consome os recursos</strong> de outra. Contém o <em>blast radius</em>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Por que backoff exponencial + jitter é melhor que retry imediato?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Backoff reduz pressão sobre o dependente. Jitter (aleatoriedade) dispersa os clientes no tempo, evitando <em>thundering herd</em> — pico de carga sincronizado de todos os clientes.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Resiliência × Disponibilidade × Tolerância a Falhas</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Disponibilidade</strong>: % do tempo em pé. <strong>Tolerância a Falhas</strong>: funciona corretamente mesmo com componentes falhos (redundância). <strong>Resiliência</strong>: absorve perturbações e se recupera (padrões de contenção).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é Service Mesh?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Camada de infraestrutura para comunicação serviço-a-serviço. Move retry, circuit breaker, mTLS, observabilidade e traffic shifting para <strong>fora do código</strong> da aplicação, para proxies sidecar.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Data Plane × Control Plane no Service Mesh</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Data Plane</strong>: proxies sidecar (Envoy) que encaminham tráfego real. <strong>Control Plane</strong>: configura os proxies (Istiod no Istio) — <em>não está no caminho das requisições</em>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é o padrão Sidecar no contexto de Service Mesh?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Um proxy (Envoy) injetado automaticamente em cada pod, ao lado do container da aplicação. Todo tráfego passa pelo proxy — a app não sabe que ele existe. Implementa retry, mTLS, telemetria, etc.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Os 3 pilares da observabilidade</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Logs</strong>: "o que aconteceu?" | <strong>Métricas</strong>: "o sistema está saudável?" | <strong>Tracing distribuído</strong>: "por que essa requisição falhou/ficou lenta?" (trace + spans por serviço).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é steady state em Chaos Engineering?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Medida mensurável do <strong>comportamento normal</strong> do sistema (ex.: pedidos concluídos/segundo). É o baseline da hipótese: o experimento <strong>tenta refutar</strong> que o sistema mantém o steady state.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é idempotência e por que importa para Retry?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Uma operação é idempotente se executada N vezes produz o <strong>mesmo resultado</strong>. Sem idempotência, Retry pode causar efeitos duplicados (ex.: cobrança dupla). Solução: chave de idempotência no request.</div></div>
+        </div></div>
+
+      </div>
+
+      <!-- ============================= GLOSSÁRIO ============================= -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>Resiliência</dt><dd>Capacidade de absorver perturbações, adaptar-se e se recuperar mantendo funcionalidade aceitável.</dd></div>
+        <div class="gloss-item"><dt>Falha parcial</dt><dd>Quando parte de um sistema distribuído falha enquanto o restante continua operando. Mais perigosa que falha total sem os padrões corretos.</dd></div>
+        <div class="gloss-item"><dt>Cascading failure</dt><dd>Falha em cascata: a falha de um serviço se propaga para seus dependentes, podendo derrubar o sistema inteiro.</dd></div>
+        <div class="gloss-item"><dt>Circuit Breaker</dt><dd>Padrão que monitora falhas e, ao ultrapassar um limiar, abre o circuito (fail-fast) para proteger o chamador e dar tempo de recuperação ao dependente. Três estados: CLOSED, OPEN, HALF-OPEN.</dd></div>
+        <div class="gloss-item"><dt>HALF-OPEN</dt><dd>Estado de sonda do Circuit Breaker: permite requisições limitadas de teste; fecha se sucesso, reabre se falhar.</dd></div>
+        <div class="gloss-item"><dt>Bulkhead</dt><dd>Padrão que isola recursos (threads, semáforos, conexões) por dependência, contendo o blast radius de uma falha.</dd></div>
+        <div class="gloss-item"><dt>Blast Radius</dt><dd>Raio de explosão: quantos usuários, serviços ou transações são afetados por uma falha. Minimizar o blast radius é objetivo central de Bulkhead e Chaos Engineering.</dd></div>
+        <div class="gloss-item"><dt>Jitter</dt><dd>Aleatoriedade adicionada ao intervalo de backoff em Retry, para dispersar clientes no tempo e evitar thundering herd.</dd></div>
+        <div class="gloss-item"><dt>Idempotência</dt><dd>Propriedade de uma operação que pode ser executada múltiplas vezes com o mesmo resultado. Essencial para tornar Retry seguro.</dd></div>
+        <div class="gloss-item"><dt>Service Mesh</dt><dd>Camada de infraestrutura para comunicação serviço-a-serviço, implementada via proxies sidecar, que externaliza retry, circuit breaker, mTLS e observabilidade do código da aplicação.</dd></div>
+        <div class="gloss-item"><dt>Sidecar Proxy</dt><dd>Proxy (tipicamente Envoy) injetado automaticamente ao lado de cada pod, interceptando todo tráfego de rede de forma transparente à aplicação.</dd></div>
+        <div class="gloss-item"><dt>Data Plane</dt><dd>Conjunto de proxies sidecar que encaminham tráfego real entre serviços e aplicam políticas em tempo real.</dd></div>
+        <div class="gloss-item"><dt>Control Plane</dt><dd>Componentes centrais (ex.: Istiod) que configuram e distribuem políticas para os proxies. Não está no caminho das requisições.</dd></div>
+        <div class="gloss-item"><dt>Chaos Engineering</dt><dd>Disciplina de experimentos controlados em sistemas de produção para descobrir fragilidades. Requer hipótese, steady state, blast radius mínimo e observabilidade.</dd></div>
+      </dl>
+
+      <!-- ============================= PEGADINHAS ============================= -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas &amp; checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li><strong>Circuit Breaker tem 3 estados</strong>: CLOSED (normal), OPEN (bloqueado) e <strong>HALF-OPEN</strong> (sonda). HALF-OPEN não é "meio aberto" — é uma <em>sonda controlada</em>.</li>
+          <li>Em HALF-OPEN: sucesso → CLOSED; falha → OPEN. <strong>Nunca</strong>: OPEN → CLOSED diretamente.</li>
+          <li><strong>Retry trata falha transitória; Circuit Breaker trata falha persistente</strong>. Use os dois juntos.</li>
+          <li><strong>Bulkhead não é redundância</strong> — isola recursos, não duplica serviços.</li>
+          <li>Um serviço <strong>lento</strong> é mais perigoso que um serviço <strong>down</strong> — sem timeout, threads acumulam.</li>
+          <li><strong>Data Plane</strong> = proxies (Envoy) que encaminham tráfego. <strong>Control Plane</strong> = configura proxies (Istiod) — não toca tráfego.</li>
+          <li>Service Mesh <strong>tira do código</strong>: retry, circuit breaker, mTLS, observabilidade, traffic shifting.</li>
+          <li>Chaos Engineering <strong>não é aleatório</strong>: requer hipótese, steady state e blast radius mínimo.</li>
+          <li><strong>Steady state</strong> = métrica de comportamento normal (throughput, taxa de sucesso) — não "zero falhas".</li>
+          <li><strong>Blast radius</strong> deve ser <em>minimizado</em> em Chaos Engineering, não maximizado.</li>
+          <li>Falácias: "a rede é confiável" e "a latência é zero" são as mais cobradas — nenhuma das 8 é verdade.</li>
+          <li><strong>Disponibilidade ≠ Resiliência</strong>: alta disponibilidade sem Bulkhead pode ter blast radius total.</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="microservices-dados.html"><div class="dir">← Tópico anterior</div><div class="ttl">07 · Microsserviços: Dados</div></a>
+          <a href="microservices-saga.html" class="next"><div class="dir">Próximo tópico →</div><div class="ttl">09 · Microsserviços: SAGA Pattern</div></a>
+        </div>
+        <div>Tópico 08 · Microsserviços: Resiliência · material de revisão para a prova final. Base: Chris Richardson — <em>Microservices Patterns</em>; Michael Nygard — <em>Release It!</em>; Netflix Tech Blog; documentação Istio/Linkerd.</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

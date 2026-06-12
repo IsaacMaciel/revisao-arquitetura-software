@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Microsserviços: SAGA Pattern — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão densa do SAGA Pattern para prova de múltipla escolha: orquestração vs coreografia, transações compensatórias, isolamento no ACID, countermeasures, 2PC vs SAGA." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 09 · Microsserviços</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">Fundamentos</div>
+      <a href="#introducao">Introdução ao SAGA</a>
+      <a href="#por-que-2pc-falha">Por que 2PC não escala</a>
+
+      <div class="group-label">Coordenação</div>
+      <a href="#coreografia">Coreografia</a>
+      <a href="#orquestracao">Orquestração</a>
+      <a href="#comparativo-coord">Coreografia × Orquestração</a>
+
+      <div class="group-label">Consistência</div>
+      <a href="#acid-base">ACID × BASE e o "I" perdido</a>
+      <a href="#countermeasures">Countermeasures</a>
+
+      <div class="group-label">Prática</div>
+      <a href="#compensacao">Transações compensatórias</a>
+      <a href="#tipos-tx">Compensável × Pivot × Retriable</a>
+      <a href="#exemplo-pedido">Exemplo: fluxo de pedido</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 09 · Microsserviços</span>
+        <h1>SAGA Pattern</h1>
+        <p class="lede">Quando uma transação de negócio envolve múltiplos microsserviços, o <em>commit em duas fases (2PC)</em> se torna um gargalo de disponibilidade. O <strong>SAGA Pattern</strong> resolve isso decompondo a transação em uma sequência de <strong>transações locais</strong>, cada uma com sua própria transação compensatória, garantindo consistência eventual sem travar recursos distribuídos.</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como SAGA cai na prova</span>
+        <p>Espere questões sobre: (1) <strong>qual letra do ACID o SAGA sacrifica</strong> (Isolamento — é a mais cobrada); (2) <strong>Coreografia × Orquestração</strong> — distinguir a fundo (com ou sem coordenador central); (3) <strong>transação compensatória</strong> vs. rollback físico; (4) por que <strong>2PC não escala</strong> em microsserviços; (5) os três tipos de transação: <strong>compensável, pivot e retriable</strong>; (6) as <strong>countermeasures</strong> para anomalias de isolamento (semantic lock, reread value, by value…).</p>
+      </div>
+
+      <!-- ==================== INTRODUÇÃO ==================== -->
+      <h2 id="introducao"><span class="h2-kicker">Aula 1 · Fundamentos</span>Introdução ao SAGA Pattern</h2>
+      <p>Em uma arquitetura de microsserviços, cada serviço possui seu próprio banco de dados (<em>database per service</em>). Uma operação de negócio que antes era uma única transação ACID local agora precisa atravessar múltiplos serviços e bancos — surgindo o problema das <span class="lead-term">transações distribuídas</span>.</p>
+
+      <div class="card reveal">
+        <h4>O problema central</h4>
+        <ul>
+          <li>Sem coordenação, uma falha em qualquer serviço intermediário deixa o sistema em estado parcialmente inconsistente.</li>
+          <li>A solução "óbvia" seria usar um protocolo de commit distribuído — mas isso traz problemas sérios (ver 2PC abaixo).</li>
+          <li>O <strong>SAGA Pattern</strong> (Garcia-Molina &amp; Salem, 1987) propõe uma abordagem diferente: decompor a transação longa em <strong>transações locais</strong> encadeadas.</li>
+        </ul>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">📖 Definição formal</span>
+        <p>Uma <strong>SAGA</strong> é uma sequência de transações locais <strong>T₁, T₂, … Tₙ</strong>. Cada transação Tᵢ publica um evento ou envia uma mensagem que dispara a próxima transação Tᵢ₊₁. Se Tᵢ falhar, as transações <strong>compensatórias Cᵢ₋₁, Cᵢ₋₂, … C₁</strong> são executadas na ordem inversa para desfazer o que foi feito.</p>
+      </div>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Aspecto</th><th>Transação ACID tradicional</th><th>SAGA</th></tr></thead>
+          <tbody>
+            <tr><td>Escopo</td><td>Um único banco de dados</td><td>Múltiplos serviços e bancos</td></tr>
+            <tr><td>Atomicidade</td><td>Tudo ou nada (rollback automático)</td><td>Compensação explícita (rollback semântico)</td></tr>
+            <tr><td>Isolamento</td><td>Garantido (locks, MVCC)</td><td><strong>NÃO garantido</strong> — anomalias possíveis</td></tr>
+            <tr><td>Consistência eventual</td><td>Imediata</td><td>Eventual (entre passos)</td></tr>
+            <tr><td>Bloqueio de recursos</td><td>Sim (durante toda a tx)</td><td>Não (cada tx local libera imediatamente)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ==================== POR QUE 2PC NÃO ESCALA ==================== -->
+      <h2 id="por-que-2pc-falha"><span class="h2-kicker">Aula 1 · O problema</span>Por que 2PC não escala em microsserviços</h2>
+      <p>O <span class="lead-term">Two-Phase Commit (2PC)</span> é o protocolo clássico de commit distribuído: na <strong>fase 1</strong> (Prepare) o coordenador pergunta a todos os participantes se estão prontos para commitar; na <strong>fase 2</strong> (Commit) envia a decisão final.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Problema</th><th>Explicação</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Bloqueio sincrônico</strong></td><td>Todos os participantes ficam com recursos <em>bloqueados</em> entre as fases 1 e 2. Em microsserviços com alta latência e centenas de participantes, isso é inaceitável.</td></tr>
+            <tr><td><strong>Single point of failure</strong></td><td>Se o coordenador falhar após a fase 1, os participantes ficam bloqueados indefinidamente (esperando a decisão que nunca chega).</td></tr>
+            <tr><td><strong>Acoplamento síncrono</strong></td><td>Exige que todos os serviços estejam disponíveis <em>simultaneamente</em>. Viola a autonomia dos microsserviços.</td></tr>
+            <tr><td><strong>Suporte limitado</strong></td><td>Muitos bancos NoSQL modernos (DynamoDB, MongoDB) não suportam 2PC.</td></tr>
+            <tr><td><strong>Disponibilidade</strong></td><td>Pelo teorema CAP: 2PC prioriza Consistência sobre Disponibilidade. Em microsserviços, o trade-off correto é o inverso.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p>A prova pode apresentar o 2PC como "a solução para transações distribuídas" e pedir por que ele <em>não</em> é adequado em microsserviços. A resposta central não é "ele não funciona" — é que ele <strong>bloqueia recursos e acopla disponibilidade</strong>, violando os princípios de autonomia e resiliência dos microsserviços. O SAGA não elimina a necessidade de consistência; ele a alcança de forma <em>assíncrona e eventual</em>.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão 1</span>
+        <p class="q-text">Por que o Two-Phase Commit (2PC) é considerado inadequado para coordenar transações em arquiteturas de microsserviços?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Porque o 2PC não garante atomicidade, deixando dados inconsistentes em caso de falha.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Porque o 2PC é um padrão muito antigo e os bancos de dados modernos não o suportam em nenhum caso.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Porque o 2PC bloqueia recursos de todos os participantes de forma síncrona e cria um ponto único de falha no coordenador, prejudicando disponibilidade e autonomia dos serviços.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Porque o 2PC exige que todos os serviços usem o mesmo banco de dados, o que contradiz o padrão database per service.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> (C) é a resposta correta. O bloqueio sincrônico e o SPOF do coordenador são os problemas fundamentais. (A) está errada: o 2PC <em>garante</em> atomicidade, esse é exatamente seu objetivo. (B) está errada: muitos BDs suportam 2PC, o problema é de escalabilidade e disponibilidade. (D) descreve um problema diferente (acoplamento de schema), não o problema do 2PC.</div>
+      </div>
+
+      <!-- ==================== COREOGRAFIA ==================== -->
+      <h2 id="coreografia"><span class="h2-kicker">Aula 2 · Coordenação</span>Coreografia (Choreography)</h2>
+      <p>Na <span class="lead-term">coreografia</span>, <strong>não existe um coordenador central</strong>. Cada serviço sabe o que fazer e <em>reage</em> a eventos publicados por outros serviços. É uma arquitetura <strong>descentralizada e orientada a eventos</strong>.</p>
+
+      <div class="diagram reveal">
+        <div class="flow" style="flex-wrap:wrap;gap:8px">
+          <div class="node">Order Service<br><small style="color:#9ca3af">cria pedido</small></div>
+          <span class="arrow-h">→ OrderCreated →</span>
+          <div class="node">Customer Service<br><small style="color:#9ca3af">reserva crédito</small></div>
+          <span class="arrow-h">→ CreditReserved →</span>
+          <div class="node">Kitchen Service<br><small style="color:#9ca3af">cria ticket</small></div>
+          <span class="arrow-h">→ TicketCreated →</span>
+          <div class="node">Delivery Service<br><small style="color:#9ca3af">agenda entrega</small></div>
+        </div>
+        <div class="legend"><span>Coreografia: cada serviço publica um evento que o próximo consome. Sem orquestrador central — os serviços "dançam" reagindo aos eventos uns dos outros.</span></div>
+      </div>
+
+      <div class="card reveal">
+        <h4>Vantagens da Coreografia</h4>
+        <ul>
+          <li>Baixo acoplamento: nenhum serviço conhece os outros diretamente.</li>
+          <li>Sem SPOF de coordenação — o message broker é o único ponto centralizado.</li>
+          <li>Simples para SAGAs curtas (2–3 participantes).</li>
+          <li>Boa para <strong>extensibilidade</strong>: novos serviços "entram" subscrevendo eventos existentes.</li>
+        </ul>
+        <h4 style="margin-top:1rem">Desvantagens da Coreografia</h4>
+        <ul>
+          <li><strong>Lógica espalhada</strong>: difícil de entender o fluxo completo da SAGA — cada serviço só vê sua parte.</li>
+          <li><strong>Dependências cíclicas potenciais</strong>: serviços podem acabar subscrevendo eventos uns dos outros.</li>
+          <li>Difícil de depurar e rastrear o estado da SAGA como um todo.</li>
+          <li>Risco de <strong>acoplamento temporal</strong> disfarçado via eventos.</li>
+        </ul>
+      </div>
+
+      <!-- ==================== ORQUESTRAÇÃO ==================== -->
+      <h2 id="orquestracao"><span class="h2-kicker">Aula 2 · Coordenação</span>Orquestração (Orchestration)</h2>
+      <p>Na <span class="lead-term">orquestração</span>, existe um <strong>orquestrador central (saga orchestrator)</strong> — uma classe ou serviço dedicado — que diz explicitamente a cada participante o que fazer e aguarda o resultado antes de prosseguir.</p>
+
+      <div class="diagram reveal">
+        <div class="flow" style="flex-direction:column;align-items:center;gap:12px">
+          <div class="node accent" style="width:200px;text-align:center">Order Saga Orchestrator<br><small style="color:#ffb3cb">coordenador central</small></div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+              <span style="color:#e8b339;font-size:0.85rem">1. reservar crédito</span>
+              <div class="node">Customer Service</div>
+              <span style="color:#38d39f;font-size:0.85rem">CreditReserved ✓</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+              <span style="color:#e8b339;font-size:0.85rem">2. criar ticket</span>
+              <div class="node">Kitchen Service</div>
+              <span style="color:#38d39f;font-size:0.85rem">TicketCreated ✓</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+              <span style="color:#e8b339;font-size:0.85rem">3. agendar entrega</span>
+              <div class="node">Delivery Service</div>
+              <span style="color:#38d39f;font-size:0.85rem">DeliveryScheduled ✓</span>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:#e91e63"></span> Orquestração: o Orchestrator envia comandos e aguarda respostas. Ele conhece o fluxo completo e toma as decisões.</span></div>
+      </div>
+
+      <div class="card reveal">
+        <h4>Vantagens da Orquestração</h4>
+        <ul>
+          <li><strong>Fluxo explícito</strong>: o orquestrador é a "documentação viva" da SAGA — fácil de entender.</li>
+          <li>Facilita depuração e rastreamento do estado da transação.</li>
+          <li>Participantes são mais simples: apenas respondem a comandos, não precisam conhecer a SAGA.</li>
+          <li>Ideal para SAGAs complexas com muitos participantes e lógica condicional.</li>
+        </ul>
+        <h4 style="margin-top:1rem">Desvantagens da Orquestração</h4>
+        <ul>
+          <li><strong>Concentração de lógica</strong>: o orquestrador pode se tornar um "God Object" com lógica demais.</li>
+          <li>Maior acoplamento do orquestrador com os participantes.</li>
+          <li>O orquestrador precisa ser persistido (geralmente em banco) para sobreviver a falhas.</li>
+        </ul>
+      </div>
+
+      <!-- ==================== COMPARATIVO COORD ==================== -->
+      <h2 id="comparativo-coord"><span class="h2-kicker">Distinção central</span>Coreografia × Orquestração — tabela comparativa</h2>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Critério</th><th>Coreografia</th><th>Orquestração</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Coordenador central</strong></td><td>Não existe</td><td>Sim — Saga Orchestrator</td></tr>
+            <tr><td><strong>Comunicação</strong></td><td>Eventos (publish/subscribe)</td><td>Comandos (request/reply)</td></tr>
+            <tr><td><strong>Acoplamento</strong></td><td>Baixo (serviços não se conhecem)</td><td>Maior (orchestrator conhece todos)</td></tr>
+            <tr><td><strong>Visibilidade do fluxo</strong></td><td>Difusa — distribuída por vários serviços</td><td>Centralizada no orchestrator</td></tr>
+            <tr><td><strong>Depuração</strong></td><td>Difícil (rastrear eventos)</td><td>Mais fácil (estado no orchestrator)</td></tr>
+            <tr><td><strong>Extensibilidade</strong></td><td>Boa (novos serviços subscrevem)</td><td>Requer alterar o orchestrator</td></tr>
+            <tr><td><strong>Complexidade da SAGA</strong></td><td>Ideal para fluxos simples</td><td>Ideal para fluxos complexos/condicionais</td></tr>
+            <tr><td><strong>Risco principal</strong></td><td>Lógica espalhada / acoplamento oculto</td><td>God Object no orchestrator</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — a distinção EXATA</span>
+        <p>A prova pode confundir os termos. Lembre-se: <strong>Coreografia = sem coordenador, baseada em eventos/reações</strong>. <strong>Orquestração = com coordenador central que envia comandos</strong>. Não é sobre quem "sabe mais" — é sobre <em>quem toma as decisões de fluxo</em>. Na coreografia, ninguém toma — cada serviço reage. Na orquestração, o orquestrador toma.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão 2</span>
+        <p class="q-text">Em uma SAGA implementada por coreografia, como os serviços sabem o que fazer após uma transação local ser concluída?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Um orquestrador central envia um comando para o próximo serviço na sequência.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>O serviço que completou a transação publica um evento de domínio; os demais serviços que subscreveram esse evento reagem autonomamente.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>O serviço chama diretamente (HTTP síncrono) o próximo serviço para notificá-lo.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Um registro central de estado da SAGA é consultado por cada serviço periodicamente.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> (B) é a essência da coreografia: cada serviço <em>reage</em> a eventos publicados, sem nenhum coordenador. (A) descreve orquestração. (C) é chamada direta síncrona — não é SAGA nem coreografia. (D) descreve algo próximo a uma variante de orquestração com polling.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão 3</span>
+        <p class="q-text">Uma SAGA com 8 serviços participantes e múltiplas ramificações condicionais (se crédito aprovado → seguir caminho A; se recusado → caminho B + compensação) está sendo projetada. Qual abordagem de coordenação é mais adequada e por quê?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Coreografia, porque elimina o ponto único de falha do orquestrador.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Coreografia, porque SAGAs longas se beneficiam de lógica distribuída entre os serviços.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Orquestração, porque serviços com muitos participantes precisam de chamadas síncronas.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Orquestração, porque lógica condicional complexa e múltiplos participantes ficam explícitos e rastreáveis no orquestrador.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> (D) é correto. Com muitos participantes e lógica condicional, a coreografia espalharia a lógica por todos os serviços, tornando o fluxo opaco. O orquestrador centraliza as decisões e permite rastrear o estado da SAGA. (A) e (B) ignoram que a coreografia torna SAGAs complexas muito difíceis de entender e depurar. (C) é falso: orquestração não implica chamadas síncronas.</div>
+      </div>
+
+      <!-- ==================== ACID × BASE ==================== -->
+      <h2 id="acid-base"><span class="h2-kicker">Aula 3 · Consistência</span>ACID × BASE e o "I" perdido do SAGA</h2>
+      <p>O SAGA sacrifica explicitamente a propriedade <strong>"I" do ACID — o Isolamento</strong>. Entender exatamente o que isso significa é fundamental para a prova.</p>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha central — qual letra do ACID o SAGA sacrifica?</span>
+        <p>O SAGA mantém <strong>Atomicidade</strong> (via compensação), <strong>Consistência</strong> (eventual) e <strong>Durabilidade</strong> (cada tx local é durável). O que ele <strong>sacrifica é o Isolamento</strong> — outras transações podem ler dados intermediários de uma SAGA em execução antes que ela complete (ou seja compensada).</p>
+      </div>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Propriedade</th><th>Significado ACID</th><th>Status no SAGA</th></tr></thead>
+          <tbody>
+            <tr><td><strong>A</strong> — Atomicidade</td><td>Tudo ou nada</td><td><span class="pill strat">Mantida</span> — via transações compensatórias</td></tr>
+            <tr><td><strong>C</strong> — Consistência</td><td>Estado válido após a tx</td><td><span class="pill ok">Eventual</span> — o sistema converge para consistência</td></tr>
+            <tr><td><strong>I</strong> — Isolamento</td><td>Tx invisível para outras até commitar</td><td><span class="pill warn">SACRIFICADO</span> — anomalias são possíveis entre passos</td></tr>
+            <tr><td><strong>D</strong> — Durabilidade</td><td>Dados persistidos sobrevivem a falhas</td><td><span class="pill strat">Mantida</span> — cada tx local é durável</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card reveal">
+        <h4>Anomalias causadas pela falta de isolamento</h4>
+        <ul>
+          <li><strong>Lost Update:</strong> duas SAGAs leem o mesmo dado, ambas o modificam; a segunda sobrescreve a primeira sem saber da mudança. Ex.: saldo de conta atualizado por duas SAGAs simultâneas.</li>
+          <li><strong>Dirty Read:</strong> uma SAGA lê dados modificados por outra SAGA que ainda não completou (nem foi compensada). Ex.: SAGA B lê crédito reservado por SAGA A antes que A confirme.</li>
+          <li><strong>Non-Repeatable Read:</strong> uma SAGA lê o mesmo dado duas vezes e obtém valores diferentes porque outra SAGA o modificou no meio.</li>
+        </ul>
+      </div>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Modelo</th><th>Propriedades</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr><td><strong>ACID</strong></td><td>Atomicidade, Consistência, Isolamento, Durabilidade</td><td>Consistência forte; disponibilidade e escalabilidade limitadas</td></tr>
+            <tr><td><strong>BASE</strong></td><td><strong>B</strong>asically <strong>A</strong>vailable, <strong>S</strong>oft state, <strong>E</strong>ventually consistent</td><td>Disponibilidade alta; consistência eventual (sem isolamento forte)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 SAGA é BASE, não ACID</span>
+        <p>O SAGA opera sob o modelo <strong>BASE</strong>: o sistema está <em>basicamente disponível</em> (cada serviço opera de forma autônoma), com <em>estado soft</em> (dados podem estar em estado intermediário durante a SAGA) e <em>consistência eventual</em> (o estado correto é alcançado após todos os passos ou compensações completarem). Isso é uma <em>escolha consciente</em> de trade-off, não uma falha do padrão.</p>
+      </div>
+
+      <!-- ==================== COUNTERMEASURES ==================== -->
+      <h2 id="countermeasures"><span class="h2-kicker">Aula 3 · Isolamento</span>Countermeasures — lidando com anomalias</h2>
+      <p>Para mitigar os problemas causados pela falta de isolamento, Chris Richardson documenta seis <span class="lead-term">countermeasures</span> (contramedidas) aplicáveis no design das SAGAs:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Countermeasure</th><th>Como funciona</th><th>Problema que resolve</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Semantic Lock</strong></td><td>Marca o registro com um flag "em processamento por uma SAGA". Outras transações veem o flag e aguardam ou falham.</td><td>Dirty Read, Lost Update</td></tr>
+            <tr><td><strong>Commutative Updates</strong></td><td>Operações projetadas para serem aplicáveis em qualquer ordem sem mudar o resultado final. Ex.: incrementar saldo em vez de setar o valor absoluto.</td><td>Lost Update</td></tr>
+            <tr><td><strong>Pessimistic View</strong></td><td>Reordenar os passos da SAGA para que os mais arriscados (que expõem dados sujos) sejam executados quando menos concorrência existe.</td><td>Dirty Read</td></tr>
+            <tr><td><strong>Reread Value</strong></td><td>Antes de atualizar, a SAGA re-lê o registro para verificar se foi modificado desde a leitura inicial. Se sim, aborta ou re-executa.</td><td>Lost Update (similar a optimistic locking)</td></tr>
+            <tr><td><strong>Version File</strong></td><td>Registra operações recebidas e as reordena para garantir comutatividade. Útil quando a ordem de chegada de mensagens não é garantida.</td><td>Non-Repeatable Read, Lost Update</td></tr>
+            <tr><td><strong>By Value</strong></td><td>Usa o risco do negócio para escolher a estratégia: transações de alto valor usam mecanismos mais conservadores (até 2PC se necessário); baixo valor, aceita risco.</td><td>Todos — seletivo por risco</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mnemonic reveal">
+        <div class="m-head">Mnemônico — 6 countermeasures</div>
+        <div class="m-word">"<b>S</b>empre <b>C</b>onsidere <b>P</b>ossíveis <b>R</b>iscos <b>V</b>ia <b>B</b>usiness"</div>
+        <ul>
+          <li><b>S</b>emantic Lock</li>
+          <li><b>C</b>ommutative Updates</li>
+          <li><b>P</b>essimistic View</li>
+          <li><b>R</b>eread Value</li>
+          <li><b>V</b>ersion File</li>
+          <li><b>B</b>y Value</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão 4</span>
+        <p class="q-text">Qual propriedade ACID o SAGA Pattern sacrifica e qual é a principal consequência prática disso?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Isolamento — outras transações podem ler dados intermediários de uma SAGA em execução, causando dirty reads e lost updates.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Atomicidade — se um passo da SAGA falhar, os passos anteriores não são desfeitos.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Durabilidade — dados de SAGAs em andamento não são persistidos entre falhas.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Consistência — o SAGA abandona completamente a consistência do banco de dados.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> (A) é correto. O SAGA sacrifica o <strong>Isolamento</strong>: como cada transação local commita imediatamente, outras SAGAs podem ver estados intermediários. (B) está errada: o SAGA preserva atomicidade via compensação. (C) está errada: cada tx local é durável. (D) está errada: consistência eventual é preservada — o sistema converge para um estado correto após a SAGA completar.</div>
+      </div>
+
+      <!-- ==================== COMPENSAÇÃO ==================== -->
+      <h2 id="compensacao"><span class="h2-kicker">Aulas 4–5 · Prática</span>Transações compensatórias — o "rollback semântico"</h2>
+      <p>Como cada transação local de uma SAGA commita imediatamente, não existe rollback automático em caso de falha downstream. A solução é executar <span class="lead-term">transações compensatórias</span> — transações que desfazem semanticamente o efeito de uma transação anterior.</p>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Compensação ≠ rollback físico</span>
+        <p>Uma transação compensatória <strong>não desfaz fisicamente</strong> a transação original — ela cria uma nova transação que <em>inverte o efeito de negócio</em>. Ex.: se T₁ debitou $100 da conta, C₁ credita $100. O débito original continua registrado no log; C₁ é uma operação nova, auditável. Isso é fundamentalmente diferente de um ROLLBACK de banco que apaga a operação.</p>
+      </div>
+
+      <div class="card reveal">
+        <h4>Propriedades de uma boa transação compensatória</h4>
+        <ul>
+          <li><strong>Idempotente:</strong> pode ser executada múltiplas vezes sem efeitos colaterais adicionais (essencial porque mensagens podem ser reentregues).</li>
+          <li><strong>Sempre bem-sucedida:</strong> uma compensação não pode falhar de forma permanente — se falhar, deve ser retentada. Em último caso, intervenção humana.</li>
+          <li><strong>Sem efeitos colaterais extras:</strong> deve desfazer exatamente o que a tx original fez, sem mais.</li>
+        </ul>
+      </div>
+
+      <!-- ==================== TIPOS TX ==================== -->
+      <h2 id="tipos-tx"><span class="h2-kicker">Aula 5 · Taxonomia</span>Compensável × Pivot × Retriable</h2>
+      <p>Chris Richardson classifica as transações dentro de uma SAGA em três tipos. Saber distingui-los é pegadinha clássica de prova:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Tipo</th><th>Definição</th><th>Possui compensatória?</th><th>Posição na SAGA</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Compensável</strong> (Compensatable)</td><td>Transação que pode ser desfeita por uma compensatória correspondente caso a SAGA falhe após ela.</td><td>Sim — tem C associado</td><td>Antes do passo pivot</td></tr>
+            <tr><td><strong>Pivot</strong></td><td>Ponto sem retorno da SAGA. Se a pivot commitar, a SAGA segue até o fim. Se falhar, compensa-se tudo o que veio antes.</td><td>Não necessariamente</td><td>No meio — o divisor de águas</td></tr>
+            <tr><td><strong>Retriable</strong></td><td>Transação que sempre terá sucesso se executada novamente. São os passos após o pivot — se falharem, basta retentá-los.</td><td>Não — apenas retentável</td><td>Após o passo pivot</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 O conceito de Pivot é chave</span>
+        <p>O <strong>passo pivot</strong> é o "ponto de não retorno": <em>antes</em> dele, tudo é compensável (pode desfazer); <em>após</em> ele, tudo é retriable (sempre vai conseguir). A SAGA garante que, se o pivot commitar, ela chegará ao fim — mesmo que precise retentar os passos seguintes várias vezes.</p>
+      </div>
+
+      <div class="mnemonic reveal">
+        <div class="m-head">Mnemônico — ordem na SAGA</div>
+        <div class="m-word">"<b>C</b>ompensáveis → <b>P</b>ivot → <b>R</b>etriáveis"</div>
+        <ul>
+          <li>Antes do pivot: passos <b>C</b>ompensáveis (podem ser desfeitos)</li>
+          <li>O <b>P</b>ivot é o divisor de águas</li>
+          <li>Depois do pivot: passos <b>R</b>etriáveis (sempre completam)</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão 5</span>
+        <p class="q-text">Em uma SAGA, o "passo pivot" marca o ponto de não retorno. O que ocorre se uma transação classificada como "retriable" falhar?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>A SAGA aciona as transações compensatórias de todos os passos anteriores ao pivot.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>A transação retriable possui uma compensatória própria que é executada para desfazê-la.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>A transação retriable é retentada até ter sucesso — ela não possui compensatória pois, por definição, sempre terá êxito eventualmente.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>A SAGA é abortada e o sistema retorna ao estado inicial usando um rollback do banco de dados.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> (C) é correto. Uma transação retriable ocorre após o pivot — o ponto de não retorno. Por definição, ela sempre terá êxito se retentada; não existe compensatória. (A) descreve o que acontece se uma transação <em>compensável</em> falha. (B) está errada: retriable não tem compensatória. (D) está errada: SAGA não usa rollback de banco.</div>
+      </div>
+
+      <!-- ==================== EXEMPLO PEDIDO ==================== -->
+      <h2 id="exemplo-pedido"><span class="h2-kicker">Aula 5 · Exemplo concreto</span>Fluxo de pedido: Order/Customer/Kitchen</h2>
+      <p>O exemplo canônico de Chris Richardson envolve um sistema de restaurante. A SAGA de criação de pedido envolve quatro serviços:</p>
+
+      <div class="diagram reveal">
+        <div class="flow" style="flex-direction:column;gap:10px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div class="node">1. Order Service<br><small style="color:#9ca3af">cria pedido (PENDING)</small></div>
+            <span class="arrow-h">→</span>
+            <div class="node">2. Customer Service<br><small style="color:#9ca3af">reserva crédito</small></div>
+            <span class="arrow-h">→</span>
+            <div class="node accent">3. Kitchen Service<br><small style="color:#ffb3cb">cria ticket ← PIVOT</small></div>
+            <span class="arrow-h">→</span>
+            <div class="node">4. Order Service<br><small style="color:#9ca3af">aprova pedido (APPROVED)</small></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px">
+            <span style="color:#ef5e6f;font-size:0.85rem;font-weight:600">Compensações (em caso de falha):</span>
+            <div class="node" style="border-color:#ef5e6f">C2: liberar crédito</div>
+            <span class="arrow-h">←</span>
+            <div class="node" style="border-color:#ef5e6f">C1: rejeitar pedido</div>
+          </div>
+        </div>
+        <div class="legend"><span>Passos 1–2: compensáveis. Passo 3 (Kitchen Service): pivot. Passo 4: retriable. Se o passo 2 falhar, C₁ é executado. Se o passo 3 falhar, C₂ + C₁ são executados.</span></div>
+      </div>
+
+      <div class="card reveal">
+        <h4>Lendo o exemplo</h4>
+        <ul>
+          <li><strong>T₁ (Order Service — cria pedido PENDING):</strong> compensável. C₁ = rejeitar pedido.</li>
+          <li><strong>T₂ (Customer Service — reserva crédito):</strong> compensável. C₂ = liberar crédito reservado.</li>
+          <li><strong>T₃ (Kitchen Service — cria ticket):</strong> <span class="pill strat">pivot</span>. Se commitar, a SAGA segue; se falhar, compensa T₂ e T₁.</li>
+          <li><strong>T₄ (Order Service — aprova pedido):</strong> retriable. Sempre terá êxito; apenas muda o status.</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão 6</span>
+        <p class="q-text">Em uma SAGA de criação de pedido com 4 passos (Order cria → Customer reserva crédito → Kitchen cria ticket [pivot] → Order aprova), o passo "Customer reserva crédito" falha. O que a SAGA deve fazer?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Executar apenas a compensação de "Customer reserva crédito", pois só esse passo falhou.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Executar a compensação de "Customer reserva crédito" e, em seguida, a compensação de "Order cria pedido", desfazendo todos os passos anteriores.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Retentar o passo "Customer reserva crédito" indefinidamente até que o crédito esteja disponível.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Executar as compensações de todos os 4 passos, incluindo o de "Kitchen cria ticket" e "Order aprova".</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> (B) é correto. Ao falhar o passo 2 (antes do pivot), a SAGA compensa em ordem inversa: C₂ (libera crédito) → C₁ (rejeita pedido). (A) está incompleto: os passos anteriores também precisam ser compensados. (C) confunde com transação retriable — compensáveis não são necessariamente retentáveis. (D) está errada: os passos 3 e 4 ainda não foram executados — não há o que compensar neles.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão 7</span>
+        <p class="q-text">Uma equipe está implementando uma SAGA e um desenvolvedor propõe: "Quando uma transação compensatória falhar, vamos fazer um ROLLBACK no banco de dados para restaurar o estado." Por que essa abordagem está conceitualmente errada?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Porque ROLLBACK não é suportado pelos bancos de dados usados em microsserviços.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Porque ROLLBACK apenas desfaz a transação compensatória, não a transação original.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Porque ROLLBACK é sincrônico e quebraria a natureza assíncrona da SAGA.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Porque a transação original já foi commitada e é durável — não há mais o que fazer via ROLLBACK. A compensação é uma nova transação que inverte o efeito de negócio, e ela deve ser retentada até ter êxito.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> (D) é o raciocínio correto. Cada transação local numa SAGA commita imediatamente — após o commit, ela é durável e irreversível via ROLLBACK. A compensação é uma <em>nova transação de negócio</em> que inverte semanticamente o efeito anterior. (A) é falso. (B) descreve uma confusão lógica. (C) tem alguma verdade sobre assincronicidade, mas não é o ponto central.</div>
+      </div>
+
+      <!-- ==================== FLASHCARDS ==================== -->
+      <h2 id="flashcards"><span class="h2-kicker">Auto-teste</span>Flashcards — clique para virar</h2>
+      <p>Pense na resposta <strong>antes</strong> de clicar.</p>
+      <div class="flashgrid reveal">
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é uma SAGA?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Sequência de <strong>transações locais</strong> T₁…Tₙ. Cada uma publica evento/comando que dispara a próxima. Falha → executa compensatórias na ordem inversa.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Qual letra do ACID o SAGA sacrifica?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>I — Isolamento.</strong> Outras transações podem ler estados intermediários de uma SAGA em andamento. A, C e D são preservados (via compensação, eventual e durabilidade local).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Coreografia vs Orquestração: qual tem coordenador central?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Orquestração</strong> tem o Saga Orchestrator (coordenador central que envia comandos). <strong>Coreografia</strong> não tem coordenador — serviços reagem a eventos.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Por que o 2PC não escala em microsserviços?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Bloqueia recursos de todos os participantes de forma <strong>síncrona</strong>; cria SPOF no coordenador; prejudica disponibilidade; viola autonomia dos serviços. Incompatível com bancos NoSQL modernos.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é uma transação compensatória?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Nova transação que <strong>inverte semanticamente o efeito</strong> de uma transação anterior já commitada. Não é rollback físico. Deve ser <strong>idempotente</strong> e sempre bem-sucedida (retentar até funcionar).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é o passo "pivot" numa SAGA?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Ponto de <strong>não retorno</strong>. Se commitar, a SAGA segue até o fim. Se falhar, compensa todos os passos anteriores. Após o pivot, vêm apenas passos retriable.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Compensável × Pivot × Retriable — quando cada um aparece?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Compensável</strong>: antes do pivot (tem compensatória). <strong>Pivot</strong>: o divisor de águas. <strong>Retriable</strong>: após o pivot (sempre tem êxito; sem compensatória).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é Semantic Lock?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Countermeasure que <strong>marca o registro</strong> com um flag "em processamento por SAGA". Outras transações veem o flag e aguardam ou falham — evita dirty read e lost update.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">ACID vs BASE — quais propriedades o BASE tem?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>B</strong>asically Available, <strong>S</strong>oft state, <strong>E</strong>ventually consistent. SAGA opera sob BASE: troca isolamento/consistência imediata por disponibilidade e escalabilidade.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Qual o risco principal da Coreografia?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Lógica de negócio <strong>espalhada</strong> por todos os serviços, tornando o fluxo da SAGA opaco. Difícil depurar e rastrear o estado completo. Risco de acoplamento oculto via eventos.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Qual o risco principal da Orquestração?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">O orquestrador pode acumular <strong>lógica demais</strong> ("God Object"). Maior acoplamento dos participantes com o orquestrador. O orquestrador precisa ser persistido para sobreviver a falhas.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é "Reread Value" como countermeasure?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Antes de atualizar um registro, a SAGA <strong>re-lê o valor atual</strong> para verificar se foi modificado desde a leitura inicial. Se sim, aborta ou re-executa. Similar a optimistic locking — combate lost update.</div></div>
+        </div></div>
+      </div>
+
+      <!-- ==================== GLOSSÁRIO ==================== -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>SAGA</dt><dd>Sequência de transações locais encadeadas, cada uma com uma compensatória correspondente. Garante consistência eventual sem locks distribuídos.</dd></div>
+        <div class="gloss-item"><dt>Transação Compensatória</dt><dd>Nova transação que inverte semanticamente o efeito de uma transação local já commitada. Não é rollback físico. Deve ser idempotente.</dd></div>
+        <div class="gloss-item"><dt>Coreografia</dt><dd>Abordagem de coordenação de SAGA sem coordenador central. Serviços publicam eventos e reagem a eventos uns dos outros.</dd></div>
+        <div class="gloss-item"><dt>Orquestração</dt><dd>Abordagem de coordenação de SAGA com um Saga Orchestrator central que envia comandos e aguarda respostas de cada participante.</dd></div>
+        <div class="gloss-item"><dt>Saga Orchestrator</dt><dd>Classe ou serviço que centraliza o fluxo de uma SAGA por orquestração — conhece todos os participantes e decide os próximos passos.</dd></div>
+        <div class="gloss-item"><dt>Two-Phase Commit (2PC)</dt><dd>Protocolo de commit distribuído de duas fases (Prepare + Commit). Garante atomicidade mas bloqueia recursos e cria SPOF — inadequado para microsserviços.</dd></div>
+        <div class="gloss-item"><dt>Transação Compensável</dt><dd>Transação que possui uma compensatória correspondente; ocorre antes do pivot. Pode ser desfeita se a SAGA falhar depois dela.</dd></div>
+        <div class="gloss-item"><dt>Transação Pivot</dt><dd>Ponto de não retorno da SAGA. Se commitar, a SAGA segue até o fim; se falhar, compensa-se tudo anterior.</dd></div>
+        <div class="gloss-item"><dt>Transação Retriable</dt><dd>Transação que sempre terá êxito se retentada; ocorre após o pivot. Não possui compensatória.</dd></div>
+        <div class="gloss-item"><dt>Semantic Lock</dt><dd>Countermeasure: marcar registro com flag "em processamento" para evitar que outras SAGAs modifiquem o mesmo dado.</dd></div>
+        <div class="gloss-item"><dt>BASE</dt><dd>Basically Available, Soft state, Eventually consistent. Modelo de consistência oposto ao ACID — adotado pelo SAGA.</dd></div>
+        <div class="gloss-item"><dt>Dirty Read</dt><dd>Anomalia onde uma transação lê dados modificados por outra transação ainda não finalizada. Consequência da falta de isolamento no SAGA.</dd></div>
+        <div class="gloss-item"><dt>Lost Update</dt><dd>Anomalia onde duas SAGAs leem e modificam o mesmo dado; uma sobrescreve a outra sem saber da mudança concorrente.</dd></div>
+        <div class="gloss-item"><dt>By Value</dt><dd>Countermeasure: escolher a estratégia de consistência baseada no risco do negócio — transações de alto valor usam abordagens mais conservadoras.</dd></div>
+      </dl>
+
+      <!-- ==================== PEGADINHAS ==================== -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas &amp; checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li><strong>SAGA sacrifica o "I"</strong> — Isolamento, não Atomicidade. A, C e D do ACID são preservados.</li>
+          <li><strong>Coreografia</strong> = sem coordenador, baseada em eventos. <strong>Orquestração</strong> = com Saga Orchestrator, baseada em comandos. Nunca confundir.</li>
+          <li><strong>Transação compensatória ≠ rollback</strong> — é uma nova transação que inverte o efeito de negócio; o registro original permanece no log.</li>
+          <li><strong>2PC falha em microsserviços</strong> não porque "não funciona", mas porque bloqueia recursos e prejudica disponibilidade/autonomia.</li>
+          <li>Ordem na SAGA: <strong>Compensáveis → Pivot → Retriable</strong>. Retriable não tem compensatória.</li>
+          <li>O <strong>passo pivot</strong> é o ponto de não retorno — após ele, só se retenta (nunca se compensa para trás).</li>
+          <li><strong>SAGA opera sob BASE</strong>, não ACID. Consistência é eventual.</li>
+          <li><strong>6 countermeasures</strong>: Semantic Lock, Commutative Updates, Pessimistic View, Reread Value, Version File, By Value.</li>
+          <li>Compensação deve ser <strong>idempotente</strong> — pode ser executada múltiplas vezes (mensagens podem ser reentregues).</li>
+          <li>Coreografia é melhor para <strong>SAGAs simples</strong>; orquestração é melhor para <strong>SAGAs complexas com lógica condicional</strong>.</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="microservices-resiliencia.html"><div class="dir">← Tópico anterior</div><div class="ttl">08 · Microsserviços: Resiliência</div></a>
+          <a href="index.html#topicos" class="next"><div class="dir">Escolher no Hub →</div><div class="ttl">Hub de Revisão</div></a>
+        </div>
+        <div>Tópico 09 · Microsserviços: SAGA Pattern · material de revisão para a prova final. Base: Chris Richardson — <em>Microservices Patterns</em> (cap. SAGA); Hector Garcia-Molina &amp; Kenneth Salem — <em>SAGA</em> (ACM SIGMOD, 1987).</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

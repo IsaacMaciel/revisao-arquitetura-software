@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Microsserviços: Dados, Negócio &amp; Deploy — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão densa de Microsserviços (Dados, Negócio e Deploy) para prova de múltipla escolha: Database per Service, CQRS, Event Sourcing, lógica de domínio, testes de contrato, deploy independente." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 07 · Microsserviços</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">Lógica de Negócio</div>
+      <a href="#logica-negocio">Organizando a lógica</a>
+      <a href="#transaction-script-domain-model">Transaction Script × Domain Model</a>
+      <a href="#ddd-agregados">Agregados do DDD no serviço</a>
+
+      <div class="group-label">Dados em Microsserviços</div>
+      <a href="#database-per-service">Database per Service</a>
+      <a href="#consistencia">Consistência eventual × forte</a>
+      <a href="#cqrs">CQRS</a>
+      <a href="#event-sourcing">Event Sourcing</a>
+      <a href="#api-composition">API Composition × CQRS</a>
+
+      <div class="group-label">Testes</div>
+      <a href="#testes-micro">Pirâmide de testes</a>
+      <a href="#contract-tests">Testes de contrato (Pact)</a>
+
+      <div class="group-label">Deploy</div>
+      <a href="#deploy-padroes">Padrões de deploy</a>
+      <a href="#service-discovery">Service discovery &amp; config</a>
+      <a href="#deploy-estrategias">Blue-Green &amp; Canary</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 07 · Microsserviços</span>
+        <h1>Dados, Negócio &amp; Deploy</h1>
+        <p class="lede">Cada microsserviço é dono dos seus dados, organiza sua lógica com padrões de domínio e pode ser deployado <em>independentemente</em>. Esse conjunto de decisões — <strong>Database per Service</strong>, <strong>CQRS</strong>, <strong>Event Sourcing</strong>, testes de contrato e estratégias de deploy — é o coração do módulo e a maior fonte de questões de múltipla escolha.</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como dados e deploy de microsserviços caem na prova</span>
+        <p>Espere: (1) <strong>Database per Service</strong> — por que isolar, consequências; (2) <strong>CQRS</strong> — separação comando×query, read models, quando usar; (3) <strong>Event Sourcing</strong> — eventos como fonte da verdade, replay, relação com CQRS; (4) <strong>consistência eventual × forte</strong> — qual cada padrão oferece; (5) <strong>API Composition × CQRS</strong> para queries distribuídas; (6) <strong>testes de contrato/Pact</strong> — quem define o contrato; (7) <strong>Transaction Script × Domain Model</strong>; (8) <strong>deploy independente</strong> e estratégias blue-green/canary. SAGA é mencionada aqui mas aprofundada no Tópico 09.</p>
+      </div>
+
+      <!-- ============================ LÓGICA DE NEGÓCIO ============================ -->
+      <h2 id="logica-negocio"><span class="h2-kicker">Aula 1 · Lógica de negócio</span>Organizando a lógica de domínio num serviço</h2>
+      <p>Dentro de cada microsserviço, a lógica de negócio precisa de organização. Richardson apresenta dois grandes padrões para estruturar essa lógica, que diferem em sofisticação e adequação conforme a complexidade do domínio:</p>
+
+      <div class="card reveal">
+        <h4>Dois extremos do espectro</h4>
+        <ul>
+          <li><strong>Transaction Script</strong> — lógica procedural em scripts lineares; cada operação de negócio é um procedimento que lê e atualiza o banco diretamente.</li>
+          <li><strong>Domain Model</strong> — objetos ricos com estado e comportamento; baseado em DDD (entidades, agregados, value objects, domain events).</li>
+        </ul>
+      </div>
+
+      <!-- ============================ TX SCRIPT × DOMAIN MODEL ============================ -->
+      <h2 id="transaction-script-domain-model"><span class="h2-kicker">Padrões</span>Transaction Script × Domain Model</h2>
+      <p>A escolha entre os dois depende da <strong>complexidade da lógica de negócio</strong>. A prova costuma explorar as trocas (trade-offs):</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr>
+              <th>Critério</th>
+              <th>Transaction Script</th>
+              <th>Domain Model</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Organização</strong></td>
+              <td>Procedimentos / funções lineares</td>
+              <td>Objetos com estado e comportamento (OO/DDD)</td>
+            </tr>
+            <tr>
+              <td><strong>Adequado para…</strong></td>
+              <td>Lógica simples, CRUD-heavy, sem regras complexas</td>
+              <td>Lógica complexa, muitas regras de negócio entrelaçadas</td>
+            </tr>
+            <tr>
+              <td><strong>Duplicação de lógica</strong></td>
+              <td>Alta — regras se repetem em scripts diferentes</td>
+              <td>Baixa — regras encapsuladas nos objetos</td>
+            </tr>
+            <tr>
+              <td><strong>Testabilidade</strong></td>
+              <td>Depende de banco/infra; difícil isolar</td>
+              <td>Objetos testáveis em isolamento (unitário)</td>
+            </tr>
+            <tr>
+              <td><strong>Curva de aprendizado</strong></td>
+              <td>Baixa — intuitivo</td>
+              <td>Alta — exige entendimento de DDD</td>
+            </tr>
+            <tr>
+              <td><strong>Manutenção a longo prazo</strong></td>
+              <td>Degrada — "big ball of mud" em sistemas grandes</td>
+              <td>Escala bem em domínios complexos</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — Transaction Script não é sempre inferior</span>
+        <p>A prova pode apresentar Transaction Script como "anti-padrão". <strong>Não é</strong>: para microsserviços com lógica simples (CRUD, poucos estados), Transaction Script é a escolha <em>pragmática correta</em>. O problema surge quando o domínio cresce e o padrão não escala.</p>
+      </div>
+
+      <!-- ============================ DDD AGREGADOS ============================ -->
+      <h2 id="ddd-agregados"><span class="h2-kicker">DDD dentro do serviço</span>Agregados do DDD no microsserviço</h2>
+      <p>Quando se usa Domain Model, os conceitos táticos do DDD entram em cena. O <strong>Agregado</strong> é o padrão-chave — veja <a href="ddd.html">Tópico 01 · DDD</a> para aprofundamento tático. Em microsserviços, os agregados têm papel adicional:</p>
+
+      <div class="card reveal">
+        <h4>Papel do Agregado em microsserviços</h4>
+        <ul>
+          <li><strong>Unidade de consistência transacional:</strong> uma transação ACID toca apenas um agregado (banco local do serviço).</li>
+          <li><strong>Fronteira natural de dados:</strong> o banco do serviço guarda os agregados daquele bounded context.</li>
+          <li><strong>Publicação de Domain Events:</strong> ao mudar estado, o agregado emite eventos que outros serviços consomem para manter consistência eventual — é o elo entre Domain Model e arquitetura orientada a eventos.</li>
+          <li><strong>Tamanho dos agregados importa:</strong> agregados grandes = maior risco de conflito e lock; agregados pequenos = mais eventos, mais consistência eventual a gerenciar.</li>
+        </ul>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 Domain Events → integração</span>
+        <p>Um <strong>Domain Event</strong> como <code>PedidoConfirmado</code> é publicado no message broker quando o agregado muda. Outros serviços (estoque, notificação) subscrevem e reagem — sem chamada síncrona, sem acoplamento direto. É o mecanismo que permite consistência eventual entre serviços.</p>
+      </div>
+
+      <!-- ============================ DATABASE PER SERVICE ============================ -->
+      <h2 id="database-per-service"><span class="h2-kicker">Aulas 2–3 · Dados</span>Database per Service — o padrão central</h2>
+      <p>O padrão mais importante do capítulo e o mais cobrado em prova. Cada microsserviço tem seu próprio banco de dados (ou schema), e <strong>nenhum outro serviço pode acessá-lo diretamente</strong>:</p>
+
+      <div class="callout danger reveal">
+        <span class="tag">✗ Anti-padrão: banco compartilhado entre serviços</span>
+        <p>Compartilhar um banco entre microsserviços parece conveniente mas <strong>destrói o isolamento</strong>: (1) acoplamento de schema — qualquer mudança na tabela quebra todos os serviços; (2) acoplamento de runtime — um serviço sobrecarregado degrada todos; (3) impossibilidade de evolução independente; (4) impossibilidade de escolher o banco mais adequado para cada serviço (polyglot persistence). É o <em>distributed monolith</em> mais perigoso.</p>
+      </div>
+
+      <div class="card reveal">
+        <h4>Por que Database per Service</h4>
+        <ul>
+          <li><strong>Encapsulamento fraco</strong> seria compartilhar: qualquer dev de outro serviço poderia fazer queries diretas, criando acoplamento implícito invisível.</li>
+          <li><strong>Polyglot persistence:</strong> cada serviço escolhe o banco ideal — relacional para pedidos, documento para catálogo, grafo para recomendações.</li>
+          <li><strong>Deploy independente:</strong> migrar o schema é decisão interna ao serviço; nenhum outro serviço para para isso.</li>
+          <li><strong>Escalonamento independente:</strong> o banco do serviço de alto tráfego escala sozinho.</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão 1</span>
+        <p class="q-text">Por que o padrão Database per Service é considerado fundamental em arquiteturas de microsserviços?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Porque reduz o custo de infraestrutura ao usar menos instâncias de banco de dados.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Porque garante consistência forte entre todos os serviços, eliminando transações distribuídas.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Porque encapsula os dados de cada serviço, permitindo deploy independente, polyglot persistence e evolução isolada do schema.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Porque permite que qualquer serviço leia os dados de outro serviço com menor latência.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O Database per Service é sobre <strong>encapsulamento e autonomia</strong>, não sobre custo ou consistência forte. (B) é o oposto do que acontece — o preço é a consistência eventual. (D) descreve exatamente o anti-padrão de banco compartilhado. (A) é irrelevante — normalmente cada serviço tem seu próprio banco, o que pode aumentar o número de instâncias.</div>
+      </div>
+
+      <!-- ============================ CONSISTÊNCIA ============================ -->
+      <h2 id="consistencia"><span class="h2-kicker">Dados distribuídos</span>Consistência eventual × forte</h2>
+      <p>Com bancos isolados, <strong>transações ACID que abrangem múltiplos serviços são impossíveis</strong>. A resposta é aceitar consistência eventual e usar padrões compensatórios (SAGA, Event Sourcing).</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr>
+              <th>Critério</th>
+              <th>Consistência Forte (ACID)</th>
+              <th>Consistência Eventual</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Garantia</strong></td>
+              <td>Todos os leitores veem o mesmo dado imediatamente após a escrita</td>
+              <td>Em algum momento no futuro todos os nós convergem para o mesmo valor</td>
+            </tr>
+            <tr>
+              <td><strong>Viável em</strong></td>
+              <td>Dentro de um único serviço (banco local)</td>
+              <td>Entre múltiplos serviços com bancos separados</td>
+            </tr>
+            <tr>
+              <td><strong>Mecanismo</strong></td>
+              <td>Transação ACID, lock, 2PC</td>
+              <td>Eventos assíncronos, SAGA, idempotência</td>
+            </tr>
+            <tr>
+              <td><strong>Disponibilidade</strong></td>
+              <td>Pode bloquear (menor disponibilidade)</td>
+              <td>Alta disponibilidade (sem lock global)</td>
+            </tr>
+            <tr>
+              <td><strong>Complexidade</strong></td>
+              <td>Simples de programar; limitada a escopo local</td>
+              <td>Maior complexidade: compensações, idempotência, reordenação de eventos</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — consistência eventual não é "dados errados"</span>
+        <p>Consistência eventual significa que o sistema <em>converge</em> para um estado correto — não que fique inconsistente para sempre. O intervalo de inconsistência é transitório e gerenciado. Em prova, se uma questão diz que microsserviços "nunca têm consistência", está errada.</p>
+      </div>
+
+      <!-- ============================ CQRS ============================ -->
+      <h2 id="cqrs"><span class="h2-kicker">Padrão de dados</span>CQRS — Command Query Responsibility Segregation</h2>
+      <p>O <span class="lead-term">CQRS</span> separa as operações de <strong>escrita (Commands)</strong> das operações de <strong>leitura (Queries)</strong> em modelos distintos. É a resposta arquitetural ao problema de queries complexas em sistemas com Database per Service.</p>
+
+      <div class="diagram reveal">
+        <div class="flow" style="flex-wrap:wrap;gap:6px">
+          <div class="node">Cliente</div>
+          <span class="arrow-h">→ command →</span>
+          <div class="node accent">Command Side<br><small style="color:#bbb">Aggregate + DB write</small></div>
+          <span class="arrow-h">→ evento →</span>
+          <div class="node">Event Bus<br><small style="color:#bbb">Kafka / RabbitMQ</small></div>
+          <span class="arrow-h">→ projeta →</span>
+          <div class="node">Read Model<br><small style="color:#bbb">DB otimizado p/ query</small></div>
+          <span class="arrow-h">← query ←</span>
+          <div class="node">Cliente</div>
+        </div>
+        <div class="legend"><span>Command → muda estado do agregado e emite evento; evento alimenta o Read Model; Query lê o Read Model sem tocar no lado de escrita.</span></div>
+      </div>
+
+      <div class="card reveal">
+        <h4>Command × Query — distinção precisa</h4>
+        <ul>
+          <li><strong>Command:</strong> intenção de mudar estado (<code>CriarPedido</code>, <code>CancelarPedido</code>). Não retorna dados (ou só confirma). Vai para o <em>Command Handler</em> → Aggregate → persiste.</li>
+          <li><strong>Query:</strong> leitura de estado; nunca muda dados. Vai para o <em>Read Model</em> — banco separado, desnormalizado, otimizado para exibição.</li>
+          <li><strong>Read Model / Projection:</strong> visão materializada construída consumindo os eventos do Command Side. Pode ser um banco relacional, Redis, Elasticsearch — o que a query precisar.</li>
+        </ul>
+      </div>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr>
+              <th>Aspecto</th>
+              <th>Prós do CQRS</th>
+              <th>Contras do CQRS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Escalabilidade</strong></td>
+              <td>Leitura e escrita escalam independentemente</td>
+              <td>Mais recursos de infra (dois bancos ou mais)</td>
+            </tr>
+            <tr>
+              <td><strong>Queries complexas</strong></td>
+              <td>Read Model desnormalizado — queries simples e rápidas</td>
+              <td>Read Model desatualizado por um instante (eventual)</td>
+            </tr>
+            <tr>
+              <td><strong>Domínio</strong></td>
+              <td>Command Side fica limpo (sem query "poluindo" o domínio)</td>
+              <td>Mais complexidade: dois modelos, sincronização</td>
+            </tr>
+            <tr>
+              <td><strong>Testabilidade</strong></td>
+              <td>Command handlers e projeções testáveis separadamente</td>
+              <td>Mais código a manter</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão 2</span>
+        <p class="q-text">No padrão CQRS, o que acontece quando um Command é processado com sucesso?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>O Command Handler retorna imediatamente os dados atualizados para o cliente consultar o Read Model.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>O agregado muda de estado, persiste no banco de escrita e publica um evento; o Read Model é atualizado de forma assíncrona a partir desse evento.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>O Command atualiza diretamente o Read Model para garantir consistência forte.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>O CQRS exige que o mesmo banco de dados seja usado para leitura e escrita, apenas com queries diferentes.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> No CQRS, o Command Side (aggregate + banco de escrita) e o Query Side (Read Model) são separados e comunicam via <strong>eventos assíncronos</strong> — por isso existe consistência eventual. (A) confunde CQRS com uma chamada síncrona simples; (C) viola a separação; (D) descreve o oposto do padrão.</div>
+      </div>
+
+      <!-- ============================ EVENT SOURCING ============================ -->
+      <h2 id="event-sourcing"><span class="h2-kicker">Padrão de dados</span>Event Sourcing — eventos como fonte da verdade</h2>
+      <p>No <span class="lead-term">Event Sourcing</span>, em vez de persistir o <em>estado atual</em> do agregado, o sistema persiste a <strong>sequência de eventos</strong> que levou a esse estado. O estado é sempre <em>derivado</em> do replay dos eventos.</p>
+
+      <pre><div class="code-head"><span class="lang">json</span><span>Event Store — sequência de eventos de um Pedido</span></div><code>[
+  { "type": "PedidoCriado",    "data": { "pedidoId": "p-123", "clienteId": "c-99" },  "seq": 1 },
+  { "type": "ItemAdicionado",  "data": { "sku": "ABC-01", "qty": 2, "preco": 49.90 }, "seq": 2 },
+  { "type": "ItemAdicionado",  "data": { "sku": "XYZ-07", "qty": 1, "preco": 129.0 }, "seq": 3 },
+  { "type": "PedidoConfirmado","data": { "total": 228.80, "ts": "2024-03-01T10:00Z" }, "seq": 4 }
+]
+// Estado atual = aplicar os 4 eventos em sequência sobre um agregado vazio.
+// Replay = reprocessar a partir do seq 1 para reconstruir qualquer ponto no tempo.</code></pre>
+
+      <div class="card reveal">
+        <h4>Conceitos-chave do Event Sourcing</h4>
+        <ul>
+          <li><strong>Event Store:</strong> o banco onde os eventos são gravados de forma append-only (nunca se edita nem deleta um evento passado).</li>
+          <li><strong>Replay:</strong> reprocessar todos os eventos de um agregado para reconstruir seu estado atual. Permite também "voltar no tempo" para depurar.</li>
+          <li><strong>Snapshot:</strong> otimização — salvar o estado em um ponto para evitar replay completo do histórico a cada leitura.</li>
+          <li><strong>Projection:</strong> consome eventos do Event Store para construir Read Models (aqui o CQRS e o Event Sourcing se unem naturalmente).</li>
+          <li><strong>Auditoria nativa:</strong> o histórico completo de mudanças está no Event Store por construção — sem triggers ou audit tables extras.</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — CQRS e Event Sourcing não são a mesma coisa</span>
+        <p>São padrões <em>complementares</em>, não sinônimos. Você pode ter CQRS <strong>sem</strong> Event Sourcing (usando um banco relacional no Command Side e projetando para um Read Model via eventos de integração). E pode ter Event Sourcing <strong>sem</strong> CQRS (embora seja incomum). Na prática, combinam bem: o Event Store alimenta naturalmente as projeções do Read Model.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão 3</span>
+        <p class="q-text">Qual é a principal diferença entre persistência tradicional e Event Sourcing?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Na persistência tradicional, salva-se o estado atual; no Event Sourcing, salva-se a sequência de eventos que levou ao estado, permitindo replay.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Event Sourcing é apenas uma forma de implementar CQRS — sem CQRS não é possível usar Event Sourcing.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Event Sourcing garante consistência forte entre todos os serviços, eliminando a consistência eventual.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Event Sourcing elimina a necessidade de um banco de dados, pois os eventos ficam em memória.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A distinção fundamental é <strong>estado versus eventos</strong>: Event Sourcing é append-only de eventos; o estado é sempre derivado via replay. (B) confunde os dois padrões — são independentes. (C) é falso — Event Sourcing com múltiplos serviços ainda implica consistência eventual nas projeções. (D) é absurdo — o Event Store é um banco persistente.</div>
+      </div>
+
+      <!-- ============================ API COMPOSITION × CQRS ============================ -->
+      <h2 id="api-composition"><span class="h2-kicker">Queries distribuídas</span>API Composition × CQRS para queries</h2>
+      <p>Com banco por serviço, como responder a uma query que precisa de dados de <em>vários</em> serviços? Duas soluções principais:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr>
+              <th>Critério</th>
+              <th>API Composition</th>
+              <th>CQRS com Read Model</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Como funciona</strong></td>
+              <td>Um API Composer consulta múltiplos serviços e une os resultados na memória (join em código)</td>
+              <td>Um Read Model pré-agrega dados de múltiplos serviços via eventos; query vai a um único lugar</td>
+            </tr>
+            <tr>
+              <td><strong>Consistência</strong></td>
+              <td>Depende do momento — dados dos serviços podem divergir entre chamadas</td>
+              <td>Eventual — o Read Model é atualizado via eventos assíncronos</td>
+            </tr>
+            <tr>
+              <td><strong>Complexidade</strong></td>
+              <td>Simples de implementar; ruim para grandes volumes</td>
+              <td>Mais complexo; escala bem para queries pesadas</td>
+            </tr>
+            <tr>
+              <td><strong>Adequado para</strong></td>
+              <td>Queries simples, poucos serviços, dados pequenos</td>
+              <td>Queries complexas, grandes volumes, alta frequência de leitura</td>
+            </tr>
+            <tr>
+              <td><strong>Problema típico</strong></td>
+              <td>Joins em memória ineficientes; dependência de disponibilidade simultânea dos serviços</td>
+              <td>Read Model desatualizado (lag); mais infra</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão 4</span>
+        <p class="q-text">Uma plataforma de e-commerce precisa exibir uma tela de "Meu Perfil" com dados de três microsserviços: Pedidos, Avaliações e Endereços. A consulta é complexa e executada milhares de vezes por minuto. Qual abordagem é mais adequada?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>API Composition: o front-end chama os três serviços em paralelo e monta a tela no cliente.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Criar um banco compartilhado entre os três serviços para simplificar a query.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>API Composition com um Aggregator no backend que faz o join em memória.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>CQRS com Read Model pré-materializado: eventos dos três serviços alimentam um Read Model dedicado para esta visão.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Para alta frequência e query complexa, o <strong>CQRS com Read Model</strong> é a solução escalável: os dados são pré-agregados e a leitura é barata. (A) e (C) são API Composition — adequada para casos simples, mas sofre com volume. (B) é o anti-padrão de banco compartilhado.</div>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 E o SAGA?</span>
+        <p>O <strong>SAGA</strong> resolve o problema das <em>escritas</em> que abrangem múltiplos serviços (transações distribuídas) — enquanto API Composition e CQRS resolvem as <em>leituras</em>. SAGA é aprofundado no Tópico 09.</p>
+      </div>
+
+      <!-- ============================ TESTES ============================ -->
+      <h2 id="testes-micro"><span class="h2-kicker">Aula 4 · Testes</span>Pirâmide de testes em microsserviços</h2>
+      <p>A pirâmide de testes em sistemas distribuídos tem uma camada extra de complexidade: testar a <em>integração entre serviços</em> sem precisar subir todo o sistema. A estratégia clássica — e a que a prova adota — segue quatro níveis:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr>
+              <th>Nível</th>
+              <th>O que testa</th>
+              <th>Velocidade / Custo</th>
+              <th>Dependências externas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Unitário</strong></td>
+              <td>Classe / função isolada (lógica de domínio, use cases)</td>
+              <td>Muito rápido / muito barato</td>
+              <td>Mocks/stubs — nenhuma real</td>
+            </tr>
+            <tr>
+              <td><strong>Integração</strong></td>
+              <td>Serviço + seu banco/cache/fila (infra própria)</td>
+              <td>Médio / médio</td>
+              <td>Banco real do serviço (Testcontainers)</td>
+            </tr>
+            <tr>
+              <td><strong>Contrato (Consumer-Driven)</strong></td>
+              <td>API entre dois serviços — sem subir o serviço provedor real</td>
+              <td>Rápido / baixo</td>
+              <td>Mock do provedor gerado pelo contrato</td>
+            </tr>
+            <tr>
+              <td><strong>End-to-End (E2E)</strong></td>
+              <td>Fluxo completo do sistema real</td>
+              <td>Lento / caro</td>
+              <td>Todo o sistema rodando</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — testes E2E não escalam em microsserviços</span>
+        <p>Em sistemas distribuídos, testes E2E são <em>frágeis e lentos</em>: qualquer serviço instável derruba o resultado. A estratégia recomendada é <strong>maximizar unitários e de contrato</strong>, minimizar E2E. Testes de contrato (Pact) são a grande inovação para substituir a integração via serviço real.</p>
+      </div>
+
+      <!-- ============================ CONTRACT TESTS ============================ -->
+      <h2 id="contract-tests"><span class="h2-kicker">Testes de contrato</span>Consumer-Driven Contract Testing (Pact)</h2>
+      <p>O desafio clássico: como o serviço A sabe que o serviço B não vai quebrar sua API? A resposta é o <span class="lead-term">Teste de Contrato Orientado ao Consumidor</span> (consumer-driven contract test), popularizado pela ferramenta <strong>Pact</strong>.</p>
+
+      <div class="card reveal">
+        <h4>Como funciona o Pact</h4>
+        <ul>
+          <li><strong>Consumer</strong> (quem chama): escreve testes que definem o que <em>espera</em> receber do Provider. O Pact gera um arquivo de contrato (JSON/YAML) a partir desses testes.</li>
+          <li><strong>Provider</strong> (quem é chamado): valida que sua implementação satisfaz o contrato gerado pelo Consumer — sem precisar que o Consumer esteja rodando.</li>
+          <li><strong>Pact Broker:</strong> repositório central onde os contratos são publicados e compartilhados entre equipes.</li>
+          <li><strong>O "driver" do contrato é o Consumer</strong> — não o Provider. Essa é a distinção-chave que cai em prova.</li>
+        </ul>
+      </div>
+
+      <div class="diagram reveal">
+        <div class="flow" style="flex-wrap:wrap;gap:8px">
+          <div class="node accent">Consumer<br><small style="color:#bbb">escreve contrato</small></div>
+          <span class="arrow-h">→ publica →</span>
+          <div class="node">Pact Broker<br><small style="color:#bbb">repositório de contratos</small></div>
+          <span class="arrow-h">→ verifica →</span>
+          <div class="node">Provider<br><small style="color:#bbb">valida a implementação</small></div>
+        </div>
+        <div class="legend"><span>O Consumer define o que precisa; o Provider prova que entrega. Cada lado testa independentemente — sem ambiente compartilhado.</span></div>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 Relação com F.I.R.S.T. (Clean Architecture)</span>
+        <p>Testes de contrato são <strong>Fast, Independent, Repeatable</strong> — cumprem os critérios F.I.R.S.T. de bons testes que o Clean Architecture define (ver <a href="clean-architecture.html#clean-tests">Tópico 02 · Clean Architecture</a>). São rápidos porque não dependem do serviço real em execução; são independentes porque cada lado valida separadamente.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão 5</span>
+        <p class="q-text">Em testes de contrato com Pact (consumer-driven), quem define o contrato e o que ele especifica?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>O Provider define o contrato — especifica tudo que sua API expõe; o Consumer valida que está usando corretamente.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>O time de QA define o contrato manualmente em um documento compartilhado.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>O Consumer define o contrato — especifica o que espera receber do Provider; o Provider valida que sua implementação cumpre esse contrato.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>O contrato é gerado automaticamente por análise estática do código do Provider sem intervenção do Consumer.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> "Consumer-Driven" significa que o <strong>Consumer escreve os testes</strong> que definem suas expectativas sobre o Provider — é o consumidor que guia o contrato. (A) inverte a direção: no Pact, o Provider valida contra o contrato do Consumer, não o contrário. (B) descreve um processo manual que não é o Pact. (D) é falso — não existe geração automática por análise estática.</div>
+      </div>
+
+      <!-- ============================ DEPLOY PADRÕES ============================ -->
+      <h2 id="deploy-padroes"><span class="h2-kicker">Aulas 5–6 · Deploy</span>Padrões de deploy de microsserviços</h2>
+      <p>O <strong>deploy independente</strong> é um dos principais benefícios de microsserviços. Para realizá-lo, existem padrões de empacotamento e execução:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr>
+              <th>Padrão</th>
+              <th>Descrição</th>
+              <th>Vantagem</th>
+              <th>Desvantagem</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Serviço por Container</strong></td>
+              <td>Cada serviço = uma imagem Docker; orquestrado por K8s/ECS</td>
+              <td>Isolamento, portabilidade, densidade (muitos containers por host)</td>
+              <td>Overhead de orquestração; curva de aprendizado do K8s</td>
+            </tr>
+            <tr>
+              <td><strong>Serviço por VM</strong></td>
+              <td>Cada serviço roda em sua própria VM dedicada</td>
+              <td>Isolamento completo; sem conflito de runtime</td>
+              <td>Uso ineficiente de recursos; lento para subir</td>
+            </tr>
+            <tr>
+              <td><strong>Serviço por Host (bare metal/process)</strong></td>
+              <td>Cada serviço = um processo no host, sem containerização</td>
+              <td>Simples de operar</td>
+              <td>Sem isolamento; conflitos de porta e dependência</td>
+            </tr>
+            <tr>
+              <td><strong>Serverless (FaaS)</strong></td>
+              <td>Cada operação = função invocada sob demanda (AWS Lambda, GCP Functions)</td>
+              <td>Zero provisionamento; paga por execução; escala automático</td>
+              <td>Cold start; limitações de execução longa; vendor lock-in</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 Container como padrão dominante</span>
+        <p>Na prática, <strong>serviço por container com K8s</strong> tornou-se o padrão de fato para microsserviços em produção. Ver <a href="docker.html">Tópico 04 · Docker</a> para o modelo de container e <a href="cicd-devops.html">Tópico 05 · CI/CD</a> para o pipeline que faz o deploy acontecer automaticamente.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão 6</span>
+        <p class="q-text">Qual é o principal benefício do padrão "Serviço por Container" em relação ao "Serviço por VM" para deploy de microsserviços?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Containers garantem isolamento completo de kernel, equivalente ao de VMs, com zero overhead.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Containers permitem maior densidade (múltiplos serviços por host), startup mais rápido e imagens portáteis, com menos desperdício de recurso que VMs.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Containers eliminam a necessidade de orquestração — cada container se auto-gerencia.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Serviço por VM é sempre preferível porque oferece maior segurança e sem cold start.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O ponto forte do container é <strong>densidade e velocidade de startup</strong> — muitos containers por host com baixo overhead. (A) está errado: containers <em>não</em> têm isolamento de kernel total como VMs (compartilham o kernel do host). (C) é falso — containers precisam de orquestração (K8s, ECS). (D) inverte — VMs são mais pesadas e lentas para escalar.</div>
+      </div>
+
+      <!-- ============================ SERVICE DISCOVERY ============================ -->
+      <h2 id="service-discovery"><span class="h2-kicker">Deploy · infraestrutura</span>Service Discovery &amp; Configuração Externa</h2>
+      <p>Com serviços deployados dinamicamente (IPs que mudam, múltiplas instâncias), dois problemas emergem: como um serviço <em>encontra</em> outro (discovery) e como configura-se sem hardcode de valores de ambiente:</p>
+
+      <div class="card reveal">
+        <h4>Service Discovery — dois modelos</h4>
+        <ul>
+          <li><strong>Client-side discovery:</strong> o cliente consulta o Service Registry (ex.: Eureka/Consul), obtém os IPs disponíveis e faz load balancing localmente. Mais controle, mas o cliente acumula lógica.</li>
+          <li><strong>Server-side discovery:</strong> o cliente envia a requisição para um Load Balancer/API Gateway, que consulta o Registry e roteia. O cliente fica simples; a lógica de roteamento fica no servidor.</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <h4>Configuração externa</h4>
+        <ul>
+          <li><strong>Princípio:</strong> configuração (URLs, credenciais, feature flags) nunca deve ser hardcoded — deve ser injetada via variáveis de ambiente, arquivos externos ou serviços de configuração (Spring Cloud Config, AWS SSM Parameter Store, Vault).</li>
+          <li><strong>Benefício para deploy independente:</strong> o mesmo artefato (imagem Docker) pode ser deployado em dev/staging/prod com configurações distintas sem rebuild.</li>
+        </ul>
+      </div>
+
+      <!-- ============================ DEPLOY ESTRATÉGIAS ============================ -->
+      <h2 id="deploy-estrategias"><span class="h2-kicker">Deploy · estratégias</span>Blue-Green &amp; Canary Release</h2>
+      <p>Deploy independente só é seguro com <strong>estratégias que minimizam risco</strong>. As duas mais cobradas em prova:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead>
+            <tr>
+              <th>Estratégia</th>
+              <th>Como funciona</th>
+              <th>Rollback</th>
+              <th>Risco</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Blue-Green</strong></td>
+              <td>Dois ambientes idênticos (Blue=atual, Green=novo). Deploy vai para Green; tráfego é redirecionado instantaneamente ao Green via load balancer</td>
+              <td>Imediato — basta redirecionar para Blue</td>
+              <td>Custo de manter dois ambientes; troca brusca (100% de uma vez)</td>
+            </tr>
+            <tr>
+              <td><strong>Canary Release</strong></td>
+              <td>Nova versão recebe uma fatia pequena do tráfego (ex.: 5%); se saudável, a fatia cresce gradualmente até 100%</td>
+              <td>Remover a fatia canary — apenas pequena % afetada</td>
+              <td>Menor impacto se falhar; mais complexo para gerenciar</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — Blue-Green não é Canary</span>
+        <p>Blue-Green faz a troca <em>de uma vez</em> (tudo ou nada); Canary faz a troca <em>gradual</em> (percentual crescente). Em prova, a opção que diz "5% do tráfego vai para a nova versão primeiro" descreve Canary, não Blue-Green. Veja mais em <a href="cicd-devops.html">Tópico 05 · CI/CD &amp; DevOps</a>.</p>
+      </div>
+
+      <div class="mnemonic reveal">
+        <div class="m-head">Mnemônico — Database per Service e suas consequências</div>
+        <div class="m-word">"<b>I</b>solei o banco, <b>P</b>erdi o JOIN, <b>G</b>anhei a autonomia"</div>
+        <ul>
+          <li><b>I</b>solamento — cada serviço tem seu banco</li>
+          <li><b>P</b>erda do join — joins distribuídos precisam de API Composition ou CQRS</li>
+          <li><b>G</b>anho — polyglot persistence, deploy independente, escala isolada</li>
+        </ul>
+      </div>
+
+      <!-- ============================ FLASHCARDS ============================ -->
+      <h2 id="flashcards"><span class="h2-kicker">Auto-teste</span>Flashcards — clique para virar</h2>
+      <p>Pense na resposta <strong>antes</strong> de clicar.</p>
+      <div class="flashgrid reveal">
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é Database per Service e por que é fundamental?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Cada serviço tem seu próprio banco — <strong>nenhum outro serviço acessa diretamente</strong>. Garante encapsulamento, deploy independente, polyglot persistence e isolamento de falha.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que CQRS separa? Quais são os dois lados?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Command Side</strong> (escrita: muda estado, persiste, emite eventos) e <strong>Query Side</strong> (leitura: Read Model desnormalizado, nunca muda dados).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">No Event Sourcing, o que é o "replay"?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Reprocessar todos os eventos armazenados em sequência para <strong>reconstruir o estado atual</strong> (ou um estado passado) do agregado a partir do Event Store.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">CQRS e Event Sourcing são a mesma coisa?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Não.</strong> São padrões complementares mas independentes. CQRS separa leitura de escrita; Event Sourcing persiste eventos em vez do estado. Funcionam bem juntos, mas não são sinônimos.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">API Composition × CQRS para queries: quando usar cada um?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>API Composition</strong>: queries simples, poucos serviços, baixo volume. <strong>CQRS com Read Model</strong>: queries complexas, alto volume, dados pré-agregados de múltiplos serviços.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">No Pact, quem define o contrato — Consumer ou Provider?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">O <strong>Consumer</strong> define o contrato (o que espera receber). O Provider valida que sua implementação satisfaz esse contrato. É "consumer-driven".</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Transaction Script × Domain Model: qual usar quando?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Transaction Script</strong>: lógica simples, CRUD — pragmático e direto. <strong>Domain Model</strong>: lógica complexa, muitas regras de negócio — escala melhor, mais testável, mas exige DDD.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Por que testes E2E são problemáticos em microsserviços?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">São <strong>lentos, frágeis e caros</strong>: qualquer serviço instável derruba o teste. Em sistemas distribuídos, prefere-se maximizar testes <strong>unitários e de contrato</strong>, minimizando E2E.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Blue-Green × Canary: qual faz troca gradual?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Canary</strong>: troca gradual (ex.: 5% do tráfego primeiro). <strong>Blue-Green</strong>: troca instantânea e completa (flip do load balancer de Blue para Green).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é consistência eventual no contexto de microsserviços?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">O estado entre serviços converge para o mesmo valor <strong>em algum momento futuro</strong> via eventos assíncronos — mas há uma janela transitória de inconsistência. Não é dado errado permanentemente.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é um Agregado e qual seu papel em microsserviços?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Cluster de objetos com consistência transacional. Em microsserviços: <strong>fronteira de consistência local</strong> (uma transação = um agregado) e <strong>publicador de Domain Events</strong> para integração eventual com outros serviços.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é polyglot persistence?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Cada serviço escolhe o tipo de banco mais adequado à sua carga — relacional, documentos, grafos, chave-valor. Possível porque cada serviço tem <strong>seu próprio banco isolado</strong> (Database per Service).</div></div>
+        </div></div>
+
+      </div>
+
+      <!-- ============================ GLOSSÁRIO ============================ -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>Database per Service</dt><dd>Padrão onde cada microsserviço possui seu banco exclusivo — nenhum serviço acessa o banco de outro diretamente.</dd></div>
+        <div class="gloss-item"><dt>Polyglot Persistence</dt><dd>Uso de diferentes tipos de banco de dados para diferentes serviços conforme a necessidade de cada um.</dd></div>
+        <div class="gloss-item"><dt>CQRS</dt><dd>Command Query Responsibility Segregation: separação entre operações de escrita (Command Side) e leitura (Query Side / Read Model).</dd></div>
+        <div class="gloss-item"><dt>Command</dt><dd>Intenção de mudar estado de um agregado. Processado pelo Command Handler; não retorna dados de leitura.</dd></div>
+        <div class="gloss-item"><dt>Read Model / Projection</dt><dd>Visão materializada construída consumindo eventos do Command Side; otimizada para queries de leitura.</dd></div>
+        <div class="gloss-item"><dt>Event Sourcing</dt><dd>Padrão onde o estado é derivado do replay de uma sequência de eventos armazenados no Event Store (append-only).</dd></div>
+        <div class="gloss-item"><dt>Event Store</dt><dd>Banco append-only que persiste a sequência de eventos de domínio; nunca edita ou deleta eventos passados.</dd></div>
+        <div class="gloss-item"><dt>Replay</dt><dd>Reprocessar eventos sequencialmente para reconstruir o estado atual (ou histórico) de um agregado.</dd></div>
+        <div class="gloss-item"><dt>API Composition</dt><dd>Padrão de query distribuída: um Composer chama múltiplos serviços e une os resultados em memória.</dd></div>
+        <div class="gloss-item"><dt>Consistência Eventual</dt><dd>Garantia de que todos os nós/serviços convergem para o mesmo estado em algum momento — mas não imediatamente após a escrita.</dd></div>
+        <div class="gloss-item"><dt>Consumer-Driven Contract Test</dt><dd>Teste onde o Consumer define o contrato de API esperado; o Provider valida sua implementação contra esse contrato (ex.: Pact).</dd></div>
+        <div class="gloss-item"><dt>Transaction Script</dt><dd>Padrão de organização de lógica de negócio como procedimentos lineares que leem e atualizam o banco — adequado para domínios simples.</dd></div>
+        <div class="gloss-item"><dt>Blue-Green Deploy</dt><dd>Dois ambientes idênticos; o tráfego é redirecionado instantaneamente de Blue (atual) para Green (novo) via load balancer.</dd></div>
+        <div class="gloss-item"><dt>Canary Release</dt><dd>Nova versão recebe um percentual pequeno do tráfego que cresce gradualmente — limita o impacto de falhas na nova versão.</dd></div>
+      </dl>
+
+      <!-- ============================ PEGADINHAS ============================ -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas &amp; checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li><strong>Database per Service</strong> = cada serviço tem seu banco exclusivo; acesso direto por outro serviço é <em>anti-padrão</em> (banco compartilhado).</li>
+          <li><strong>Polyglot persistence</strong> só é possível porque cada serviço isola seu banco.</li>
+          <li><strong>CQRS ≠ Event Sourcing</strong> — são complementares, não sinônimos. CQRS separa leitura×escrita; ES persiste eventos em vez do estado.</li>
+          <li>No CQRS, o <strong>Command Side</strong> muda estado; o <strong>Query Side (Read Model)</strong> apenas lê — nunca o contrário.</li>
+          <li><strong>Read Model</strong> é atualizado por eventos de forma assíncrona — há inconsistência eventual entre o Command Side e o Query Side.</li>
+          <li><strong>Event Sourcing</strong>: o Event Store é <em>append-only</em>; o estado é <em>derivado</em> por replay; snapshot é otimização, não obrigação.</li>
+          <li><strong>API Composition</strong> = join em memória (simples, não escala). <strong>CQRS com Read Model</strong> = dados pré-agregados (complexo, escala).</li>
+          <li><strong>Consistência eventual</strong> ≠ dados errados permanentemente — é uma janela transitória de convergência.</li>
+          <li>No <strong>Pact</strong>, o <em>Consumer</em> define o contrato; o <em>Provider</em> valida. "Consumer-driven" = guiado pelo consumidor.</li>
+          <li><strong>Transaction Script</strong> não é anti-padrão — é adequado para domínios simples. O problema surge quando o domínio cresce.</li>
+          <li><strong>Blue-Green</strong> = troca instantânea (tudo ou nada); <strong>Canary</strong> = troca gradual por percentual de tráfego.</li>
+          <li><strong>SAGA</strong> resolve escritas distribuídas (transações) — não queries. Aprofundado no Tópico 09.</li>
+          <li>Testes E2E são <em>frágeis</em> em sistemas distribuídos — prefira testes de contrato para integração entre serviços.</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="microservices-fundamentos.html"><div class="dir">← Tópico anterior</div><div class="ttl">06 · Microsserviços: Fundamentos</div></a>
+          <a href="microservices-resiliencia.html" class="next"><div class="dir">Próximo tópico →</div><div class="ttl">08 · Microsserviços: Resiliência</div></a>
+        </div>
+        <div>Tópico 07 · Microsserviços: Dados, Negócio &amp; Deploy · material de revisão para a prova final. Base: Chris Richardson — <em>Microservices Patterns</em>.</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

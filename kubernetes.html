@@ -1,0 +1,3229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kubernetes — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão densa de Kubernetes para prova de múltipla escolha: arquitetura (control plane × nodes), Pods/labels/Services/ConfigMap, ReplicaSet/Deployment/StatefulSet/DaemonSet, Volumes/PV/PVC, Probes, HPA, Jobs, EFK, Helm, AWS EKS, CI/CD, RBAC, NetworkPolicy e segurança." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 11 · Kubernetes</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">Parte I · Fundamentos</div>
+      <a href="#fundamentos-arquitetura">Fundamentos &amp; arquitetura</a>
+      <a href="#estado-desejado">Estado desejado × atual</a>
+      <a href="#arquitetura-cluster">Control Plane × Nodes</a>
+      <a href="#docker-vs-k8s">Docker × Kubernetes</a>
+      <a href="#ferramentas-locais">Rodando local &amp; gerenciado</a>
+
+      <div class="group-label">Parte I · Objetos básicos</div>
+      <a href="#pods">Pods</a>
+      <a href="#labels-annotations">Labels × Annotations</a>
+      <a href="#services">Services &amp; tipos</a>
+      <a href="#configmap-secret">ConfigMap × Secret</a>
+
+      <div class="group-label">Parte I · Workloads</div>
+      <a href="#controllers-workload-armazenamento">Controllers &amp; storage</a>
+      <a href="#comparativo-controllers">Deployment × StatefulSet × DaemonSet</a>
+      <a href="#pv-pvc-storageclass">PV × PVC × StorageClass</a>
+
+      <div class="group-label">Parte I · Disponibilidade</div>
+      <a href="#probes">Probes (liveness/readiness)</a>
+      <a href="#hpa-autoscaling">HPA &amp; autoscaling</a>
+      <a href="#jobs-cronjobs">Jobs &amp; CronJobs</a>
+
+      <div class="group-label">Parte II · Operação</div>
+      <a href="#logs-monitoramento-efk">Logs &amp; EFK</a>
+      <a href="#stack-efk">Stack EFK</a>
+      <a href="#helm">Helm</a>
+
+      <div class="group-label">Parte II · AWS EKS</div>
+      <a href="#aws-eks">EKS — visão geral</a>
+      <a href="#eks-modos-node">Modos de node</a>
+      <a href="#eks-irsa">IRSA &amp; integrações</a>
+
+      <div class="group-label">Parte II · CI/CD &amp; Segurança</div>
+      <a href="#cicd-kubernetes">CI/CD &amp; GitOps</a>
+      <a href="#rbac">RBAC</a>
+      <a href="#networkpolicy">NetworkPolicy</a>
+      <a href="#secrets-podsecurity">Secrets &amp; Pod Security</a>
+      <a href="#monitoramento-logging-eks">Monitoramento EKS</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 11 · Kubernetes</span>
+        <h1>Kubernetes</h1>
+        <p class="lede"><em>Kubernetes (K8s)</em> é o orquestrador de containers de fato do mercado — nascido do <strong>Borg</strong> do Google e doado à <strong>CNCF</strong>. Sua ideia-mestra é o modelo <strong>declarativo</strong>: você descreve o <strong>estado desejado</strong> e o cluster, por meio de <em>control loops</em>, converge o estado atual para ele — escalando, curando e atualizando suas aplicações sozinho. Esta revisão cobre da <strong>arquitetura do cluster</strong> ao <strong>AWS EKS na prática</strong>, segurança e CI/CD.</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como Kubernetes cai na prova</span>
+        <p>Espere: (1) <strong>papéis dos componentes</strong> — quem é Control Plane × Node, o que faz <code>etcd</code>/<code>scheduler</code>/<code>kubelet</code> (invertem isso de propósito); (2) <strong>distinções pareadas</strong> — Label × Annotation, ConfigMap × Secret, liveness × readiness, Deployment × StatefulSet × DaemonSet, HPA × VPA × Cluster Autoscaler, Role × ClusterRole; (3) <strong>tipos de Service</strong> e quando cada um expõe (ClusterIP × NodePort × LoadBalancer); (4) <strong>armazenamento</strong> — emptyDir × PV, binding PVC/PV; (5) <strong>EKS</strong> — o que a AWS gerencia × o que é seu, IRSA, Fargate; (6) <strong>segurança</strong> — RBAC autoriza × IAM autentica, NetworkPolicy (default libera tudo), Secret é base64 ≠ criptografia.</p>
+      </div>
+
+      <h2 id="fundamentos-arquitetura"><span class="h2-kicker">Parte I — Aulas 1 e 2</span>Fundamentos e Arquitetura do Kubernetes</h2>
+
+<p>Kubernetes (K8s) é uma plataforma open-source de <strong>orquestração de containers</strong> que automatiza implantação, escalonamento e operação de aplicações conteinerizadas. Nasceu da experiência interna do Google com o sistema <strong>Borg</strong> (que gerencia bilhões de containers por semana) e foi doado à <strong>CNCF</strong> (Cloud Native Computing Foundation) em 2016. A proposta central é simples: você declara <em>o que quer</em> e o cluster converge para isso — indefinidamente.</p>
+
+<div class="card reveal">
+  <h4>O que o Kubernetes resolve</h4>
+  <ul>
+    <li><strong>Escala horizontal</strong> — sobe e desce réplicas automaticamente (HPA/VPA)</li>
+    <li><strong>Self-healing</strong> — reinicia containers com falha, substitui Pods não saudáveis</li>
+    <li><strong>Rollout / Rollback</strong> — atualização gradual sem downtime; desfaz com um comando</li>
+    <li><strong>Service Discovery &amp; Load Balancing</strong> — DNS interno e roteamento de tráfego automático</li>
+    <li><strong>Gestão de configuração e segredos</strong> — ConfigMap e Secret desacoplados da imagem</li>
+    <li><strong>Bin packing</strong> — aloca Pods nos nós otimizando CPU/memória declarados</li>
+  </ul>
+</div>
+
+<h2 id="estado-desejado"><span class="h2-kicker">Conceito Central</span>Estado Desejado × Estado Atual</h2>
+
+<p>O modelo de Kubernetes é <strong>declarativo</strong>: você escreve um manifesto descrevendo o estado <em>desejado</em> e o cluster executa um <strong>reconciliation loop</strong> (control loop) contínuo para convergir o estado <em>atual</em> ao estado <em>desejado</em>. Isso contrasta com o modelo imperativo, onde cada ação deve ser comandada explicitamente.</p>
+
+<div class="diagram reveal">
+  <div class="flow">
+    <div class="node">Estado Desejado<br><small>(manifesto YAML)</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">Control Loop<br><small>(controllers)</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node">Estado Atual<br><small>(cluster real)</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node">Diff?<br><small>(reconcile)</small></div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span> Reconciliation loop — roda continuamente em cada controller</span>
+  </div>
+</div>
+
+<div class="callout ok">
+  <span class="tag">✓ Modelo Declarativo</span>
+  <p>Você aplica um manifesto com <code>kubectl apply</code> e nunca mais precisa "lembrar" de recriar o recurso — se um Pod morrer, o ReplicaSet o recria automaticamente porque o estado desejado ainda exige N réplicas.</p>
+</div>
+
+<h2 id="arquitetura-cluster"><span class="h2-kicker">Arquitetura</span>Control Plane × Worker Nodes</h2>
+
+<p>Um cluster Kubernetes é dividido em dois planos: o <strong>Control Plane</strong> (cérebro) e os <strong>Worker Nodes</strong> (músculos). O Control Plane toma decisões globais; os nós executam as cargas de trabalho.</p>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Componente</th>
+        <th>Onde roda</th>
+        <th>Responsabilidade</th>
+        <th>Detalhe crítico</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>kube-apiserver</strong></td>
+        <td>Control Plane</td>
+        <td>Front-end da API REST; única porta de entrada para todo estado do cluster</td>
+        <td>Valida e persiste objetos no etcd; é stateless — pode escalar horizontalmente</td>
+      </tr>
+      <tr>
+        <td><strong>etcd</strong></td>
+        <td>Control Plane</td>
+        <td>Banco de dados chave-valor distribuído; armazena TODO o estado do cluster</td>
+        <td>Consenso via Raft; precisa de quorum (maioria ímpares: 3, 5…); backup crítico</td>
+      </tr>
+      <tr>
+        <td><strong>kube-scheduler</strong></td>
+        <td>Control Plane</td>
+        <td>Decide <em>em qual nó</em> um Pod não agendado será colocado</td>
+        <td>Avalia resources, affinity, taints/tolerations — NÃO executa o Pod</td>
+      </tr>
+      <tr>
+        <td><strong>kube-controller-manager</strong></td>
+        <td>Control Plane</td>
+        <td>Roda os controllers (ReplicaSet, Deployment, Node, Job…) em um único processo</td>
+        <td>Cada controller monitora um tipo de objeto e age para convergir ao estado desejado</td>
+      </tr>
+      <tr>
+        <td><strong>cloud-controller-manager</strong></td>
+        <td>Control Plane</td>
+        <td>Integra com APIs do provedor de nuvem (LoadBalancer, volumes, rotas)</td>
+        <td>Presente em clusters executados em provedores de nuvem (gerenciados ou self-managed)</td>
+      </tr>
+      <tr>
+        <td><strong>kubelet</strong></td>
+        <td>Worker Node</td>
+        <td>Agente no nó; recebe PodSpec e garante que os containers estejam rodando</td>
+        <td>Faz health checks (liveness/readiness); reporta status ao apiserver</td>
+      </tr>
+      <tr>
+        <td><strong>kube-proxy</strong></td>
+        <td>Worker Node</td>
+        <td>Mantém regras de rede (iptables/ipvs) para rotear tráfego dos Services</td>
+        <td>Implementa o IP virtual do Service; NÃO é o único responsável por DNS</td>
+      </tr>
+      <tr>
+        <td><strong>Container Runtime (CRI)</strong></td>
+        <td>Worker Node</td>
+        <td>Executa os containers de fato (containerd, CRI-O)</td>
+        <td>Docker foi removido como runtime padrão no K8s 1.24 (dockershim deprecated)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — etcd × scheduler × kubelet</span>
+  <ul>
+    <li><strong>etcd</strong> é o banco de dados do cluster — NÃO é o scheduler, NÃO toma decisões de agendamento.</li>
+    <li><strong>kube-scheduler</strong> decide <em>onde</em> o Pod roda, mas quem realmente inicia o container é o <strong>kubelet</strong>.</li>
+    <li><strong>kubelet</strong> roda em cada <em>Worker Node</em> — NÃO faz parte do Control Plane. Questões de prova frequentemente invertem isso.</li>
+    <li>O <strong>kube-controller-manager</strong> não é um controller único — é um binário que hospeda <em>múltiplos</em> controllers (Node Controller, ReplicaSet Controller, etc.).</li>
+  </ul>
+</div>
+
+<div class="layers">
+  <div class="layer l1"><span class="ll">Nuvem</span> EKS / GKE / AKS — cloud-controller-manager + infraestrutura gerenciada</div>
+  <div class="layer l2"><span class="ll">Control Plane</span> kube-apiserver · etcd · kube-scheduler · kube-controller-manager</div>
+  <div class="layer l3"><span class="ll">Worker Nodes</span> kubelet · kube-proxy · Container Runtime (containerd)</div>
+  <div class="layer l4"><span class="ll">Workloads</span> Pods → Containers → sua aplicação</div>
+</div>
+
+<h2 id="objetos-api"><span class="h2-kicker">API e Manifests</span>Objetos da API e YAML</h2>
+
+<p>Todo recurso do Kubernetes é um <strong>objeto da API</strong> descrito em YAML (ou JSON). Os quatro campos raiz são obrigatórios e identificam o objeto de forma única.</p>
+
+<div class="card reveal">
+  <h4>Campos raiz de todo manifesto</h4>
+  <ul>
+    <li><strong>apiVersion</strong> — grupo/versão da API (<code>v1</code>, <code>apps/v1</code>, <code>batch/v1</code>…)</li>
+    <li><strong>kind</strong> — tipo do objeto (<code>Pod</code>, <code>Deployment</code>, <code>Service</code>…)</li>
+    <li><strong>metadata</strong> — nome, namespace, labels, annotations</li>
+    <li><strong>spec</strong> — estado desejado declarado pelo usuário</li>
+  </ul>
+</div>
+
+<p>Exemplo mínimo de manifest para um Pod:</p>
+
+<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: meu-pod
+  namespace: default
+  labels:
+    app: demo
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25
+      ports:
+        - containerPort: 80</code></pre>
+
+<p>Comandos kubectl essenciais:</p>
+
+<pre><code># Declarativo — aplica/atualiza a partir do manifesto
+kubectl apply -f pod.yaml
+
+# Imperativo — cria sem arquivo (não rastreável em GitOps)
+kubectl run meu-pod --image=nginx:1.25
+
+# Inspecionar
+kubectl get pods -n default
+kubectl describe pod meu-pod
+kubectl logs meu-pod
+kubectl exec -it meu-pod -- /bin/sh
+
+# Deletar
+kubectl delete -f pod.yaml
+kubectl delete pod meu-pod</code></pre>
+
+<h2 id="declarativo-imperativo"><span class="h2-kicker">kubectl</span>Declarativo × Imperativo</h2>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Critério</th>
+        <th><span class="pill ok">Declarativo</span> <code>kubectl apply</code></th>
+        <th><span class="pill warn">Imperativo</span> <code>kubectl create / run</code></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Como funciona</td>
+        <td>Envia manifesto; K8s calcula o diff e converge</td>
+        <td>Executa ação imediata no cluster</td>
+      </tr>
+      <tr>
+        <td>Idempotência</td>
+        <td>Sim — reaplicar não duplica o recurso</td>
+        <td>Não — rodar de novo gera erro "already exists"</td>
+      </tr>
+      <tr>
+        <td>Rastreabilidade (GitOps)</td>
+        <td>Total — arquivo YAML versionável</td>
+        <td>Nenhuma — estado só existe no cluster</td>
+      </tr>
+      <tr>
+        <td>Caso de uso</td>
+        <td>Produção, CI/CD, IaC</td>
+        <td>Debug rápido, aprendizado, troubleshooting</td>
+      </tr>
+      <tr>
+        <td>Exemplo</td>
+        <td><code>kubectl apply -f deploy.yaml</code></td>
+        <td><code>kubectl create deployment app --image=nginx</code></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — apply × create</span>
+  <p><code>kubectl create -f</code> falha se o recurso já existe. <code>kubectl apply -f</code> cria OU atualiza (patch three-way merge). Em prova, <em>"qual comando é idempotente e adequado para pipelines CI/CD?"</em> — a resposta é sempre <strong>apply</strong>.</p>
+</div>
+
+<h2 id="namespaces"><span class="h2-kicker">Isolamento Lógico</span>Namespaces</h2>
+
+<p>Namespaces dividem um cluster em <strong>espaços virtuais isolados</strong>. Recursos como Pods, Services e Deployments vivem dentro de um namespace; recursos como Nodes e PersistentVolumes são globais (cluster-scoped).</p>
+
+<div class="card reveal">
+  <h4>Namespaces padrão</h4>
+  <ul>
+    <li><strong>default</strong> — namespace padrão quando nenhum é especificado</li>
+    <li><strong>kube-system</strong> — componentes internos do K8s (kube-dns, kube-proxy…)</li>
+    <li><strong>kube-public</strong> — leitura pública sem autenticação (raramente usado)</li>
+    <li><strong>kube-node-lease</strong> — heartbeats de nós para detecção de falha</li>
+  </ul>
+</div>
+
+<pre><code># Listar namespaces
+kubectl get namespaces
+
+# Criar namespace
+kubectl create namespace homologacao
+
+# Operar em namespace específico
+kubectl get pods -n homologacao
+
+# Definir namespace padrão no contexto atual
+kubectl config set-context --current --namespace=homologacao</code></pre>
+
+<h2 id="docker-vs-k8s"><span class="h2-kicker">Distinção Fundamental</span>Docker × Kubernetes</h2>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Aspecto</th>
+        <th>Docker</th>
+        <th>Kubernetes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Propósito</td>
+        <td>Cria e executa containers individuais</td>
+        <td>Orquestra muitos containers em múltiplos hosts</td>
+      </tr>
+      <tr>
+        <td>Escopo</td>
+        <td>Um host / um container</td>
+        <td>Cluster de nós (dezenas a milhares)</td>
+      </tr>
+      <tr>
+        <td>Escalonamento</td>
+        <td>Manual (<code>docker run</code> repetido)</td>
+        <td>Automático (HPA, ReplicaSet)</td>
+      </tr>
+      <tr>
+        <td>Self-healing</td>
+        <td>Não nativo</td>
+        <td>Nativo — reinicia Pods com falha automaticamente</td>
+      </tr>
+      <tr>
+        <td>Networking</td>
+        <td>Básico — bridge local</td>
+        <td>Overlay network entre nós; DNS, Services, Ingress</td>
+      </tr>
+      <tr>
+        <td>Relação</td>
+        <td colspan="2">K8s usa um container runtime (containerd, não mais Docker direto) para executar os containers. Docker cria a imagem; K8s a orquestra.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout">
+  <span class="tag">💡 Analogia</span>
+  <p>Docker é como contratar um único funcionário para uma tarefa. Kubernetes é o RH + gerência que contrata, distribui, supervisiona e substitui funcionários em uma empresa inteira — automaticamente.</p>
+</div>
+
+<h2 id="ferramentas-locais"><span class="h2-kicker">Ambiente de Desenvolvimento</span>Ferramentas para Rodar K8s Localmente</h2>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Ferramenta</th>
+        <th>Tipo</th>
+        <th>Característica principal</th>
+        <th>Ideal para</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Minikube</strong></td>
+        <td>Local (VM ou container)</td>
+        <td>Cluster single-node; suporte a addons (dashboard, ingress)</td>
+        <td>Aprendizado, desenvolvimento local</td>
+      </tr>
+      <tr>
+        <td><strong>kind</strong> (K8s in Docker)</td>
+        <td>Local (containers Docker)</td>
+        <td>Multi-node leve; excelente para testes de CI</td>
+        <td>Pipelines CI, testes de integração</td>
+      </tr>
+      <tr>
+        <td><strong>k3s / k3d</strong></td>
+        <td>Local ou edge</td>
+        <td>K8s ultra-leve (&lt;100 MB); k3d roda k3s em Docker</td>
+        <td>IoT, edge, máquinas com pouca RAM</td>
+      </tr>
+      <tr>
+        <td><strong>EKS</strong> (AWS)</td>
+        <td>Gerenciado (nuvem)</td>
+        <td>Control Plane gerenciado pela AWS; integração IAM/VPC</td>
+        <td>Produção na AWS</td>
+      </tr>
+      <tr>
+        <td><strong>GKE</strong> (Google)</td>
+        <td>Gerenciado (nuvem)</td>
+        <td>Autopilot mode; origem do próprio K8s</td>
+        <td>Produção no GCP</td>
+      </tr>
+      <tr>
+        <td><strong>AKS</strong> (Azure)</td>
+        <td>Gerenciado (nuvem)</td>
+        <td>Integração nativa com Active Directory e Azure DevOps</td>
+        <td>Produção no Azure</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<pre><code># Minikube — subir cluster local
+minikube start --driver=docker --cpus=2 --memory=4096
+
+# kind — criar cluster multi-node
+kind create cluster --name meu-cluster --config kind-config.yaml
+
+# k3d — cluster k3s em Docker
+k3d cluster create meu-cluster --agents 2</code></pre>
+
+<h2 id="quizzes-fundamentos"><span class="h2-kicker">Revisão</span>Questões de Prova</h2>
+
+<div class="quiz reveal" data-answer="B">
+  <span class="quiz-label">Questão 1</span>
+  <p class="q-text">Qual componente do Control Plane é responsável por decidir em qual nó um Pod recém-criado será executado, levando em conta recursos disponíveis, taints e affinity rules?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>kube-controller-manager, pois gerencia o ciclo de vida dos objetos do cluster.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>kube-scheduler, pois avalia os nós elegíveis e vincula o Pod ao nó selecionado.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>kubelet, pois é o agente que efetivamente inicia os containers nos nós.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>etcd, pois armazena o estado desejado incluindo a alocação de Pods.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>B é correto.</strong> O <strong>kube-scheduler</strong> observa Pods sem nó atribuído (<code>nodeName</code> vazio) e escolhe o nó via algoritmos de filtragem e pontuação. — <strong>A errada</strong>: o kube-controller-manager reconcilia estado de objetos (ex.: garante N réplicas), mas não faz scheduling. — <strong>C errada</strong>: o kubelet <em>executa</em> o container após o scheduler já ter decidido o nó — ele não escolhe. — <strong>D errada</strong>: o etcd é apenas o banco de dados; não toma nenhuma decisão.</div>
+</div>
+
+<div class="quiz reveal" data-answer="C">
+  <span class="quiz-label">Questão 2</span>
+  <p class="q-text">Um engenheiro executa <code>kubectl create -f deployment.yaml</code> com sucesso. Ao executar o mesmo comando novamente, sem alterar o arquivo, o resultado é:</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>O Deployment é atualizado silenciosamente com as novas configurações do arquivo.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>Uma segunda instância do Deployment é criada com nome gerado automaticamente.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>O comando falha com erro "AlreadyExists", pois <code>create</code> não é idempotente.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>O comando é idempotente e retorna sucesso sem nenhuma alteração no cluster.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>C é correto.</strong> <code>kubectl create</code> é imperativo e não idempotente — falha com <code>Error from server (AlreadyExists)</code> se o recurso já existe. Para comportamento idempotente use <strong><code>kubectl apply</code></strong>. — <strong>A errada</strong>: isso descreveria o comportamento de <code>kubectl apply</code>. — <strong>B errada</strong>: K8s não gera nomes automáticos a partir de <code>create -f</code> com <code>name</code> já definido. — <strong>D errada</strong>: <code>create</code> nunca é idempotente; a opção idempotente por design é <code>apply</code>.</div>
+</div>
+
+<div class="quiz reveal" data-answer="A">
+  <span class="quiz-label">Questão 3</span>
+  <p class="q-text">Qual afirmação sobre o <strong>etcd</strong> no contexto de um cluster Kubernetes é CORRETA?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>É um banco de dados chave-valor distribuído que armazena todo o estado do cluster; apenas o kube-apiserver se comunica diretamente com ele.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>É o componente que agenda Pods nos nós disponíveis com base em políticas de recursos.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>Roda em cada Worker Node para garantir que os containers definidos nos PodSpecs estejam em execução.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>Pode ser substituído pelo kube-controller-manager em clusters de desenvolvimento para reduzir overhead.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>A é correto.</strong> O etcd é o único armazenamento persistente do cluster; todos os outros componentes lêem e escrevem estado <em>somente através do kube-apiserver</em>. — <strong>B errada</strong>: isso descreve o <strong>kube-scheduler</strong>. — <strong>C errada</strong>: isso descreve o <strong>kubelet</strong>, que roda no Worker Node. — <strong>D errada</strong>: o etcd e o kube-controller-manager têm responsabilidades completamente distintas; um não substitui o outro.</div>
+</div>
+
+<div class="tldr">
+  <div class="t-head">TL;DR</div>
+  <ul>
+    <li><strong>K8s = orquestrador declarativo</strong> — você define o estado desejado; o control loop converge o cluster.</li>
+    <li><strong>Control Plane</strong>: apiserver (porta de entrada) · etcd (banco do cluster) · scheduler (decide onde) · controller-manager (reconcilia estado) · cloud-controller-manager (nuvem).</li>
+    <li><strong>Worker Node</strong>: kubelet (executa Pods) · kube-proxy (regras de rede) · container runtime (containerd).</li>
+    <li><strong>etcd ≠ scheduler ≠ kubelet</strong> — confundi-los é a armadilha favorita da prova.</li>
+    <li><strong>apply = idempotente</strong> (declarativo, GitOps); <strong>create/run = imperativo</strong> (falha se já existe).</li>
+    <li><strong>Docker cria imagens e containers individuais</strong>; K8s orquestra containers em múltiplos hosts.</li>
+    <li>Local: Minikube (desenvolvimento), kind (CI), k3s/k3d (edge); Gerenciado: EKS, GKE, AKS.</li>
+  </ul>
+</div>
+
+<div class="mnemonic">
+  <div class="m-head">Mnemônico — Componentes do Control Plane</div>
+  <div class="m-word">"<b>A</b>s <b>E</b>mpresas <b>S</b>empre <b>C</b>ontrolam <b>C</b>usto"</div>
+  <ul>
+    <li><b>A</b> → <strong>A</strong>piserver — porta de entrada da API</li>
+    <li><b>E</b> → <strong>E</strong>tcd — estado persistente do cluster</li>
+    <li><b>S</b> → <strong>S</strong>cheduler — seleciona o nó para o Pod</li>
+    <li><b>C</b> → <strong>C</strong>ontroller-manager — controla reconciliação</li>
+    <li><b>C</b> → <strong>C</strong>loud-controller-manager — conecta à nuvem</li>
+  </ul>
+</div>
+
+      <h2 id="pods-labels-services-configmap"><span class="h2-kicker">Aulas 3 e 4 — Parte I</span>Pods, Rótulos, Services e ConfigMap/Secret</h2>
+
+<p>Esta seção cobre as unidades fundamentais de execução do Kubernetes e os mecanismos de descoberta de serviços e injeção de configuração. São tópicos de altíssima incidência em provas de múltipla escolha porque envolvem distinções sutis que confundem até profissionais experientes.</p>
+
+<!-- ═══════════════════════════════════════════ PODS ═══════════════════════════════════════════ -->
+
+<h2 id="pods"><span class="h2-kicker">Unidade Mínima</span>Pods</h2>
+
+<p>Um <strong>Pod</strong> é a menor unidade deployável do Kubernetes. Ele encapsula um ou mais containers que compartilham o mesmo <strong>network namespace</strong> (mesmo IP e porta) e podem montar os mesmos <strong>volumes</strong>. Containers dentro de um Pod se comunicam via <code>localhost</code>. O Pod é <strong>efêmero</strong> — quando morre, não retorna; quem o recria é um controlador (Deployment, StatefulSet etc.).</p>
+
+<div class="card reveal">
+  <h4>Anatomia de um Pod</h4>
+  <ul>
+    <li><strong>Pause container</strong> (infraestrutura): container "fantoche" criado pelo kubelet antes de todos os outros; mantém o network namespace vivo enquanto os containers de aplicação sobem/reiniciam. Invisível ao usuário mas essencial.</li>
+    <li><strong>Init containers</strong>: rodam <em>sequencialmente</em> e <em>até o fim</em> antes de qualquer container principal. Usados para pré-condições (seed de banco, wait-for-service). Se falhar, o Pod reinicia.</li>
+    <li><strong>Sidecar containers</strong>: rodam <em>paralelamente</em> ao container principal. Padrão para logging, proxy (Istio Envoy), sync de segredos.</li>
+    <li><strong>Containers principais</strong>: a carga de trabalho em si.</li>
+  </ul>
+</div>
+
+<div class="layers">
+  <div class="layer l1"><span class="ll">Pod (namespace de rede compartilhado)</span></div>
+  <div class="layer l2"><span class="ll">Init containers (sequenciais, terminam antes)</span></div>
+  <div class="layer l3"><span class="ll">Pause container (mantém o netns)</span></div>
+  <div class="layer l4"><span class="ll">App container + Sidecar containers (paralelos)</span></div>
+</div>
+
+<pre><code># Pod mínimo com init container e sidecar
+apiVersion: v1
+kind: Pod
+metadata:
+  name: meu-pod
+  labels:
+    app: demo
+    versao: v2
+spec:
+  initContainers:
+  - name: wait-db
+    image: busybox
+    command: ["sh", "-c", "until nc -z postgres 5432; do sleep 2; done"]
+  containers:
+  - name: app
+    image: minha-app:v2
+    ports:
+    - containerPort: 8080
+  - name: log-shipper          # sidecar
+    image: fluent/fluent-bit:2
+</code></pre>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — Pod vs Container</span>
+  <p>A prova costuma perguntar "qual é a menor unidade deployável". A resposta é <strong>Pod</strong>, não container. Você não deploya containers diretamente no Kubernetes; você deploya Pods que <em>contêm</em> containers.</p>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — Init × Sidecar</span>
+  <p>Init containers <strong>terminam antes</strong> dos containers principais iniciarem. Sidecars rodam <strong>em paralelo</strong>. Uma questão que diz "roda em paralelo com o container principal para fornecer proxy" descreve um <strong>sidecar</strong>, não um init container.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════ LABELS × ANNOTATIONS ═══════════════════════════════════════════ -->
+
+<h2 id="labels-annotations"><span class="h2-kicker">Metadados</span>Labels (Rótulos) × Annotations (Anotações)</h2>
+
+<p><strong>Labels</strong> são pares chave/valor usados para <em>identificar e agrupar</em> recursos; eles são a base dos <strong>selectors</strong> que conectam Services a Pods, Deployments a ReplicaSets etc. <strong>Annotations</strong> também são pares chave/valor, mas carregam metadados descritivos/operacionais e <strong>não podem ser usadas em selectors</strong>.</p>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Critério</th>
+        <th>Label <span class="pill ok">selector</span></th>
+        <th>Annotation <span class="pill warn">não selecionável</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Finalidade</td>
+        <td>Identificar, agrupar, selecionar recursos</td>
+        <td>Metadados descritivos / operacionais</td>
+      </tr>
+      <tr>
+        <td>Pode ser usada em selector?</td>
+        <td><span class="pill ok">Sim</span></td>
+        <td><span class="pill strat">Não</span></td>
+      </tr>
+      <tr>
+        <td>Restrição de tamanho de valor</td>
+        <td>63 caracteres (sem espaços)</td>
+        <td>Sem limite prático (URLs, JSON, textos longos)</td>
+      </tr>
+      <tr>
+        <td>Exemplos típicos</td>
+        <td><code>app=frontend</code>, <code>env=prod</code>, <code>version=v3</code></td>
+        <td>URL de build, hash de commit, contato do time, checksums</td>
+      </tr>
+      <tr>
+        <td>Quem as usa internamente</td>
+        <td>kube-scheduler, Services, Deployments, HPA</td>
+        <td>Ferramentas externas (Helm, Argo CD, Prometheus)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout danger">
+  <span class="tag">✗ Anti-padrão — Usar annotation como selector</span>
+  <p>Nunca use annotations em <code>selector</code>. O campo <code>selector</code> de um Service aceita <em>somente labels</em>. Tentar filtrar por annotation não produz erro, mas simplesmente não funciona — o Service não encontrará nenhum Pod.</p>
+</div>
+
+<h4>Tipos de Selector</h4>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Sintaxe (kubectl)</th>
+        <th>Equivalente YAML</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="pill tat">Equality-based</span></td>
+        <td><code>-l app=demo,env=prod</code></td>
+        <td><code>matchLabels: {app: demo, env: prod}</code></td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">Set-based — in</span></td>
+        <td><code>-l 'env in (prod,staging)'</code></td>
+        <td><code>matchExpressions: [{key: env, operator: In, values: [prod,staging]}]</code></td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">Set-based — notin</span></td>
+        <td><code>-l 'env notin (dev)'</code></td>
+        <td><code>operator: NotIn</code></td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">Set-based — exists</span></td>
+        <td><code>-l 'tier'</code> (chave existe)</td>
+        <td><code>operator: Exists, values: []</code></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout ok">
+  <span class="tag">✓ Dica de prova — matchLabels vs matchExpressions</span>
+  <p><code>matchLabels</code> só aceita equality-based. Para usar <code>In</code>, <code>NotIn</code> ou <code>Exists</code>, você precisa de <code>matchExpressions</code>. Services mais antigos (v1) usam apenas o campo <code>selector</code> equality-based.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════ SERVICES ═══════════════════════════════════════════ -->
+
+<h2 id="services"><span class="h2-kicker">Rede Estável</span>Services</h2>
+
+<p>Um <strong>Service</strong> expõe um conjunto de Pods como um endpoint de rede estável com IP e DNS fixos, independentemente de quais Pods estão vivos em dado momento. O <strong>kube-proxy</strong> (agente em cada nó) mantém as regras de iptables/IPVS que fazem o balanceamento de carga entre os Pods selecionados. O <strong>CoreDNS</strong> resolve o nome do Service para seu ClusterIP.</p>
+
+<div class="diagram reveal">
+  <div class="flow">
+    <div class="node">Cliente</div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">Service (ClusterIP)</div>
+    <span class="arrow-h">→</span>
+    <div class="node">Endpoints</div>
+    <span class="arrow-h">→</span>
+    <div class="node">Pod A / Pod B / Pod C</div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span> IP virtual estável (kube-proxy + iptables)</span>
+  </div>
+</div>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Acessível de</th>
+        <th>Quando usar</th>
+        <th>Detalhe chave</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="pill tat">ClusterIP</span> <em>(padrão)</em></td>
+        <td>Somente dentro do cluster</td>
+        <td>Comunicação interna entre microserviços</td>
+        <td>IP virtual só roteável dentro do cluster</td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">NodePort</span></td>
+        <td>Fora do cluster via <code>&lt;NodeIP&gt;:&lt;NodePort&gt;</code></td>
+        <td>Testes/dev sem cloud LB; expor porta específica</td>
+        <td>Porta alocada no range 30000–32767 em <em>todos</em> os nós</td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">LoadBalancer</span></td>
+        <td>Fora via IP externo provisionado pelo cloud</td>
+        <td>Produção em cloud (AWS ELB, GCP LB...)</td>
+        <td>Implica ClusterIP + NodePort automaticamente</td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">ExternalName</span></td>
+        <td>Dentro do cluster → recurso externo</td>
+        <td>Alias DNS para serviço fora do cluster</td>
+        <td>Sem selector nem Endpoints; retorna CNAME DNS</td>
+      </tr>
+      <tr>
+        <td><span class="pill warn">Headless</span></td>
+        <td>Dentro do cluster (IP de cada Pod direto)</td>
+        <td>StatefulSets, service discovery direto (Cassandra, Kafka)</td>
+        <td><code>clusterIP: None</code>; DNS retorna IPs dos Pods, não VIP</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — ClusterIP não é acessível de fora</span>
+  <p><strong>ClusterIP é estritamente interno.</strong> Nenhum tráfego externo alcança um ClusterIP diretamente. Para expor externamente você precisa de NodePort, LoadBalancer ou Ingress. Uma questão que diz "o Service está configurado como ClusterIP mas o cliente externo não consegue acessar" — a resposta é que o tipo de Service está errado, não que há bug no Pod.</p>
+</div>
+
+<div class="callout exam">
+  <span class="tag">🎯 Prova — Headless Service</span>
+  <p>O Headless Service (<code>clusterIP: None</code>) não tem IP virtual. O CoreDNS retorna diretamente os IPs dos Pods que correspondem ao selector. Isso permite que clientes descubram e se conectem individualmente a cada Pod — padrão obrigatório para StatefulSets onde cada réplica tem identidade própria.</p>
+</div>
+
+<pre><code># Service ClusterIP (padrão) — conecta via label selector
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+spec:
+  selector:
+    app: backend      # seleciona Pods com este label
+    env: prod
+  ports:
+  - port: 80          # porta do Service
+    targetPort: 8080  # porta do container
+  type: ClusterIP     # poderia omitir — é o default
+---
+# NodePort — expõe externamente
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-svc
+spec:
+  selector:
+    app: frontend
+  ports:
+  - port: 80
+    targetPort: 3000
+    nodePort: 31000   # fixo (opcional); range 30000-32767
+  type: NodePort
+</code></pre>
+
+<h4>Ingress × Service</h4>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Critério</th>
+        <th>Service (L4)</th>
+        <th>Ingress (L7)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Camada OSI</td>
+        <td>Transporte (TCP/UDP)</td>
+        <td>Aplicação (HTTP/HTTPS)</td>
+      </tr>
+      <tr>
+        <td>Roteamento</td>
+        <td>IP:porta</td>
+        <td>Host, caminho URL, headers</td>
+      </tr>
+      <tr>
+        <td>TLS termination</td>
+        <td>Não (por padrão)</td>
+        <td>Sim (TLS no Ingress Controller)</td>
+      </tr>
+      <tr>
+        <td>Recurso Kubernetes</td>
+        <td>Service</td>
+        <td>Ingress + Ingress Controller (nginx, traefik...)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════ CONFIGMAP × SECRET ═══════════════════════════════════════════ -->
+
+<h2 id="configmap-secret"><span class="h2-kicker">Configuração Externalizada</span>ConfigMap × Secret</h2>
+
+<p>Ambos desacoplam a configuração do código da imagem de container. A diferença fundamental é a <strong>natureza dos dados</strong>: ConfigMap para configuração não-sensível; Secret para dados sensíveis. Ambos podem ser injetados como <strong>variáveis de ambiente</strong> ou montados como <strong>volumes</strong>.</p>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Critério</th>
+        <th>ConfigMap</th>
+        <th>Secret</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Dados típicos</td>
+        <td>URLs, flags, arquivos de config, parâmetros</td>
+        <td>Senhas, tokens, chaves TLS, credenciais</td>
+      </tr>
+      <tr>
+        <td>Encoding no etcd</td>
+        <td>Texto plano</td>
+        <td><strong>Base64</strong> (não criptografado por padrão!)</td>
+      </tr>
+      <tr>
+        <td>Criptografia em repouso</td>
+        <td>Não (por padrão)</td>
+        <td>Não (por padrão) — requer EncryptionConfiguration</td>
+      </tr>
+      <tr>
+        <td>Limite de tamanho</td>
+        <td>1 MiB</td>
+        <td>1 MiB</td>
+      </tr>
+      <tr>
+        <td>Tipo <code>kubectl create</code></td>
+        <td><code>configmap</code></td>
+        <td><code>secret generic / tls / docker-registry</code></td>
+      </tr>
+      <tr>
+        <td>Referência em Pod</td>
+        <td><code>configMapKeyRef</code> / <code>configMapRef</code></td>
+        <td><code>secretKeyRef</code> / <code>secretRef</code></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha clássica — Base64 ≠ Criptografia</span>
+  <p><strong>Secret NÃO é criptografado por padrão.</strong> Os valores são apenas codificados em base64, o que é reversível trivialmente (<code>echo "dmFsb3I=" | base64 -d</code>). Qualquer pessoa com acesso ao etcd ou permissão de <code>kubectl get secret</code> pode ler o valor. Para criptografia real, configure <strong>Encryption at Rest</strong> (<code>EncryptionConfiguration</code>) e/ou use soluções externas como Vault. A prova adora essa pegadinha.</p>
+</div>
+
+<div class="callout danger">
+  <span class="tag">✗ Anti-padrão — Guardar segredo em ConfigMap</span>
+  <p>Colocar senhas, tokens ou chaves em ConfigMap (em texto plano) é um anti-padrão de segurança. Use Secret mesmo que ele não seja "verdadeiramente" seguro por padrão — é o objeto semântico correto e possibilita aplicar políticas RBAC e EncryptionConfiguration por tipo de recurso.</p>
+</div>
+
+<pre><code># ConfigMap — variável de ambiente + volume
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  DATABASE_URL: "postgres://db-service:5432/mydb"
+  LOG_LEVEL: "info"
+  config.yaml: |
+    feature_flags:
+      novo_checkout: true
+---
+# Secret — valor deve ser base64 no YAML
+# echo -n "s3nh@Segura" | base64  →  czNuaEBTZWd1cmE=
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-secret
+type: Opaque
+data:
+  DB_PASSWORD: czNuaEBTZWd1cmE=
+---
+# Pod consumindo ambos
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-pod
+spec:
+  containers:
+  - name: app
+    image: minha-app:v2
+    env:
+    - name: DATABASE_URL
+      valueFrom:
+        configMapKeyRef:
+          name: app-config
+          key: DATABASE_URL
+    - name: DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: db-secret
+          key: DB_PASSWORD
+    volumeMounts:
+    - name: cfg-vol
+      mountPath: /etc/config
+  volumes:
+  - name: cfg-vol
+    configMap:
+      name: app-config
+      items:
+      - key: config.yaml
+        path: config.yaml
+</code></pre>
+
+<div class="callout ok">
+  <span class="tag">✓ Volume vs Env Var — quando usar cada um</span>
+  <ul>
+    <li><strong>Env var</strong>: valores simples (string). Atenção: <em>não reflete atualizações</em> do ConfigMap/Secret em tempo real após o Pod iniciar.</li>
+    <li><strong>Volume</strong>: arquivos de configuração completos. <em>Reflete atualizações</em> do ConfigMap/Secret automaticamente (com pequeno delay do kubelet), sem reiniciar o Pod.</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════ QUIZZES ═══════════════════════════════════════════ -->
+
+<h2 id="quizzes-pods-services"><span class="h2-kicker">Fixação</span>Questões de Prova</h2>
+
+<div class="quiz reveal" data-answer="B">
+  <span class="quiz-label">Questão 1</span>
+  <p class="q-text">Um desenvolvedor criou um Service do tipo <strong>ClusterIP</strong> para expor sua API ao time de QA, que acessa o cluster externamente. O QA reporta que não consegue acessar a API pelo IP do Service. Qual é a causa raiz?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>O selector do Service não corresponde aos labels dos Pods — os Endpoints estão vazios.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>ClusterIP é acessível apenas dentro do cluster; acesso externo requer NodePort, LoadBalancer ou Ingress.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>O Service precisa de <code>clusterIP: None</code> para aceitar tráfego externo.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>O CoreDNS não resolve nomes de Services do tipo ClusterIP externamente.</span></li>
+  </ul>
+  <div class="explain">
+    <span class="verdict"></span>
+    <strong>B está correta</strong>: ClusterIP é um IP virtual roteável somente dentro da rede do cluster (via kube-proxy). Nenhum pacote externo chega a ele diretamente.<br><br>
+    <strong>A (errada)</strong>: Selector errado causaria Endpoints vazios e erro 503, não um problema de alcançabilidade de rede — o QA nem conseguiria fazer a conexão TCP.<br>
+    <strong>C (errada)</strong>: <code>clusterIP: None</code> cria um Headless Service (sem IP virtual), o que torna o acesso externo ainda mais difícil, não possível.<br>
+    <strong>D (errada)</strong>: O CoreDNS resolve nomes de Services, mas o problema é roteamento de rede, não resolução DNS. Além disso, o QA está fora do cluster, então o DNS do cluster nem seria consultado.
+  </div>
+</div>
+
+<div class="quiz reveal" data-answer="C">
+  <span class="quiz-label">Questão 2</span>
+  <p class="q-text">Sobre Secrets no Kubernetes, qual afirmação está <strong>correta</strong>?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>Secrets são criptografados por padrão no etcd usando AES-256.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>Secrets e ConfigMaps são equivalentes em segurança; a diferença é apenas semântica.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>Por padrão, os valores de um Secret são apenas codificados em base64, sem criptografia; criptografia em repouso requer configuração adicional (<code>EncryptionConfiguration</code>).</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>Um Secret montado como variável de ambiente atualiza automaticamente o processo em execução quando o valor é alterado no cluster.</span></li>
+  </ul>
+  <div class="explain">
+    <span class="verdict"></span>
+    <strong>C está correta</strong>: Base64 é encoding reversível, não criptografia. Para habilitar criptografia em repouso é necessário configurar o <code>EncryptionConfiguration</code> no API Server.<br><br>
+    <strong>A (errada)</strong>: Kubernetes <em>não</em> criptografa Secrets por padrão. A criptografia requer configuração explícita.<br>
+    <strong>B (errada)</strong>: Não são equivalentes: Secrets permitem políticas RBAC granulares por tipo de recurso e podem receber <code>EncryptionConfiguration</code> distinta. ConfigMaps nunca deveriam armazenar dados sensíveis.<br>
+    <strong>D (errada)</strong>: Variáveis de ambiente são fixadas no momento da inicialização do container — não refletem alterações posteriores no Secret. Apenas Secrets montados como <em>volumes</em> são atualizados automaticamente pelo kubelet.
+  </div>
+</div>
+
+<div class="quiz reveal" data-answer="A">
+  <span class="quiz-label">Questão 3</span>
+  <p class="q-text">Qual a diferença funcional entre <strong>labels</strong> e <strong>annotations</strong> em recursos Kubernetes?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>Labels são usados em selectors para agrupar e selecionar recursos; annotations carregam metadados descritivos e não podem ser usadas em selectors.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>Labels suportam valores longos (URLs, JSON); annotations são limitadas a 63 caracteres.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>Annotations são indexadas pelo etcd para consultas rápidas; labels não são indexados.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>Labels e annotations têm a mesma função; a distinção é apenas uma convenção de nomenclatura da comunidade.</span></li>
+  </ul>
+  <div class="explain">
+    <span class="verdict"></span>
+    <strong>A está correta</strong>: Esta é a distinção fundamental. Labels habilitam seleção e agrupamento (Services, Deployments, HPA todos dependem de labels). Annotations não são selecionáveis.<br><br>
+    <strong>B (errada)</strong>: É o contrário — labels têm limite de 63 caracteres no valor; annotations não têm limite prático e são usadas justamente para valores longos.<br>
+    <strong>C (errada)</strong>: É o inverso do que ocorre: labels são indexados pelo kube-apiserver (watch cache), o que permite buscas eficientes via selector. Annotations não são indexadas — não há indexação invertida por valor de annotation. Além disso, etcd armazena objetos como blobs serializados; a indexação por labels é feita na camada do kube-apiserver, não pelo etcd.<br>
+    <strong>D (errada)</strong>: A distinção é funcional e técnica, não apenas convencional. O API Server e os controladores internos usam labels; ferramentas externas como Helm e Argo CD usam annotations.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ TL;DR ═══════════════════════════════════════════ -->
+
+<div class="tldr">
+  <div class="t-head">TL;DR</div>
+  <ul>
+    <li><strong>Pod</strong> = menor unidade deployável; containers compartilham IP (<code>localhost</code>) e volumes. Init containers terminam antes; sidecars rodam em paralelo.</li>
+    <li><strong>Labels</strong> = identificadores selecionáveis (selectors). <strong>Annotations</strong> = metadados descritivos, <em>não</em> selecionáveis.</li>
+    <li><strong>Service ClusterIP</strong> = interno apenas. <strong>NodePort</strong> = externo via porta 30000–32767. <strong>LoadBalancer</strong> = cloud. <strong>ExternalName</strong> = CNAME externo. <strong>Headless</strong> (<code>clusterIP: None</code>) = DNS retorna IPs dos Pods diretamente.</li>
+    <li><strong>ConfigMap</strong> = config não-sensível (texto plano). <strong>Secret</strong> = dados sensíveis (base64, <em>não criptografado por padrão</em>).</li>
+    <li>Volumes refletem atualizações de ConfigMap/Secret; env vars não.</li>
+    <li>kube-proxy mantém as regras de roteamento; CoreDNS resolve nomes de Services.</li>
+  </ul>
+</div>
+
+<div class="mnemonic">
+  <div class="m-head">Mnemônico — Tipos de Service</div>
+  <div class="m-word">"<b>C</b>luster <b>N</b>ão <b>L</b>arga <b>E</b>xterno"</div>
+  <ul>
+    <li><b>C</b>lusterIP — interno</li>
+    <li><b>N</b>odePort — externo por porta do nó</li>
+    <li><b>L</b>oadBalancer — externo por IP de cloud</li>
+    <li><b>E</b>xternalName — aponta para fora (CNAME)</li>
+  </ul>
+</div>
+
+      <h2 id="controllers-workload-armazenamento"><span class="h2-kicker">Aulas 5 e 6 — Parte I</span>Controllers de Workload e Armazenamento</h2>
+
+<p>Kubernetes não gerencia Pods diretamente na produção — ele usa <strong>controllers</strong> que observam o estado atual do cluster e o reconciliam com o estado desejado. Esta seção cobre os principais controllers de workload e o modelo de armazenamento persistente: os temas com maior peso em provas de múltipla escolha.</p>
+
+<h3 id="replicaset">ReplicaSet — o guardião das réplicas</h3>
+
+<p>O <strong>ReplicaSet</strong> garante que exatamente <em>N</em> réplicas de um Pod estejam rodando a qualquer momento. Quando um Pod falha ou é deletado, o controller detecta a divergência e cria um substituto. Quando há Pods a mais, ele remove o excedente. Esse ciclo é chamado de <strong>loop de reconciliação</strong>.</p>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha</span>
+  <p>Para escalar uma aplicação você <strong>muda o campo <code>replicas</code></strong> no manifesto (ou via <code>kubectl scale</code>) — <strong>nunca cria Pods adicionais manualmente</strong>. Pods criados à mão não são gerenciados pelo ReplicaSet e não serão substituídos se falharem.</p>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha</span>
+  <p>Na prática, <strong>não se cria ReplicaSet diretamente</strong>. O Deployment gerencia ReplicaSets por você e adiciona rollout e rollback. Criar um ReplicaSet nu significa abrir mão de todo o histórico de versões — a questão de prova vai explorar exatamente esse ponto.</p>
+</div>
+
+<h3 id="deployment">Deployment — rollout declarativo e rollback</h3>
+
+<p>O <strong>Deployment</strong> é o controller padrão para aplicações stateless. Ele gerencia um ou mais ReplicaSets: quando você atualiza a imagem ou qualquer campo do template, o Deployment cria um <em>novo</em> ReplicaSet e migra o tráfego de forma controlada. O ReplicaSet antigo é mantido (com <code>replicas: 0</code>) para permitir rollback.</p>
+
+<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-pagamentos
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api-pagamentos
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # até 1 Pod extra durante o rollout
+      maxUnavailable: 0  # nenhum Pod indisponível ao mesmo tempo
+  template:
+    metadata:
+      labels:
+        app: api-pagamentos
+    spec:
+      containers:
+      - name: api
+        image: minha-org/api-pagamentos:v2.1
+        ports:
+        - containerPort: 8080
+</code></pre>
+
+<div class="card reveal">
+  <h4>Comandos essenciais de rollout</h4>
+  <ul>
+    <li><code>kubectl rollout status deployment/api-pagamentos</code> — acompanha o progresso em tempo real</li>
+    <li><code>kubectl rollout history deployment/api-pagamentos</code> — lista revisões anteriores</li>
+    <li><code>kubectl rollout undo deployment/api-pagamentos</code> — volta para a revisão anterior</li>
+    <li><code>kubectl rollout undo deployment/api-pagamentos --to-revision=3</code> — volta para revisão específica</li>
+    <li><code>kubectl scale deployment/api-pagamentos --replicas=5</code> — escala sem alterar imagem</li>
+  </ul>
+</div>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Critério</th>
+        <th><span class="pill ok">RollingUpdate</span></th>
+        <th><span class="pill warn">Recreate</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Disponibilidade</td>
+        <td>Zero downtime (configurável)</td>
+        <td>Downtime garantido — todos os Pods antigos morrem antes dos novos subirem</td>
+      </tr>
+      <tr>
+        <td>Versões simultâneas</td>
+        <td>Sim — v1 e v2 coexistem durante o rollout</td>
+        <td>Não — apenas uma versão por vez</td>
+      </tr>
+      <tr>
+        <td>Parâmetros-chave</td>
+        <td><code>maxSurge</code> e <code>maxUnavailable</code></td>
+        <td>Nenhum parâmetro adicional</td>
+      </tr>
+      <tr>
+        <td>Caso de uso</td>
+        <td>APIs HTTP, microsserviços sem estado</td>
+        <td>Apps que não toleram duas versões no ar (ex.: migrações de schema destrutivas)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 id="comparativo-controllers">Deployment × StatefulSet × DaemonSet</h3>
+
+<p>Estes três controllers resolvem problemas radicalmente diferentes. A prova explora a confusão entre StatefulSet e Deployment — memorize a linha "identidade estável".</p>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Critério</th>
+        <th>Deployment</th>
+        <th>StatefulSet</th>
+        <th>DaemonSet</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Identidade do Pod</td>
+        <td>Aleatória (<code>pod-xyz-abc</code>)</td>
+        <td>Estável e ordenada (<code>db-0</code>, <code>db-1</code>…)</td>
+        <td>Vinculada ao node (<code>agente-node1</code>)</td>
+      </tr>
+      <tr>
+        <td>Ordem de criação/remoção</td>
+        <td>Paralela e arbitrária</td>
+        <td>Sequencial e ordenada (0 → 1 → 2 na subida; 2 → 1 → 0 na descida)</td>
+        <td>1 Pod por node disponível, sem ordem garantida</td>
+      </tr>
+      <tr>
+        <td>Armazenamento</td>
+        <td>PVC compartilhado (opcional)</td>
+        <td>PVC individual por réplica (<code>volumeClaimTemplates</code>)</td>
+        <td>Geralmente <code>hostPath</code> ou <code>emptyDir</code></td>
+      </tr>
+      <tr>
+        <td>Headless Service</td>
+        <td>Não necessário</td>
+        <td>Obrigatório (<code>clusterIP: None</code>) — cada Pod recebe DNS próprio</td>
+        <td>Não se aplica</td>
+      </tr>
+      <tr>
+        <td>Pods intercambiáveis</td>
+        <td>Sim</td>
+        <td>Não — cada Pod tem dados e identidade únicos</td>
+        <td>Sim, mas 1 por node</td>
+      </tr>
+      <tr>
+        <td>Casos de uso típicos</td>
+        <td>APIs REST, frontends, workers stateless</td>
+        <td>Bancos de dados, Kafka, Zookeeper, Elasticsearch</td>
+        <td>Agentes de log (Fluentd), monitoramento (Prometheus Node Exporter), CNI plugins</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha</span>
+  <p><strong>StatefulSet ≠ Deployment com PVC.</strong> Você pode anexar um PVC a um Deployment, mas todos os Pods compartilham o mesmo volume. No StatefulSet cada réplica recebe seu próprio PVC via <code>volumeClaimTemplates</code> — e esse PVC <strong>não é deletado</strong> quando o Pod é removido ou o StatefulSet é escalado para baixo.</p>
+</div>
+
+<div class="diagram reveal">
+  <div class="flow">
+    <div class="node">DaemonSet<br><small>1/node</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node">Deployment<br><small>N réplicas intercambiáveis</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">StatefulSet<br><small>N réplicas com identidade</small></div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span> identidade estável + PVC individual</span>
+  </div>
+</div>
+
+<div class="quiz reveal" data-answer="B">
+  <span class="quiz-label">Questão 1 — Controllers de Workload</span>
+  <p class="q-text">Uma equipe precisa implantar um cluster Kafka de 3 nós onde cada nó precisa de armazenamento persistente exclusivo e deve ser endereçável individualmente por DNS. Qual controller Kubernetes é mais adequado?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>Deployment com 3 réplicas e um PVC compartilhado do tipo RWX</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>StatefulSet com <code>volumeClaimTemplates</code> e um Headless Service</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>DaemonSet com hostPath para garantir 1 instância por node</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>ReplicaSet com 3 réplicas e PersistentVolumeClaim manual</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>B é correto</strong>: StatefulSet fornece identidade estável (<code>kafka-0</code>, <code>kafka-1</code>, <code>kafka-2</code>), PVC individual por réplica e DNS por Pod via Headless Service — exatamente o que Kafka exige. <br><strong>A erra</strong>: Deployment tem Pods intercambiáveis sem identidade; um PVC RWX compartilhado entre os nós Kafka causaria corrupção de dados. <strong>C erra</strong>: DaemonSet garante 1 Pod por node do cluster, não 3 réplicas independentes; e <code>hostPath</code> não cria PVCs individuais gerenciados. <strong>D erra</strong>: ReplicaSet nu não possui <code>volumeClaimTemplates</code> e não gerencia rollout — seria necessário criar PVCs manualmente para cada Pod sem garantia de binding correto.</div>
+</div>
+
+<h3 id="armazenamento-volumes">Armazenamento: Volumes, PV, PVC e StorageClass</h3>
+
+<p>Kubernetes separa o <strong>consumo</strong> de armazenamento (<em>quem precisa</em>) da <strong>provisão</strong> (<em>como é criado</em>). Entender os três objetos — PV, PVC e StorageClass — é fundamental para qualquer questão sobre persistência.</p>
+
+<div class="card reveal">
+  <h4>Volume efêmero vs. persistente</h4>
+  <ul>
+    <li><strong>emptyDir</strong>: criado quando o Pod é agendado; destruído quando o Pod é removido do node. Sobrevive a reinicializações de container <em>dentro</em> do mesmo Pod. Uso típico: cache temporário, compartilhamento entre containers do mesmo Pod.</li>
+    <li><strong>hostPath</strong>: monta diretório do node no Pod. Dados sobrevivem ao Pod, mas são específicos do node — se o Pod for reagendado em outro node, os dados desaparecem. Use com cuidado; é um vetor de escalada de privilégio.</li>
+    <li><strong>PersistentVolume (PV)</strong>: recurso de armazenamento provisionado no cluster, independente de qualquer Pod. Sobrevive à remoção do Pod e do PVC (dependendo da reclaimPolicy).</li>
+  </ul>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha</span>
+  <p><strong>emptyDir não persiste a recriação do Pod.</strong> Se o Pod for deletado e recriado (por falha, rollout ou scale-down/up), um novo <code>emptyDir</code> vazio é montado. Dados anteriores são perdidos. Para persistência real use PVC.</p>
+</div>
+
+<h3 id="pv-pvc-storageclass">PersistentVolume × PersistentVolumeClaim × StorageClass</h3>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Objeto</th>
+        <th>Quem cria</th>
+        <th>O que representa</th>
+        <th>Escopo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>PersistentVolume (PV)</strong></td>
+        <td>Administrador (estático) ou StorageClass (dinâmico)</td>
+        <td>Recurso de armazenamento real: disco NFS, EBS, GCE PD, etc.</td>
+        <td>Cluster-wide (não tem namespace)</td>
+      </tr>
+      <tr>
+        <td><strong>PersistentVolumeClaim (PVC)</strong></td>
+        <td>Desenvolvedor / aplicação</td>
+        <td>Requisição de armazenamento: tamanho + accessMode. Faz binding a um PV adequado.</td>
+        <td>Namespaced</td>
+      </tr>
+      <tr>
+        <td><strong>StorageClass</strong></td>
+        <td>Administrador</td>
+        <td>Define o provisionador e parâmetros para criação dinâmica de PVs ao receber um PVC.</td>
+        <td>Cluster-wide (não tem namespace)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>accessMode</th>
+        <th>Sigla</th>
+        <th>Significado</th>
+        <th>Exemplo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>ReadWriteOnce</td>
+        <td><span class="pill strat">RWO</span></td>
+        <td>Leitura e escrita por <strong>um único node</strong></td>
+        <td>EBS, GCE PD — disco local de node</td>
+      </tr>
+      <tr>
+        <td>ReadOnlyMany</td>
+        <td><span class="pill tat">ROX</span></td>
+        <td>Somente leitura por <strong>múltiplos nodes</strong></td>
+        <td>Imagens/assets estáticos compartilhados</td>
+      </tr>
+      <tr>
+        <td>ReadWriteMany</td>
+        <td><span class="pill ok">RWX</span></td>
+        <td>Leitura e escrita por <strong>múltiplos nodes</strong></td>
+        <td>NFS, Azure Files, EFS</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>reclaimPolicy</th>
+        <th>O que acontece ao PV quando o PVC é deletado</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Retain</strong></td>
+        <td>PV permanece no cluster com status <em>Released</em>; dados preservados; requer intervenção manual para reutilizar.</td>
+      </tr>
+      <tr>
+        <td><strong>Delete</strong></td>
+        <td>PV e o volume subjacente (disco na nuvem) são deletados automaticamente. Padrão em StorageClasses dinâmicas.</td>
+      </tr>
+      <tr>
+        <td><strong>Recycle</strong> <span class="pill warn">depreciado</span></td>
+        <td>Faz <code>rm -rf</code> no volume e o disponibiliza novamente. Substituído pelo provisionamento dinâmico.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="diagram reveal">
+  <div class="flow">
+    <div class="node">Pod<br><small>monta PVC</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node">PVC<br><small>requisita storage</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">PV<br><small>binding</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node">StorageClass<br><small>provisiona PV dinâmico</small></div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span> PV provisionado dinamicamente pela StorageClass quando não há PV estático compatível</span>
+  </div>
+</div>
+
+<p>Exemplo completo: PVC solicitando 5 Gi com provisionamento dinâmico via StorageClass, montado em um Deployment:</p>
+
+<pre><code># PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dados-app
+  namespace: producao
+spec:
+  storageClassName: fast-ssd      # referencia a StorageClass
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Deployment consumindo o PVC
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-com-dados
+  namespace: producao
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-com-dados
+  template:
+    metadata:
+      labels:
+        app: app-com-dados
+    spec:
+      containers:
+      - name: app
+        image: minha-org/app:v1
+        volumeMounts:
+        - name: dados
+          mountPath: /var/dados
+      volumes:
+      - name: dados
+        persistentVolumeClaim:
+          claimName: dados-app   # referencia o PVC acima
+</code></pre>
+
+<div class="callout ok">
+  <span class="tag">✓ Ponto-chave sobre binding</span>
+  <p>O Kubernetes realiza o binding entre PVC e PV verificando: (1) capacidade suficiente, (2) accessMode compatível, (3) storageClassName coincidente. Se nenhum PV estático satisfaz, e existe uma StorageClass com provisionador, um PV é criado dinamicamente.</p>
+</div>
+
+<div class="callout danger">
+  <span class="tag">✗ Anti-padrão</span>
+  <p>Usar <code>hostPath</code> em produção para persistência. O volume é específico do node — se o Pod for reagendado em outro node os dados desaparecem. Além disso, <code>hostPath</code> permite que um container acesse arquivos sensíveis do sistema operacional do host, representando risco de segurança grave.</p>
+</div>
+
+<div class="quiz reveal" data-answer="C">
+  <span class="quiz-label">Questão 2 — PV, PVC e StorageClass</span>
+  <p class="q-text">Um PVC foi criado com <code>storageClassName: fast-ssd</code> e <code>accessModes: [ReadWriteOnce]</code>. Existe um PV disponível com a mesma StorageClass e capacidade suficiente, mas com <code>accessModes: [ReadWriteMany]</code>. O que acontece?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>O PVC faz binding com o PV existente, pois RWX é um superset de RWO.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>O PVC falha imediatamente com erro de configuração inválida.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>O PVC fica em estado <em>Pending</em>; se a StorageClass tiver um provisionador, um novo PV RWO é criado dinamicamente.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>O Kubernetes converte automaticamente o accessMode do PV para RWO e realiza o binding.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>C é correto</strong>: o binding exige que os accessModes solicitados pelo PVC estejam presentes no PV — o PVC com RWO não faz binding com um PV que declara apenas RWX, pois ReadWriteOnce não está na lista de modos do PV. O PVC entra em <em>Pending</em> e, se a StorageClass tiver um provisionador dinâmico configurado, um novo PV com RWO é criado para satisfazer a requisição. <br><strong>A erra</strong>: Kubernetes não trata RWX como superset de RWO para fins de binding — os modos solicitados pelo PVC precisam estar presentes no PV (RWO ∉ {RWX}). <strong>B erra</strong>: o PVC não falha com erro; ele entra em <em>Pending</em> aguardando um PV compatível. <strong>D erra</strong>: Kubernetes jamais converte ou altera o accessMode de um PV existente — essa é uma propriedade imutável após a criação.</div>
+</div>
+
+<div class="callout exam">
+  <span class="tag">🎯 Prova</span>
+  <ul>
+    <li>ReplicaSet: escalar = mudar <code>replicas</code>, não criar Pods manualmente.</li>
+    <li>Deployment: cria novo ReplicaSet a cada atualização; antigo ReplicaSet fica com <code>replicas: 0</code> (base para rollback).</li>
+    <li>StatefulSet obrigatoriamente precisa de Headless Service (<code>clusterIP: None</code>) para DNS estável por Pod.</li>
+    <li>DaemonSet: 1 Pod por node — se um novo node entra no cluster, o DaemonSet provisiona automaticamente.</li>
+    <li><code>emptyDir</code>: morre com o Pod. PV: independe do Pod.</li>
+    <li>PV é cluster-wide; PVC é namespaced.</li>
+    <li><code>reclaimPolicy: Retain</code> preserva dados; <code>Delete</code> remove o disco subjacente.</li>
+  </ul>
+</div>
+
+<div class="tldr">
+  <div class="t-head">TL;DR</div>
+  <ul>
+    <li><strong>ReplicaSet</strong> mantém N réplicas via reconciliação — nunca use diretamente; o Deployment já inclui tudo isso mais rollout e rollback.</li>
+    <li><strong>Deployment</strong> gerencia ReplicaSets: cada deploy cria um novo RS, mantendo o antigo com replicas=0 para rollback com <code>kubectl rollout undo</code>.</li>
+    <li><strong>StatefulSet</strong> = identidade estável + PVC por réplica + Headless Service. Use para bancos e sistemas com estado.</li>
+    <li><strong>DaemonSet</strong> = exatamente 1 Pod por node. Use para agentes de infraestrutura (log, monitor, rede).</li>
+    <li><strong>emptyDir</strong> morre com o Pod. <strong>PV</strong> existe independente do Pod. <strong>PVC</strong> é a requisição namespaced que faz binding ao PV.</li>
+    <li><strong>StorageClass</strong> habilita provisionamento dinâmico de PVs — elimina a gestão manual de discos.</li>
+    <li>accessModes do PVC devem estar presentes no PV para binding: RWO ≠ RWX.</li>
+  </ul>
+</div>
+
+<div class="mnemonic">
+  <div class="m-head">Mnemônico — Quando usar cada controller</div>
+  <div class="m-word">"<b>D</b>eploy <b>S</b>em <b>D</b>ados"</div>
+  <ul>
+    <li><b>D</b>eployment → stateless, Pods intercambiáveis</li>
+    <li><b>S</b>tatefulSet → estado estável, identidade, banco</li>
+    <li><b>D</b>aemonSet → 1 por node, agente de infra</li>
+  </ul>
+</div>
+
+      <h2 id="probes-hpa-jobs"><span class="h2-kicker">Aulas 7, 8 (Parte I) e Aula 1 (Parte II)</span>Probes, Autoscaling (HPA) e Jobs</h2>
+
+<p>Kubernetes oferece mecanismos distintos para garantir disponibilidade em tempo de execução (Probes), escalar carga de trabalho de forma automática (HPA/VPA/Cluster Autoscaler) e executar tarefas batch com garantia de conclusão (Jobs/CronJobs). As distinções entre eles são tema recorrente de prova.</p>
+
+<div class="tldr">
+  <div class="t-head">TL;DR</div>
+  <ul>
+    <li><strong>livenessProbe</strong> → falhou: <em>reinicia o container</em>. <strong>readinessProbe</strong> → falhou: <em>remove o Pod do Endpoint/Service</em> (não reinicia). <strong>startupProbe</strong> → guarda as outras até o app subir.</li>
+    <li><strong>HPA</strong> escala réplicas; precisa de <code>resources.requests</code> + metrics-server. <strong>VPA</strong> ajusta recursos por Pod. <strong>Cluster Autoscaler</strong> adiciona nodes.</li>
+    <li><strong>Job</strong> roda até completar. <strong>CronJob</strong> agenda Jobs. Ambos proíbem <code>restartPolicy: Always</code>.</li>
+  </ul>
+</div>
+
+<h2 id="probes"><span class="h2-kicker">Disponibilidade em Runtime</span>Probes — Liveness, Readiness e Startup</h2>
+
+<p>As Probes são verificações periódicas que o kubelet executa dentro de cada container. Cada tipo responde a uma pergunta diferente sobre o ciclo de vida do container.</p>
+
+<div class="diagram reveal">
+  <div class="flow">
+    <div class="node">Container inicia</div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">startupProbe</div>
+    <span class="arrow-h">→ passou</span>
+    <div class="node">livenessProbe<br>readinessProbe</div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span> startupProbe desabilita liveness e readiness até passar</span>
+  </div>
+</div>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Probe</th>
+        <th>Pergunta</th>
+        <th>Ação ao Falhar</th>
+        <th>Reinicia Container?</th>
+        <th>Remove do Service?</th>
+        <th>Caso de Uso</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="pill strat">livenessProbe</span></td>
+        <td>"O container ainda está vivo?"</td>
+        <td>kubelet reinicia o container</td>
+        <td><strong>Sim</strong></td>
+        <td>Não (diretamente)</td>
+        <td>Detectar deadlock, travamento, estado corrompido</td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">readinessProbe</span></td>
+        <td>"O container está pronto para receber tráfego?"</td>
+        <td>Remove o Pod do Endpoint do Service</td>
+        <td><strong>Não</strong></td>
+        <td><strong>Sim</strong></td>
+        <td>Warm-up, dependência externa indisponível temporariamente</td>
+      </tr>
+      <tr>
+        <td><span class="pill ok">startupProbe</span></td>
+        <td>"O app já terminou de iniciar?"</td>
+        <td>Reinicia o container (igual à liveness)</td>
+        <td><strong>Sim</strong></td>
+        <td>Não (diretamente)</td>
+        <td>Apps de boot lento (JVM, legados) — evita que liveness mate antes da hora</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha Clássica — Liveness × Readiness</span>
+  <ul>
+    <li><strong>livenessProbe</strong> falhou → kubelet <em>reinicia</em> o container. O Pod continua no Service até o restart.</li>
+    <li><strong>readinessProbe</strong> falhou → Pod <em>não é reiniciado</em>; ele simplesmente sai dos Endpoints. O container segue rodando.</li>
+    <li>Trocar os dois é o erro mais cobrado em prova. Pergunte: "preciso reiniciar ou só retirar do balanceamento?"</li>
+  </ul>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ startupProbe × initialDelaySeconds</span>
+  <p>Antes da <code>startupProbe</code> existir, usava-se <code>initialDelaySeconds</code> alto na livenessProbe para apps lentos. Com <code>startupProbe</code>, o kubelet aguarda ela passar antes de ativar liveness e readiness — é a abordagem correta para apps de boot imprevisível.</p>
+</div>
+
+<h2 id="tipos-de-probe"><span class="h2-kicker">Mecanismos de Verificação</span>Tipos de Probe</h2>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Como Funciona</th>
+        <th>Sucesso</th>
+        <th>Uso Típico</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>httpGet</code></td>
+        <td>GET HTTP no path/porta especificado</td>
+        <td>Status 200–399</td>
+        <td>APIs REST, servidores web</td>
+      </tr>
+      <tr>
+        <td><code>tcpSocket</code></td>
+        <td>Tenta abrir conexão TCP na porta</td>
+        <td>Conexão estabelecida</td>
+        <td>Bancos de dados, serviços binários</td>
+      </tr>
+      <tr>
+        <td><code>exec</code></td>
+        <td>Executa comando dentro do container</td>
+        <td>Exit code 0</td>
+        <td>Scripts customizados, CLIs</td>
+      </tr>
+      <tr>
+        <td><code>grpc</code></td>
+        <td>Chama Health Check gRPC (proto padrão)</td>
+        <td>Status SERVING</td>
+        <td>Serviços gRPC</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="parametros-probe"><span class="h2-kicker">Configuração Detalhada</span>Parâmetros das Probes</h2>
+
+<div class="card reveal">
+  <h4>Parâmetros Principais</h4>
+  <ul>
+    <li><strong>initialDelaySeconds</strong>: segundos de espera após o container iniciar antes da primeira verificação.</li>
+    <li><strong>periodSeconds</strong>: intervalo entre verificações (padrão: 10s).</li>
+    <li><strong>failureThreshold</strong>: quantas falhas consecutivas acionam a ação (padrão: 3).</li>
+    <li><strong>successThreshold</strong>: quantos sucessos consecutivos marcam como saudável (padrão: 1; readiness pode exigir mais).</li>
+    <li><strong>timeoutSeconds</strong>: tempo máximo para a verificação responder (padrão: 1s).</li>
+  </ul>
+</div>
+
+<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: api-probes-demo
+spec:
+  containers:
+  - name: api
+    image: minha-api:1.0
+    ports:
+    - containerPort: 8080
+    startupProbe:
+      httpGet:
+        path: /healthz/startup
+        port: 8080
+      failureThreshold: 30      # 30 x 10s = até 5 min para o app subir
+      periodSeconds: 10
+    livenessProbe:
+      httpGet:
+        path: /healthz/live
+        port: 8080
+      initialDelaySeconds: 0    # startupProbe já garantiu o boot
+      periodSeconds: 15
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /healthz/ready
+        port: 8080
+      periodSeconds: 10
+      failureThreshold: 3
+      successThreshold: 1</code></pre>
+
+<div class="callout exam">
+  <span class="tag">🎯 Prova — O que acontece se readinessProbe falhar continuamente?</span>
+  <p>O Pod permanece em estado <code>Running</code>, mas com <code>Ready: False</code>. Ele é removido dos Endpoints do Service e <strong>não recebe tráfego</strong>. O container <strong>não é reiniciado</strong>. Se o problema se resolver, a probe volta a passar e o Pod é readicionado automaticamente.</p>
+</div>
+
+<div class="quiz reveal" data-answer="B">
+  <span class="quiz-label">Questão</span>
+  <p class="q-text">Um container apresenta deadlock após horas em produção: responde ao TCP mas não processa requisições. Qual probe, ao falhar, resolve o problema automaticamente?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>readinessProbe com tcpSocket — remove o Pod do Service.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>livenessProbe com httpGet no endpoint de negócio — reinicia o container.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>startupProbe com exec — reinicia durante o boot.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>readinessProbe com httpGet — reinicia o container após falha.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>B é correta</strong>: deadlock exige reinício, que é efeito da <strong>livenessProbe</strong>. — <strong>A erra</strong>: tcpSocket passaria porque a porta TCP está aberta; além disso, readiness não reinicia. — <strong>C erra</strong>: startupProbe atua apenas durante o boot; após passar, é desativada. — <strong>D erra</strong>: readinessProbe <em>nunca</em> reinicia o container; apenas retira do balanceamento.</div>
+</div>
+
+<h2 id="hpa-autoscaling"><span class="h2-kicker">Aula 8 — Escalonamento Automático</span>HPA, VPA e Cluster Autoscaler</h2>
+
+<p>Kubernetes oferece três mecanismos de escalonamento automático, cada um atuando em uma dimensão diferente do sistema. A prova frequentemente mistura os três para testar se você sabe qual eixo cada um escala.</p>
+
+<div class="layers">
+  <div class="layer l1"><span class="ll">Cluster Autoscaler</span> Adiciona/remove Nodes no cluster</div>
+  <div class="layer l2"><span class="ll">HPA</span> Ajusta número de réplicas (Pods) de um Deployment/StatefulSet</div>
+  <div class="layer l3"><span class="ll">VPA</span> Ajusta CPU/memória requests e limits dos Pods existentes</div>
+  <div class="layer l4"><span class="ll">Workload</span> Pod rodando com recursos alocados</div>
+</div>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Mecanismo</th>
+        <th>O que Escala</th>
+        <th>Eixo</th>
+        <th>Precisa de</th>
+        <th>Reinicia Pods?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="pill strat">HPA</span> HorizontalPodAutoscaler</td>
+        <td>Número de réplicas de um workload</td>
+        <td>Horizontal</td>
+        <td>metrics-server + <code>resources.requests</code> definidos</td>
+        <td>Não (cria/remove Pods)</td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">VPA</span> VerticalPodAutoscaler</td>
+        <td>CPU/memória requests e limits de cada Pod</td>
+        <td>Vertical</td>
+        <td>VPA controller instalado</td>
+        <td><strong>Sim</strong> (recria Pod para aplicar novos recursos)</td>
+      </tr>
+      <tr>
+        <td><span class="pill ok">Cluster Autoscaler</span></td>
+        <td>Número de Nodes do cluster</td>
+        <td>Infraestrutura</td>
+        <td>Integração com provedor cloud (GKE, EKS, AKS)</td>
+        <td>Não diretamente</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ HPA exige requests definidos + metrics-server</span>
+  <ul>
+    <li>Sem <code>resources.requests.cpu</code> definido no container, o HPA <strong>não consegue calcular % de uso</strong> e não escala.</li>
+    <li>O <strong>metrics-server</strong> (ou Prometheus Adapter para métricas custom) precisa estar instalado no cluster. Sem ele, o HPA fica em estado <code>unknown</code>.</li>
+    <li><strong>requests</strong> = quanto o scheduler reserva. <strong>limits</strong> = teto de uso. HPA usa a razão <code>uso atual / requests</code>.</li>
+  </ul>
+</div>
+
+<div class="callout">
+  <span class="tag">💡 requests × limits — Distinção para Prova</span>
+  <ul>
+    <li><strong>requests</strong>: base do scheduling. O nó precisa ter essa capacidade disponível para o Pod ser alocado.</li>
+    <li><strong>limits</strong>: teto de execução. CPU é throttled ao atingir o limit; memória causa OOMKill ao ultrapassar.</li>
+    <li>HPA usa <strong>requests</strong> como denominador, não limits.</li>
+  </ul>
+</div>
+
+<pre><code># metrics-server deve estar instalado no cluster
+# kubectl top pods  →  confirma que métricas estão disponíveis
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: api
+        image: minha-api:1.0
+        resources:
+          requests:
+            cpu: "250m"       # OBRIGATÓRIO para o HPA funcionar
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70   # escala quando CPU média > 70% dos requests</code></pre>
+
+<div class="callout ok">
+  <span class="tag">✓ Comando de verificação HPA</span>
+  <p><code>kubectl get hpa api-hpa</code> — exibe métricas atuais, réplicas mínimas/máximas e réplicas desejadas. Coluna <code>TARGETS</code> mostrando <code>&lt;unknown&gt;</code> indica ausência de metrics-server ou requests não definidos.</p>
+</div>
+
+<h2 id="jobs-cronjobs"><span class="h2-kicker">Aula 1 Parte II — Cargas Batch</span>Jobs e CronJobs</h2>
+
+<p>Jobs executam tarefas com garantia de conclusão bem-sucedida. Diferentemente de Deployments, não são projetados para rodar indefinidamente — eles terminam quando o trabalho está concluído.</p>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Recurso</th>
+        <th>Objetivo</th>
+        <th>Roda Sempre?</th>
+        <th>Agendamento</th>
+        <th>restartPolicy Permitido</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="pill strat">Job</span></td>
+        <td>Executar uma tarefa batch até completar com sucesso</td>
+        <td><strong>Não</strong> — termina ao concluir</td>
+        <td>Manual / único</td>
+        <td><code>Never</code> ou <code>OnFailure</code></td>
+      </tr>
+      <tr>
+        <td><span class="pill ok">CronJob</span></td>
+        <td>Agendar Jobs periodicamente (sintaxe cron)</td>
+        <td>Não — cria Jobs sob demanda</td>
+        <td>Expressão cron</td>
+        <td><code>Never</code> ou <code>OnFailure</code> (herdado pelo Job)</td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">Deployment</span></td>
+        <td>Manter N réplicas de um serviço sempre rodando</td>
+        <td><strong>Sim</strong> — reinicia sempre que para</td>
+        <td>Contínuo</td>
+        <td><code>Always</code> (padrão e obrigatório)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout danger">
+  <span class="tag">✗ Anti-padrão — restartPolicy: Always em Job</span>
+  <p>Jobs e CronJobs <strong>proíbem</strong> <code>restartPolicy: Always</code>. O Kubernetes rejeitará a criação do recurso com erro de validação. Use <code>Never</code> (Pod fica com status <code>Failed</code> para diagnóstico) ou <code>OnFailure</code> (kubelet reinicia o container dentro do mesmo Pod). Nunca coloque <code>Always</code> em um Job.</p>
+</div>
+
+<div class="card reveal">
+  <h4>Parâmetros-chave de Job</h4>
+  <ul>
+    <li><strong>completions</strong>: quantas execuções bem-sucedidas são necessárias para o Job ser concluído (padrão: 1).</li>
+    <li><strong>parallelism</strong>: quantos Pods podem rodar em paralelo ao mesmo tempo (padrão: 1).</li>
+    <li><strong>backoffLimit</strong>: número máximo de tentativas antes de marcar o Job como <code>Failed</code> (padrão: 6).</li>
+    <li><strong>activeDeadlineSeconds</strong>: tempo máximo de vida do Job; Pods são encerrados e o Job é marcado como falho ao expirar.</li>
+    <li><strong>ttlSecondsAfterFinished</strong>: limpa automaticamente o Job (e seus Pods) após N segundos da conclusão.</li>
+  </ul>
+</div>
+
+<pre><code>apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: relatorio-diario
+spec:
+  schedule: "0 3 * * *"          # todo dia às 03:00 UTC
+  concurrencyPolicy: Forbid       # não inicia novo Job se o anterior ainda estiver rodando
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      completions: 1
+      parallelism: 1
+      backoffLimit: 2             # tenta até 3x antes de desistir
+      ttlSecondsAfterFinished: 3600
+      template:
+        spec:
+          restartPolicy: OnFailure  # Never ou OnFailure — NUNCA Always
+          containers:
+          - name: gerador
+            image: relatorios:2.1
+            command: ["python", "gerar_relatorio.py"]
+            resources:
+              requests:
+                cpu: "500m"
+                memory: "256Mi"</code></pre>
+
+<div class="callout warn">
+  <span class="tag">⚠ CronJob — concurrencyPolicy</span>
+  <ul>
+    <li><code>Allow</code> (padrão): permite múltiplos Jobs simultâneos se o anterior não terminou.</li>
+    <li><code>Forbid</code>: pula a execução agendada se o Job anterior ainda estiver ativo.</li>
+    <li><code>Replace</code>: cancela o Job anterior e inicia o novo.</li>
+    <li>Não confunda <code>Forbid</code> (pula) com <code>Replace</code> (cancela e substitui).</li>
+  </ul>
+</div>
+
+<div class="diagram reveal">
+  <div class="flow">
+    <div class="node">CronJob</div>
+    <span class="arrow-h">cria →</span>
+    <div class="node accent">Job</div>
+    <span class="arrow-h">cria →</span>
+    <div class="node">Pod(s)</div>
+    <span class="arrow-h">→</span>
+    <div class="node">Completo ✓</div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span> Job gerencia os Pods; CronJob gerencia os Jobs</span>
+  </div>
+</div>
+
+<div class="quiz reveal" data-answer="C">
+  <span class="quiz-label">Questão</span>
+  <p class="q-text">Você criou um Job para processar um lote de dados. O Pod falha na primeira execução e você quer que o kubelet reinicie o container dentro do mesmo Pod (sem criar novo Pod) a cada falha. Qual configuração está correta?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>restartPolicy: Always e backoffLimit: 3</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>restartPolicy: Never e backoffLimit: 3</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>restartPolicy: OnFailure e backoffLimit: 3</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>restartPolicy: OnFailure sem backoffLimit (default ilimitado)</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>C é correta</strong>: <code>OnFailure</code> faz o kubelet reiniciar o <em>container no mesmo Pod</em> ao falhar; <code>backoffLimit: 3</code> limita as tentativas totais. — <strong>A erra</strong>: <code>Always</code> é inválido em Job — o recurso será rejeitado na criação. — <strong>B erra</strong>: <code>Never</code> cria um <em>novo Pod</em> a cada falha, não reinicia o container no mesmo Pod. — <strong>D erra</strong>: o padrão de backoffLimit é 6, não ilimitado; além disso, sem limite explícito pode gerar muitos Pods desnecessários.</div>
+</div>
+
+<div class="quiz reveal" data-answer="A">
+  <span class="quiz-label">Questão</span>
+  <p class="q-text">Um HPA está configurado com target de 60% de CPU, mas o campo TARGETS exibe "&lt;unknown&gt;/60%" ao rodar kubectl get hpa. Qual é a causa mais provável?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>O metrics-server não está instalado ou os containers não têm resources.requests.cpu definidos.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>O Deployment não tem minReplicas configurado.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>O valor de averageUtilization é menor que o uso atual, então o HPA aguarda normalização.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>O HPA só funciona com autoscaling/v1; a versão v2 não suporta métricas de CPU.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>A é correta</strong>: <code>&lt;unknown&gt;</code> significa que o HPA não consegue obter métricas — causas: metrics-server ausente ou <code>resources.requests</code> não definidos no container. — <strong>B erra</strong>: minReplicas ausente usa padrão 1 e não impede a coleta de métricas. — <strong>C erra</strong>: quando o uso supera o target, o HPA já começa a escalar; não exibe <code>unknown</code>. — <strong>D erra</strong>: <code>autoscaling/v2</code> suporta CPU, memória e métricas custom; é a versão recomendada atual.</div>
+</div>
+
+<div class="mnemonic">
+  <div class="m-head">Mnemônico — Probes</div>
+  <div class="m-word">"<b>L</b>ive <b>R</b>ead <b>S</b>tart"</div>
+  <ul>
+    <li><b>L</b>iveness → <b>r</b>einicia (mata e recria o container)</li>
+    <li><b>R</b>eadiness → <b>r</b>emove do Service (não reinicia)</li>
+    <li><b>S</b>tartup → <b>s</b>uspende as outras até o boot concluir</li>
+  </ul>
+</div>
+
+<div class="mnemonic">
+  <div class="m-head">Mnemônico — Autoscalers</div>
+  <div class="m-word">"<b>H</b>PA <b>V</b>PA <b>C</b>A"</div>
+  <ul>
+    <li><b>H</b>PA → <b>H</b>orizontal → mais <b>P</b>ods (réplicas)</li>
+    <li><b>V</b>PA → <b>V</b>ertical → mais <b>V</b>CPU/RAM por Pod (recria)</li>
+    <li><b>C</b>luster Autoscaler → mais <b>C</b>omputadores (nodes)</li>
+  </ul>
+</div>
+
+      <h2 id="logs-monitoramento-efk"><span class="h2-kicker">Observabilidade — Parte II · Aulas 2 e 3</span>Logs, Monitoramento EFK e Helm</h2>
+
+<p>Em Kubernetes, todo container escreve para <strong>stdout/stderr</strong>; o container runtime captura essas streams e as grava em arquivos no nó. Quando o Pod é deletado ou reiniciado, esses arquivos somem — os logs são <strong>efêmeros por natureza</strong>. Para qualquer análise retrospectiva é preciso uma camada de <strong>agregação centralizada</strong> que colete os logs antes que o Pod desapareça.</p>
+
+<div class="card reveal">
+  <h4>Por que logs somem — e o que fazer</h4>
+  <ul>
+    <li>O kubelet gerencia arquivos de log por container em <code>/var/log/pods/</code> no nó, mas sem retenção longa.</li>
+    <li>Um Pod pode ser reprogramado para outro nó; o histórico no nó antigo se perde.</li>
+    <li>Solução: agente de coleta rodando em <strong>cada nó</strong> como <strong>DaemonSet</strong>, que lê os arquivos de log e os encaminha para um backend centralizado antes que expirem.</li>
+    <li>O comando <code>kubectl logs</code> só funciona enquanto o container (ou ao menos o Pod) existe — nunca em logs históricos de Pods já deletados.</li>
+  </ul>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha</span>
+  <p><strong>Logs ≠ Métricas.</strong> Logs são eventos textuais (linhas de stdout/stderr). Métricas são séries temporais numéricas (CPU, memória, latência). A stack EFK/ELK trata <strong>logs</strong>; <strong>Prometheus + Grafana</strong> trata <strong>métricas</strong>. Confundir as duas stacks é erro clássico de múltipla escolha.</p>
+</div>
+
+<h2 id="stack-efk"><span class="h2-kicker">Observabilidade</span>Stack EFK — Papel de Cada Componente</h2>
+
+<p>A stack <strong>EFK</strong> (Elasticsearch + Fluentd + Kibana) é o padrão de facto para agregação de logs em Kubernetes. Cada componente tem responsabilidade exclusiva e bem definida.</p>
+
+<div class="diagram reveal">
+  <div class="flow">
+    <div class="node">Container<br/>(stdout/stderr)</div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">Fluentd / Fluent Bit<br/>(DaemonSet)</div>
+    <span class="arrow-h">→</span>
+    <div class="node">Elasticsearch<br/>(armazena/indexa)</div>
+    <span class="arrow-h">→</span>
+    <div class="node">Kibana<br/>(visualiza)</div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span> Coleta em nível de nó — roda como DaemonSet</span>
+  </div>
+</div>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Componente</th>
+        <th>Papel</th>
+        <th>Como roda no cluster</th>
+        <th>Analogia</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>E</strong>lasticsearch</td>
+        <td>Armazena, indexa e torna os logs pesquisáveis via API REST</td>
+        <td>StatefulSet (precisa de PersistentVolume)</td>
+        <td>Banco de dados de logs</td>
+      </tr>
+      <tr>
+        <td><strong>F</strong>luentd / Fluent Bit</td>
+        <td>Coleta logs dos nós, parseia, filtra e encaminha ao Elasticsearch</td>
+        <td><span class="pill strat">DaemonSet</span> — 1 Pod por nó</td>
+        <td>Agente coletor / pipeline de logs</td>
+      </tr>
+      <tr>
+        <td><strong>K</strong>ibana</td>
+        <td>Interface web de busca, dashboards e visualizações sobre dados do Elasticsearch</td>
+        <td>Deployment normal</td>
+        <td>Dashboard / BI de logs</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — DaemonSet obrigatório</span>
+  <p>Fluentd/Fluent Bit <strong>deve</strong> rodar como <strong>DaemonSet</strong>, não como Deployment. Um Deployment não garante 1 réplica por nó — haveria nós sem coleta de logs. Qualquer enunciado que sugira Deployment para o agente de coleta está errado.</p>
+</div>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Stack</th>
+        <th>Coletor/Pipeline</th>
+        <th>Armazenamento</th>
+        <th>Visualização</th>
+        <th>Foco</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="pill ok">EFK</span></td>
+        <td>Fluentd ou Fluent Bit</td>
+        <td>Elasticsearch</td>
+        <td>Kibana</td>
+        <td>Logs — nativo K8s, mais leve</td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">ELK</span></td>
+        <td>Logstash</td>
+        <td>Elasticsearch</td>
+        <td>Kibana</td>
+        <td>Logs — mais robusto para pipelines complexos</td>
+      </tr>
+      <tr>
+        <td><span class="pill warn">Prometheus + Grafana</span></td>
+        <td>Exporters / scrape</td>
+        <td>TSDB (Prometheus)</td>
+        <td>Grafana</td>
+        <td><strong>Métricas</strong> — NÃO logs</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout exam">
+  <span class="tag">🎯 prova</span>
+  <p>A diferença entre <strong>Fluentd</strong> (EFK) e <strong>Logstash</strong> (ELK) é o coletor. Nos dois casos o backend é Elasticsearch e a visualização é Kibana. Fluent Bit é uma alternativa mais leve ao Fluentd, do mesmo ecossistema (CNCF), adequada para ambientes com restrição de recursos.</p>
+</div>
+
+<div class="quiz reveal" data-answer="B">
+  <span class="quiz-label">Questão 1 — EFK</span>
+  <p class="q-text">Em um cluster Kubernetes com a stack EFK, qual objeto garante que cada nó execute exatamente um agente Fluentd para coletar logs?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>Deployment com <code>replicas</code> igual ao número de nós</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>DaemonSet</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>StatefulSet com anti-afinidade de Pod</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>CronJob com agendamento a cada minuto</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>B é correto.</strong> O DaemonSet garante exatamente 1 Pod por nó (elegível). — <em>A errada:</em> um Deployment com réplicas igual ao nº de nós não ancora os Pods a nós específicos; o scheduler pode colocar 2 no mesmo nó e nenhum em outro. <em>C errada:</em> StatefulSet com anti-afinidade é um workaround frágil e não é o objeto projetado para essa finalidade. <em>D errada:</em> CronJob cria Pods em intervalos de tempo; não existe garantia de cobertura por nó e os Pods morrem após execução.</div>
+</div>
+
+<h2 id="helm"><span class="h2-kicker">Parte II · Aula 3</span>Helm — Gerenciador de Pacotes do Kubernetes</h2>
+
+<p>Helm é descrito como o <strong>"apt/yum do Kubernetes"</strong>: empacota todos os manifests necessários para uma aplicação em uma unidade versionada chamada <strong>Chart</strong>, permite parametrização via <code>values.yaml</code> e gerencia o ciclo de vida completo das instalações no cluster.</p>
+
+<div class="layers">
+  <div class="layer l1"><span class="ll">Repository</span> Catálogo remoto de Charts (ex: Artifact Hub, repositório privado)</div>
+  <div class="layer l2"><span class="ll">Chart</span> Pacote: templates Go + values.yaml + Chart.yaml + helpers</div>
+  <div class="layer l3"><span class="ll">Values</span> Parâmetros que customizam os templates em tempo de instalação</div>
+  <div class="layer l4"><span class="ll">Release</span> Instância concreta instalada no cluster com nome único</div>
+</div>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Conceito Helm</th>
+        <th>Definição</th>
+        <th>Analogia</th>
+        <th>Exemplo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Chart</strong></td>
+        <td>Pacote de templates YAML + metadados + values padrão</td>
+        <td>Pacote .deb / .rpm</td>
+        <td><code>nginx-ingress-4.2.0.tgz</code></td>
+      </tr>
+      <tr>
+        <td><strong>Release</strong></td>
+        <td>Instância de um Chart instalada no cluster com nome único</td>
+        <td>Serviço instalado na máquina</td>
+        <td><code>helm install meu-nginx nginx-ingress/...</code></td>
+      </tr>
+      <tr>
+        <td><strong>Repository</strong></td>
+        <td>Servidor HTTP que hospeda Charts versionados (index.yaml)</td>
+        <td>Repositório apt/yum</td>
+        <td><code>helm repo add bitnami https://charts.bitnami.com/bitnami</code></td>
+      </tr>
+      <tr>
+        <td><strong>Values</strong></td>
+        <td>Conjunto de variáveis que sobrescrevem defaults do chart em <code>values.yaml</code></td>
+        <td>Arquivo de configuração / flags de instalação</td>
+        <td><code>helm install -f meus-values.yaml ...</code> ou <code>--set key=val</code></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card reveal">
+  <h4>Estrutura de um Chart</h4>
+  <ul>
+    <li><code>Chart.yaml</code> — metadados: nome, versão do chart, versão da app</li>
+    <li><code>values.yaml</code> — valores padrão parametrizáveis</li>
+    <li><code>templates/</code> — manifests YAML com Go templates (<code>{{ .Values.image.tag }}</code>)</li>
+    <li><code>templates/NOTES.txt</code> — mensagem exibida após instalação</li>
+    <li><code>charts/</code> — dependências (sub-charts)</li>
+    <li><code>.helmignore</code> — arquivos excluídos do pacote</li>
+  </ul>
+</div>
+
+<pre><code># Exemplo de trecho de templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-app
+spec:
+  replicas: {{ .Values.replicaCount }}
+  template:
+    spec:
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          resources:
+            limits:
+              memory: {{ .Values.resources.limits.memory }}
+</code></pre>
+
+<pre><code># Principais comandos Helm 3
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+
+helm install minha-release bitnami/nginx          # instala (cria Release)
+helm install minha-release bitnami/nginx \
+  --set replicaCount=3 \
+  -f custom-values.yaml                           # com valores customizados
+
+helm upgrade minha-release bitnami/nginx \
+  --set image.tag=1.25                            # atualiza Release
+
+helm rollback minha-release 1                     # reverte para revisão 1
+helm list -n default                              # lista Releases no namespace
+helm uninstall minha-release                      # remove Release do cluster
+helm template minha-release bitnami/nginx         # renderiza templates localmente (sem envio ao cluster)
+</code></pre>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — Helm 2 × Helm 3</span>
+  <p><strong>Helm 2</strong> exigia um componente server-side chamado <strong>Tiller</strong> instalado no cluster, o que gerava problemas sérios de segurança (permissões de cluster admin). <strong>Helm 3</strong> <em>removeu completamente o Tiller</em>: toda a lógica passou para o cliente. Qualquer questão que afirme que "Helm 3 usa Tiller" está <strong>errada</strong>. Se a questão perguntar o que mudou entre Helm 2 e Helm 3, a resposta central é: remoção do Tiller.</p>
+</div>
+
+<div class="callout ok">
+  <span class="tag">✓ helm upgrade --install</span>
+  <p>O flag <code>--install</code> no <code>helm upgrade</code> torna o comando idempotente: instala se a Release não existir, atualiza se já existir. Padrão de uso em pipelines CI/CD.</p>
+</div>
+
+<div class="callout">
+  <span class="tag">💡 helm rollback e revisões</span>
+  <p>Cada <code>helm install</code> ou <code>helm upgrade</code> cria uma nova <strong>revisão</strong> (revision) da Release, armazenada como Secret no namespace. O <code>helm rollback &lt;release&gt; &lt;número&gt;</code> restaura exatamente o estado daquela revisão — incluindo os values usados naquela versão.</p>
+</div>
+
+<div class="quiz reveal" data-answer="C">
+  <span class="quiz-label">Questão 2 — Helm</span>
+  <p class="q-text">Um engenheiro executa <code>helm install producao bitnami/postgresql</code> e depois <code>helm install staging bitnami/postgresql</code> no mesmo cluster. Qual afirmação descreve corretamente o resultado?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>O segundo comando falha porque um Chart só pode ter uma instância por cluster.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>As duas instalações compartilham o mesmo conjunto de ConfigMaps e Secrets gerados pelo Chart.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>São criadas duas Releases independentes (<code>producao</code> e <code>staging</code>), cada uma com seus próprios recursos Kubernetes.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>O Tiller do Helm gerencia o conflito e mescla as duas configurações em uma única Release.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>C é correto.</strong> Uma Release é uma instância nomeada e independente de um Chart; o mesmo Chart pode gerar múltiplas Releases com nomes distintos. — <em>A errada:</em> não existe limite de uma instância por cluster; múltiplas Releases do mesmo Chart são o caso de uso normal. <em>B errada:</em> os recursos são isolados por nome de Release (<code>{{ .Release.Name }}</code> nos templates garante nomes únicos). <em>D errada:</em> Helm 3 não tem Tiller; essa opção descreve um comportamento que não existe em nenhuma versão do Helm.</div>
+</div>
+
+<div class="quiz reveal" data-answer="A">
+  <span class="quiz-label">Questão 3 — Conceitos combinados</span>
+  <p class="q-text">Qual das alternativas representa corretamente a diferença entre <strong>Chart</strong> e <strong>Release</strong> no Helm?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>Chart é o pacote de templates reutilizável; Release é a instância concreta desse Chart instalada no cluster com um nome específico.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>Chart é a instância instalada no cluster; Release é o pacote versionado armazenado no repositório.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>Chart e Release são sinônimos — ambos se referem ao pacote de manifests Kubernetes.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>Release é o arquivo <code>values.yaml</code> customizado; Chart é o conjunto de manifests renderizados após a aplicação dos values.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>A é correto.</strong> A distinção é exatamente essa: Chart = template/pacote (pode ser instalado N vezes); Release = instância nomeada e viva no cluster. — <em>B errada:</em> inverte os conceitos; Release é a instância, não o pacote. <em>C errada:</em> são conceitos completamente distintos no modelo Helm. <em>D errada:</em> Values é o arquivo de parâmetros e Release não é sinônimo de manifests renderizados — Release é o objeto de ciclo de vida gerenciado pelo Helm.</div>
+</div>
+
+<div class="mnemonic">
+  <div class="m-head">Mnemônico — Stack EFK</div>
+  <div class="m-word">"<b>E</b>le <b>F</b>iltrou e <b>K</b>ibana exibiu"</div>
+  <ul>
+    <li><b>E</b>lasticsearch — armazena e indexa</li>
+    <li><b>F</b>luentd — filtra e encaminha (DaemonSet)</li>
+    <li><b>K</b>ibana — exibe dashboards</li>
+  </ul>
+</div>
+
+<div class="mnemonic">
+  <div class="m-head">Mnemônico — Helm CRRV</div>
+  <div class="m-word">"<b>C</b>hart <b>R</b>oda no <b>R</b>epositório, <b>V</b>alues customizam"</div>
+  <ul>
+    <li><b>C</b>hart — pacote de templates</li>
+    <li><b>R</b>elease — instância instalada</li>
+    <li><b>R</b>epository — catálogo remoto de Charts</li>
+    <li><b>V</b>alues — parâmetros de customização</li>
+  </ul>
+</div>
+
+<div class="tldr">
+  <div class="t-head">TL;DR</div>
+  <ul>
+    <li>Logs de container são <strong>efêmeros</strong>; somem com o Pod. Agregação centralizada via agente no nó é obrigatória para produção.</li>
+    <li>O agente de coleta (Fluentd/Fluent Bit) <strong>deve ser DaemonSet</strong> — 1 Pod por nó — nunca Deployment.</li>
+    <li>EFK = <strong>E</strong>lasticsearch (armazena) + <strong>F</strong>luentd (coleta, DaemonSet) + <strong>K</strong>ibana (visualiza). ELK troca Fluentd por Logstash.</li>
+    <li><strong>Logs ≠ Métricas</strong>: EFK cuida de logs; Prometheus+Grafana cuida de métricas.</li>
+    <li>Helm é o gerenciador de pacotes do K8s. Chart = pacote; Release = instância; Repository = catálogo; Values = customização.</li>
+    <li><strong>Helm 3 não tem Tiller</strong>. Helm 2 tinha — isso é sempre pegadinha de prova.</li>
+    <li>Comandos-chave: <code>helm install</code>, <code>helm upgrade</code>, <code>helm rollback</code>, <code>helm list</code>, <code>helm uninstall</code>.</li>
+  </ul>
+</div>
+
+      <h2 id="aws-eks"><span class="h2-kicker">Parte II — Aulas 4, 5 e 6</span>AWS EKS — Kubernetes Gerenciado na AWS</h2>
+
+<p>O <strong>Amazon Elastic Kubernetes Service (EKS)</strong> é a distribuição Kubernetes gerenciada da AWS. A grande premissa: a AWS é responsável pelo <strong>Control Plane</strong> (API Server, etcd, scheduler, controller-manager) distribuído em múltiplas AZs com SLA de 99,95 %. Você — o operador — é responsável por decidir <em>como</em> e <em>onde</em> os Pods rodam: instâncias EC2 gerenciadas, EC2 auto-gerenciadas ou Fargate (serverless).</p>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Responsabilidade</th>
+        <th>AWS gerencia</th>
+        <th>Você gerencia</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>API Server</td>
+        <td>✓ multi-AZ, versionado, HA</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>etcd</td>
+        <td>✓ backup e criptografia automáticos</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Scheduler / Controller Manager</td>
+        <td>✓</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Worker Nodes (EC2)</td>
+        <td>Parcial (Managed Node Groups)</td>
+        <td>AMI, patches, draining, escala</td>
+      </tr>
+      <tr>
+        <td>Rede dos Pods (VPC CNI)</td>
+        <td>Plugin instalado pela AWS</td>
+        <td>Sub-redes, Security Groups</td>
+      </tr>
+      <tr>
+        <td>IAM / RBAC integração</td>
+        <td>OIDC provider provisionado</td>
+        <td>Roles, ServiceAccounts, IRSA</td>
+      </tr>
+      <tr>
+        <td>Add-ons (CoreDNS, kube-proxy, VPC CNI)</td>
+        <td>Versão gerenciada disponível</td>
+        <td>Decisão de atualizar e configurar</td>
+      </tr>
+      <tr>
+        <td>Armazenamento (EBS/EFS CSI)</td>
+        <td>Driver disponível como add-on</td>
+        <td>StorageClass, PVC, permissões IAM</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — Control Plane</span>
+  <p>Você <strong>não acessa os nós do Control Plane</strong> no EKS. Não há SSH, não há EC2 visível na sua conta para etcd ou API Server. Qualquer questão que peça "escale o etcd" ou "configure o kube-scheduler manualmente no EKS" é <strong>incorreta</strong> — isso é responsabilidade exclusiva da AWS.</p>
+</div>
+
+<h2 id="eks-modos-node"><span class="h2-kicker">EKS — Worker Nodes</span>Modos de Execução de Nodes</h2>
+
+<p>A escolha do modo de node define o quanto de infraestrutura EC2 você precisa operar. Os três modos coexistem no mesmo cluster.</p>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Critério</th>
+        <th>Managed Node Groups</th>
+        <th>Self-Managed Nodes</th>
+        <th>Fargate</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Quem provisiona EC2</strong></td>
+        <td>AWS (via ASG gerenciada)</td>
+        <td>Você (ASG ou manual)</td>
+        <td><span class="pill strat">Sem EC2</span></td>
+      </tr>
+      <tr>
+        <td><strong>Atualização de AMI</strong></td>
+        <td>AWS oferece rolling update com drain automático</td>
+        <td>Manual — você substitui nós</td>
+        <td>Não aplicável</td>
+      </tr>
+      <tr>
+        <td><strong>Customização do nó</strong></td>
+        <td>Limitada (launch template)</td>
+        <td>Total (kernel, GPU, runtime)</td>
+        <td>Nenhuma</td>
+      </tr>
+      <tr>
+        <td><strong>Faturamento</strong></td>
+        <td>EC2 On-Demand / Spot</td>
+        <td>EC2 On-Demand / Spot / Reserved</td>
+        <td>vCPU + GB de memória por segundo</td>
+      </tr>
+      <tr>
+        <td><strong>DaemonSets</strong></td>
+        <td>✓ suportado</td>
+        <td>✓ suportado</td>
+        <td><span class="pill warn">Não suportado</span></td>
+      </tr>
+      <tr>
+        <td><strong>Volumes EBS</strong></td>
+        <td>✓</td>
+        <td>✓</td>
+        <td><span class="pill warn">Não suportado</span></td>
+      </tr>
+      <tr>
+        <td><strong>Caso de uso ideal</strong></td>
+        <td>Cargas gerais, equipe pequena de ops</td>
+        <td>Requisitos específicos de SO/GPU/runtime</td>
+        <td>Workloads serverless, isolamento por Pod</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — Fargate</span>
+  <p>No modo Fargate <strong>não existe nó EC2 para você gerenciar</strong>. DaemonSets não rodam (não há node), volumes EBS não são suportados (use EFS), e cada Pod obtém isolamento em microVM (Firecracker). Questões que afirmam "no Fargate você gerencia o nó EC2" estão <strong>erradas</strong>.</p>
+</div>
+
+<div class="card reveal">
+  <h4>Fargate Profile — como o EKS sabe qual Pod vai pro Fargate</h4>
+  <ul>
+    <li>Você cria um <strong>Fargate Profile</strong> com seletores de namespace e/ou labels.</li>
+    <li>Todo Pod que casar com o seletor é agendado em Fargate automaticamente.</li>
+    <li>Pods que não casam ficam nos Node Groups EC2 — os dois modos coexistem.</li>
+  </ul>
+</div>
+
+<h2 id="eks-ferramentas"><span class="h2-kicker">EKS na Prática</span>Ferramentas e Fluxo de Criação</h2>
+
+<p>O arsenal mínimo para operar um cluster EKS envolve quatro ferramentas: <strong>eksctl</strong>, <strong>kubectl</strong>, <strong>aws CLI</strong> e o <strong>AWS IAM Authenticator</strong> (embutido na aws CLI desde v2).</p>
+
+<div class="diagram reveal">
+  <div class="flow">
+    <div class="node">eksctl / Terraform<br><small>cria cluster</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">aws eks update-kubeconfig<br><small>configura kubectl</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node">kubectl apply<br><small>deploy da app</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node">Service / Ingress<br><small>expõe a app</small></div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span> ponto de integração kubeconfig</span>
+  </div>
+</div>
+
+<p><strong>Criar cluster com eksctl (comando mais cobrado em prova):</strong></p>
+
+<pre><code># Cria cluster com Managed Node Group em 2 AZs
+eksctl create cluster \
+  --name meu-cluster \
+  --region us-east-1 \
+  --nodegroup-name workers \
+  --node-type t3.medium \
+  --nodes 3 \
+  --nodes-min 1 \
+  --nodes-max 5 \
+  --managed</code></pre>
+
+<p><strong>Atualizar kubeconfig para apontar kubectl ao cluster EKS:</strong></p>
+
+<pre><code>aws eks update-kubeconfig \
+  --name meu-cluster \
+  --region us-east-1
+
+# Verifica nós do cluster
+kubectl get nodes</code></pre>
+
+<div class="callout exam">
+  <span class="tag">🎯 Prova — aws eks update-kubeconfig</span>
+  <p>Este comando é o ponto de integração entre a AWS e o kubectl local. Ele grava (ou atualiza) o contexto no arquivo <code>~/.kube/config</code> com token de autenticação via <strong>IAM Authenticator</strong>. Sem ele, o kubectl não sabe como falar com o cluster EKS.</p>
+</div>
+
+<h2 id="eks-irsa"><span class="h2-kicker">Segurança em EKS</span>IRSA — IAM Roles for Service Accounts</h2>
+
+<p>IRSA é o mecanismo correto para conceder permissões AWS (ex.: acesso ao S3 ou DynamoDB) a Pods — sem nenhuma chave de acesso estática no código ou em Secrets.</p>
+
+<div class="layers">
+  <div class="layer l1"><span class="ll">Pod</span> usa ServiceAccount anotada com ARN da Role IAM</div>
+  <div class="layer l2"><span class="ll">OIDC</span> EKS expõe OIDC Provider; AWS STS valida o token JWT do ServiceAccount</div>
+  <div class="layer l3"><span class="ll">STS AssumeRoleWithWebIdentity</span> troca token K8s por credenciais AWS temporárias</div>
+  <div class="layer l4"><span class="ll">IAM Role</span> políticas definem o que o Pod pode fazer na AWS</div>
+</div>
+
+<pre><code># 1. Criar OIDC provider para o cluster (uma vez por cluster)
+eksctl utils associate-iam-oidc-provider \
+  --cluster meu-cluster --approve
+
+# 2. Criar IAM Service Account com Role associada
+eksctl create iamserviceaccount \
+  --name minha-app-sa \
+  --namespace default \
+  --cluster meu-cluster \
+  --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess \
+  --approve
+
+# 3. No Deployment, referenciar o ServiceAccount
+# spec.template.spec.serviceAccountName: minha-app-sa</code></pre>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — IRSA vs. Chave Estática</span>
+  <p>Armazenar <code>AWS_ACCESS_KEY_ID</code> e <code>AWS_SECRET_ACCESS_KEY</code> em um Secret Kubernetes para dar acesso AWS a um Pod é um <strong>anti-padrão</strong>. O correto é IRSA: credenciais temporárias via STS, sem rotação manual, auditáveis por Pod/Namespace. Questões que apresentam "crie um Secret com a chave de acesso" como solução recomendada estão <strong>incorretas</strong>.</p>
+</div>
+
+<h2 id="eks-integracoes"><span class="h2-kicker">Integrações AWS</span>Rede, Storage e Escalonamento</h2>
+
+<p>O EKS se integra nativamente ao ecossistema AWS através de componentes específicos. Cada componente resolve um problema distinto — a prova costuma testar qual componente fazer para qual problema.</p>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Componente</th>
+        <th>Problema que Resolve</th>
+        <th>Detalhe Chave</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>VPC CNI</strong></td>
+        <td>Rede dos Pods</td>
+        <td>Cada Pod recebe <strong>IP real da VPC</strong> (não overlay); permite Security Groups por Pod</td>
+      </tr>
+      <tr>
+        <td><strong>AWS Load Balancer Controller</strong></td>
+        <td>Expor serviços externamente</td>
+        <td>Cria <strong>ALB</strong> para Ingress e <strong>NLB</strong> para Service do tipo LoadBalancer</td>
+      </tr>
+      <tr>
+        <td><strong>EBS CSI Driver</strong></td>
+        <td>Volumes persistentes por bloco</td>
+        <td>PVC com ReadWriteOnce; <strong>não funciona no Fargate</strong></td>
+      </tr>
+      <tr>
+        <td><strong>EFS CSI Driver</strong></td>
+        <td>Volumes compartilhados entre Pods</td>
+        <td>ReadWriteMany; funciona no Fargate; filesystem gerenciado pela AWS</td>
+      </tr>
+      <tr>
+        <td><strong>ECR</strong></td>
+        <td>Registry de imagens privado</td>
+        <td>Autenticação via IAM; nodes EC2 precisam de permissão <code>ecr:GetAuthorizationToken</code></td>
+      </tr>
+      <tr>
+        <td><strong>Cluster Autoscaler</strong></td>
+        <td>Escala nodes EC2</td>
+        <td>Reage a Pods Pending; ajusta ASG; precisa de permissão IAM no node role</td>
+      </tr>
+      <tr>
+        <td><strong>Karpenter</strong></td>
+        <td>Escala nodes (alternativa moderna)</td>
+        <td>Provisiona nodes sob demanda sem ASG; mais rápido que Cluster Autoscaler; usa NodePool/NodeClass</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout">
+  <span class="tag">💡 AWS Load Balancer Controller — ALB vs NLB</span>
+  <ul>
+    <li><strong>Ingress</strong> com <code>ingressClassName: alb</code> no spec → cria um <strong>Application Load Balancer</strong> (L7, HTTP/S, path-based routing).</li>
+    <li><strong>Service</strong> <code>type: LoadBalancer</code> com anotação <code>service.beta.kubernetes.io/aws-load-balancer-type: nlb</code> → cria um <strong>Network Load Balancer</strong> (L4, TCP/UDP, IP estático).</li>
+  </ul>
+</div>
+
+<div class="card reveal">
+  <h4>Fluxo Completo: Deploy + Exposição via ALB</h4>
+  <ul>
+    <li>1. Instalar <strong>AWS Load Balancer Controller</strong> via Helm com ServiceAccount anotado (IRSA).</li>
+    <li>2. Criar Deployment e Service <code>type: ClusterIP</code> para a aplicação.</li>
+    <li>3. Criar Ingress com <code>ingressClassName: alb</code> — o controller cria o ALB automaticamente na AWS.</li>
+    <li>4. O ALB aponta para os Pods via <strong>IP mode</strong> (diretamente ao IP do Pod na VPC) ou <strong>Instance mode</strong> (via NodePort).</li>
+  </ul>
+</div>
+
+<pre><code>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minha-app-ingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  ingressClassName: alb
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: minha-app-svc
+            port:
+              number: 80</code></pre>
+
+<div class="tldr">
+  <div class="t-head">TL;DR</div>
+  <ul>
+    <li><strong>EKS = Control Plane gerenciado pela AWS</strong> (etcd, API Server, multi-AZ) + Worker Nodes de sua responsabilidade.</li>
+    <li><strong>3 modos de node</strong>: Managed Node Groups (EC2 semi-gerenciado), Self-Managed (EC2 total), Fargate (serverless, sem EC2, sem DaemonSet, sem EBS).</li>
+    <li><strong>eksctl create cluster</strong> + <strong>aws eks update-kubeconfig</strong> = fluxo mínimo para operar o cluster.</li>
+    <li><strong>IRSA</strong> = forma correta de dar permissão AWS a Pods (OIDC + STS, sem chaves estáticas).</li>
+    <li><strong>VPC CNI</strong> = Pods com IP real da VPC. <strong>ALB Controller</strong> = Ingress vira ALB. <strong>EBS CSI</strong> = PVC no EC2. <strong>EFS CSI</strong> = PVC compartilhado + Fargate.</li>
+    <li><strong>Karpenter</strong> > Cluster Autoscaler em velocidade de provisão de nodes; ambos escalam EC2.</li>
+  </ul>
+</div>
+
+<div class="mnemonic">
+  <div class="m-head">Mnemônico — Integrações EKS</div>
+  <div class="m-word">"<b>V</b>ocê <b>L</b>ança <b>E</b>m <b>E</b>C2 <b>K</b>om <b>K</b>arpenter"</div>
+  <ul>
+    <li><b>V</b> — VPC CNI (rede dos Pods)</li>
+    <li><b>L</b> — Load Balancer Controller (ALB/NLB)</li>
+    <li><b>E</b> — EBS CSI (storage em bloco)</li>
+    <li><b>E</b> — EFS CSI (storage compartilhado)</li>
+    <li><b>K</b> — Karpenter (autoscale de nodes)</li>
+    <li><b>K</b> — kubeconfig via <code>aws eks update-kubeconfig</code></li>
+  </ul>
+</div>
+
+<div class="quiz reveal" data-answer="B">
+  <span class="quiz-label">Questão 1</span>
+  <p class="q-text">Uma equipe precisa que os Pods de sua aplicação acessem um bucket S3 sem armazenar credenciais AWS no código. Qual é a abordagem <strong>recomendada</strong> no Amazon EKS?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>Criar um Secret Kubernetes com <code>AWS_ACCESS_KEY_ID</code> e <code>AWS_SECRET_ACCESS_KEY</code> e injetá-lo via <code>envFrom</code> no Pod.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>Configurar IRSA: criar um IAM Role vinculado ao OIDC Provider do cluster e anotar o ServiceAccount do Pod com o ARN da Role.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>Atribuir uma Instance Profile EC2 ao Node Group e conceder permissão S3 à Role do nó.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>Usar <code>eksctl create iamidentitymapping</code> para mapear o usuário IAM ao Pod diretamente.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>B é correto</strong> — IRSA (IAM Roles for Service Accounts) usa o OIDC Provider do EKS para trocar tokens Kubernetes por credenciais AWS temporárias via STS, sem chaves estáticas. <br><br><strong>A erra</strong> porque chaves estáticas em Secrets são anti-padrão: requerem rotação manual, não têm escopo por Pod e vazam facilmente. <br><strong>C erra</strong> porque conceder permissão S3 à Role do <em>nó</em> dá acesso a <em>todos</em> os Pods daquele nó, violando o princípio do menor privilégio. <br><strong>D erra</strong> porque <code>iamidentitymapping</code> mapeia usuários/roles IAM a grupos RBAC do Kubernetes — serve para autenticação no cluster, não para permissões de recursos AWS dentro dos Pods.</div>
+</div>
+
+<div class="quiz reveal" data-answer="C">
+  <span class="quiz-label">Questão 2</span>
+  <p class="q-text">Um desenvolvedor quer executar Pods no EKS usando o modo <strong>Fargate</strong>. Qual afirmação sobre esse modo é <strong>verdadeira</strong>?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>No Fargate, a AWS gerencia o Control Plane e o desenvolvedor gerencia os nós EC2 subjacentes aos Pods.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>DaemonSets são suportados no Fargate para injetar sidecars de observabilidade em todos os Pods.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>No Fargate não há nós EC2 visíveis; o faturamento é por vCPU e memória consumidos pelo Pod, e volumes EBS não são suportados.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>Fargate substitui completamente os Managed Node Groups e não pode coexistir com eles no mesmo cluster.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>C é correto</strong> — Fargate abstrai completamente o EC2: cada Pod roda em microVM isolada, cobrado por segundo de vCPU/memória, sem EC2 para gerenciar, sem suporte a EBS (use EFS). <br><br><strong>A erra</strong> porque no Fargate <em>não há nós EC2 para o desenvolvedor gerenciar</em> — a abstração é total no lado de infraestrutura de nó. <br><strong>B erra</strong> porque DaemonSets exigem um nó real para implantar uma réplica por nó — no Fargate não existe o conceito de nó gerenciável, portanto DaemonSets não são suportados. <br><strong>D erra</strong> porque Fargate e Managed Node Groups <em>coexistem</em> no mesmo cluster EKS; você usa Fargate Profiles para direcionar apenas determinados namespaces/labels ao Fargate.</div>
+</div>
+
+<div class="quiz reveal" data-answer="A">
+  <span class="quiz-label">Questão 3</span>
+  <p class="q-text">Após criar um cluster EKS, um engenheiro executa <code>kubectl get nodes</code> e recebe o erro <em>"The connection to the server was refused"</em>. Qual é o próximo passo <strong>correto</strong>?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>Executar <code>aws eks update-kubeconfig --name meu-cluster --region us-east-1</code> para atualizar o arquivo <code>~/.kube/config</code> com as credenciais e endpoint do cluster.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>Reiniciar o serviço kube-apiserver no Control Plane via SSH no nó master.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>Executar <code>eksctl get cluster</code> e copiar manualmente o endpoint para o kubeconfig.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>Criar uma nova IAM Role e associá-la ao cluster com <code>eksctl create iamidentitymapping</code>.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>A é correto</strong> — <code>aws eks update-kubeconfig</code> é o comando padrão para configurar o contexto do kubectl apontando para o cluster EKS, incluindo endpoint, certificado CA e método de autenticação via IAM Authenticator. <br><br><strong>B erra</strong> porque o EKS é um Control Plane gerenciado — não há acesso SSH aos nós do control plane, e o kube-apiserver não é acessível diretamente pelo operador. <br><strong>C erra</strong> porque copiar o endpoint manualmente é incompleto e sujeito a erros; o <code>update-kubeconfig</code> configura tudo automaticamente incluindo o token de autenticação. <br><strong>D erra</strong> porque o problema é de configuração de kubeconfig local, não de permissões IAM no cluster — <code>iamidentitymapping</code> gerencia quem tem acesso RBAC, não onde o kubectl aponta.</div>
+</div>
+
+      <h2 id="cicd-seguranca-monitoramento-eks"><span class="h2-kicker">Aulas 7, 8 e 9 — Parte II</span>CI/CD, Segurança e Monitoramento no EKS</h2>
+
+<p>Este bloco consolida os três temas de maior peso na prova final da Parte II: pipelines de entrega contínua para Kubernetes, controles de segurança no EKS (RBAC, IAM, NetworkPolicy, Secrets, Pod Security) e a tríade de observabilidade (métricas, logs, traces). Cada seção isola as distinções que as questões de múltipla escolha exploram.</p>
+
+<div class="tldr">
+  <div class="t-head">TL;DR</div>
+  <ul>
+    <li><strong>CI/CD push</strong>: o pipeline CI executa <code>kubectl apply</code> diretamente — cluster depende do CI ter credenciais.</li>
+    <li><strong>CI/CD pull / GitOps</strong>: ArgoCD/Flux observam o repositório Git e sincronizam o cluster — Git é a fonte da verdade.</li>
+    <li><strong>RBAC</strong>: Role/RoleBinding = namespaced; ClusterRole/ClusterRoleBinding = cluster-wide.</li>
+    <li><strong>IAM autentica</strong> (quem é você na AWS); <strong>RBAC autoriza</strong> (o que você pode fazer no cluster).</li>
+    <li><strong>NetworkPolicy</strong>: sem nenhuma política, todo tráfego entre Pods é <em>permitido</em> por padrão.</li>
+    <li><strong>PodSecurityPolicy foi removida</strong> no K8s 1.25 — use <strong>Pod Security Admission</strong> (PSA).</li>
+    <li>Observabilidade = Métricas (Prometheus/CloudWatch) + Logs (Fluent Bit) + Traces (X-Ray/Jaeger).</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════ CI/CD ═══════════════════════════════════════════ -->
+
+<h2 id="cicd-kubernetes"><span class="h2-kicker">Aula 7 — CI/CD</span>Pipelines de Entrega Contínua para Kubernetes</h2>
+
+<p>Um pipeline completo para K8s segue o fluxo: código → build da imagem → push para registro (ECR) → deploy no cluster. A variação crítica está em <strong>quem inicia o deploy</strong>: o servidor de CI (<em>push-based</em>) ou o próprio cluster (<em>pull-based / GitOps</em>).</p>
+
+<div class="diagram reveal">
+  <div class="flow">
+    <div class="node">Código<br><small>Git Push</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">Build &amp;<br>Test (CI)</div>
+    <span class="arrow-h">→</span>
+    <div class="node">docker push<br>ECR</div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">Deploy<br>K8s</div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span> etapas com decisão de estratégia</span>
+  </div>
+</div>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Critério</th>
+        <th><span class="pill strat">Push-based</span></th>
+        <th><span class="pill tat">Pull-based / GitOps</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Quem aplica o deploy</strong></td>
+        <td>Servidor de CI (Jenkins, GitHub Actions…) executa <code>kubectl apply</code></td>
+        <td>Agente no cluster (ArgoCD, Flux) puxa e aplica</td>
+      </tr>
+      <tr>
+        <td><strong>Fonte da verdade</strong></td>
+        <td>Pipeline de CI / scripts</td>
+        <td>Repositório Git (manifests/Helm charts)</td>
+      </tr>
+      <tr>
+        <td><strong>Credenciais externas</strong></td>
+        <td>CI precisa de kubeconfig/IAM com acesso ao cluster</td>
+        <td>Cluster nunca expõe acesso externo; lê o Git</td>
+      </tr>
+      <tr>
+        <td><strong>Drift detection</strong></td>
+        <td>Não automático — estado real pode divergir</td>
+        <td>Automático — agente reconcilia continuamente</td>
+      </tr>
+      <tr>
+        <td><strong>Rollback</strong></td>
+        <td>Re-executar pipeline ou <code>helm rollback</code></td>
+        <td><code>git revert</code> — o agente aplica o estado anterior</td>
+      </tr>
+      <tr>
+        <td><strong>Auditoria</strong></td>
+        <td>Logs do CI</td>
+        <td>Histórico do Git (imutável, assinado)</td>
+      </tr>
+      <tr>
+        <td><strong>Ferramentas típicas</strong></td>
+        <td>Jenkins, GitHub Actions, GitLab CI, CodePipeline</td>
+        <td>ArgoCD, Flux CD</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout exam">
+  <span class="tag">🎯 Prova — GitOps</span>
+  <p>GitOps = <strong>Git como fonte da verdade</strong> + agente <em>pull</em> no cluster. ArgoCD e Flux são os representantes canônicos. A questão costuma perguntar: "qual abordagem garante que o estado do cluster SEMPRE reflita o repositório Git?" — resposta: pull-based/GitOps.</p>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — Push × Pull</span>
+  <p>Em pipelines push-based, se alguém alterar o cluster manualmente (<code>kubectl edit</code>), o pipeline não detecta a divergência. No modelo GitOps o agente detecta o <em>drift</em> e reconcilia automaticamente. A prova explora isso como vantagem do GitOps.</p>
+</div>
+
+<h2 id="rollout-strategies"><span class="h2-kicker">CI/CD — Estratégias de Deploy</span>Rolling, Blue-Green e Canary no Kubernetes</h2>
+
+<p>Cada estratégia determina como novas versões substituem as antigas, com trade-offs em risco, custo e velocidade de rollback.</p>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Estratégia</th>
+        <th>Mecanismo K8s</th>
+        <th>Downtime</th>
+        <th>Risco</th>
+        <th>Rollback</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="pill ok">Rolling Update</span></td>
+        <td>Padrão do Deployment (<code>maxSurge</code>, <code>maxUnavailable</code>)</td>
+        <td>Zero (com configuração adequada)</td>
+        <td>Médio — ambas as versões coexistem brevemente</td>
+        <td><code>kubectl rollout undo</code></td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">Blue-Green</span></td>
+        <td>Dois Deployments; troca de selector no Service</td>
+        <td>Zero</td>
+        <td>Baixo — troca instantânea; versão antiga permanece</td>
+        <td>Reaponta o Service para o ambiente antigo</td>
+      </tr>
+      <tr>
+        <td><span class="pill warn">Canary</span></td>
+        <td>Deployment menor paralelo; split de tráfego via Ingress/service mesh</td>
+        <td>Zero</td>
+        <td>Baixo — exposição gradual (ex.: 5% do tráfego)</td>
+        <td>Escala canary para 0</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card reveal">
+  <h4>Exemplo — Rolling Update com limites explícitos</h4>
+  <pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # no máximo 1 Pod extra além de 4
+      maxUnavailable: 0  # nunca reduz abaixo de 4 Pods disponíveis
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: api
+        image: 123456789.dkr.ecr.us-east-1.amazonaws.com/api:v2</code></pre>
+</div>
+
+<!-- ═══════════════════════════════════════════ SEGURANÇA ═══════════════════════════════════════════ -->
+
+<h2 id="seguranca-eks"><span class="h2-kicker">Aula 8 — Segurança</span>Segurança no AWS EKS</h2>
+
+<p>A segurança no EKS opera em camadas: a AWS gerencia o plano de controle; você é responsável pelo plano de dados, autorização, políticas de rede, e postura dos contêineres. Os controles mais cobrados na prova são RBAC, a integração IAM↔RBAC, NetworkPolicy, Secrets e Pod Security.</p>
+
+<div class="layers">
+  <div class="layer l1"><span class="ll">IAM</span> Autenticação AWS — quem pode chamar a API EKS</div>
+  <div class="layer l2"><span class="ll">RBAC</span> Autorização K8s — o que o usuário/SA pode fazer no cluster</div>
+  <div class="layer l3"><span class="ll">NetworkPolicy</span> Firewall L3/L4 entre Pods — controla tráfego E/W</div>
+  <div class="layer l4"><span class="ll">Pod Security / securityContext</span> Postura do contêiner — usuário, capabilities, filesystem</div>
+</div>
+
+<h2 id="rbac"><span class="h2-kicker">Segurança — RBAC</span>Role, ClusterRole, RoleBinding e ClusterRoleBinding</h2>
+
+<p>RBAC (<em>Role-Based Access Control</em>) é o mecanismo de <strong>autorização</strong> do Kubernetes. Ele responde: "o sujeito X pode executar a ação Y no recurso Z?"</p>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Recurso</th>
+        <th>Escopo</th>
+        <th>Vinculado por</th>
+        <th>Caso de uso típico</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Role</strong></td>
+        <td>Namespace específico</td>
+        <td>RoleBinding</td>
+        <td>Dev lê Pods apenas em <code>staging</code></td>
+      </tr>
+      <tr>
+        <td><strong>ClusterRole</strong></td>
+        <td>Cluster inteiro (ou recursos não-namespaced)</td>
+        <td>ClusterRoleBinding <em>ou</em> RoleBinding</td>
+        <td>Operador lê Nodes; admin de plataforma em todos os namespaces</td>
+      </tr>
+      <tr>
+        <td><strong>RoleBinding</strong></td>
+        <td>Namespace específico</td>
+        <td>—</td>
+        <td>Vincula Role <em>ou</em> ClusterRole a sujeitos em um namespace</td>
+      </tr>
+      <tr>
+        <td><strong>ClusterRoleBinding</strong></td>
+        <td>Cluster inteiro</td>
+        <td>—</td>
+        <td>Vincula ClusterRole a sujeitos em todo o cluster</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — ClusterRole + RoleBinding</span>
+  <p>Um <strong>ClusterRole</strong> pode ser vinculado por um <strong>RoleBinding</strong> — nesse caso o acesso fica restrito ao namespace do RoleBinding. Isso permite <em>reusar</em> definições de permissão cluster-wide em escopos menores. A prova costuma afirmar que "ClusterRole só pode ser vinculado por ClusterRoleBinding" — isso é <strong>falso</strong>.</p>
+</div>
+
+<div class="card reveal">
+  <h4>Exemplo — Role + RoleBinding (namespaced)</h4>
+  <pre><code>apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: staging
+  name: pod-reader
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: staging
+  name: dev-pod-reader
+subjects:
+- kind: User
+  name: alice          # mapeado via aws-auth / Access Entry
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io</code></pre>
+</div>
+
+<h2 id="iam-rbac-eks"><span class="h2-kicker">Segurança — IAM × RBAC</span>Autenticação AWS IAM → Autorização K8s RBAC</h2>
+
+<p>No EKS, a autenticação usa o <strong>AWS IAM</strong> (via token do <code>aws-iam-authenticator</code> ou <code>aws eks get-token</code>). Após autenticado, o <em>aws-auth</em> ConfigMap (ou as novas <strong>Access Entries</strong>) mapeia identidades IAM para usuários/grupos K8s, que então são autorizados pelo RBAC.</p>
+
+<div class="diagram reveal">
+  <div class="flow">
+    <div class="node">IAM Role/<br>User</div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">aws-auth<br>/ Access Entry</div>
+    <span class="arrow-h">→</span>
+    <div class="node">K8s User<br>/ Group</div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">RBAC<br>(autoriza)</div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span> camadas de controle no EKS</span>
+  </div>
+</div>
+
+<div class="callout ok">
+  <span class="tag">✓ Regra de ouro EKS</span>
+  <p><strong>IAM autentica</strong> (prova quem você é na AWS). <strong>RBAC autoriza</strong> (define o que você pode fazer no cluster). São camadas distintas e complementares. Falhar no IAM = sem acesso ao cluster. Falhar no RBAC = acesso negado mesmo com credenciais AWS válidas.</p>
+</div>
+
+<div class="mnemonic">
+  <div class="m-head">Mnemônico — IAM × RBAC</div>
+  <div class="m-word">"<b>IAM</b> = Identidade; <b>RBAC</b> = Regras"</div>
+  <ul>
+    <li><strong>I</strong>AM → <strong>I</strong>dentifica (autenticação, quem é você)</li>
+    <li><strong>R</strong>BAC → <strong>R</strong>egras (autorização, o que pode fazer)</li>
+  </ul>
+</div>
+
+<h2 id="networkpolicy"><span class="h2-kicker">Segurança — NetworkPolicy</span>Firewall L3/L4 entre Pods</h2>
+
+<p>NetworkPolicy restringe o tráfego de rede entre Pods com base em seletores de label, namespace e blocos CIDR. Requer um CNI compatível (Calico, Cilium, AWS VPC CNI com Network Policy habilitado).</p>
+
+<div class="callout danger">
+  <span class="tag">✗ Anti-padrão crítico</span>
+  <p>Por padrão, <strong>todo tráfego entre Pods é permitido</strong> — qualquer Pod pode se comunicar com qualquer outro Pod no cluster. Sem NetworkPolicy, não há isolamento. Isso é um anti-padrão em produção. A primeira política a criar é uma <em>default-deny-all</em> por namespace, depois liberar explicitamente.</p>
+</div>
+
+<div class="callout warn">
+  <span class="tag">⚠ Pegadinha — NetworkPolicy e CNI</span>
+  <p>NetworkPolicy é um objeto K8s, mas <strong>não tem efeito sem um CNI que a implemente</strong>. O CNI padrão do EKS (AWS VPC CNI puro, sem o add-on de Network Policy) ignora os objetos NetworkPolicy. A prova pode afirmar que "criar um NetworkPolicy já restringe o tráfego" — isso é falso se o CNI não suportar.</p>
+</div>
+
+<div class="card reveal">
+  <h4>Exemplo — NetworkPolicy: isola namespace, permite apenas porta 8080 da camada frontend</h4>
+  <pre><code>apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-api
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: api          # aplica-se aos Pods com label app=api
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend  # somente Pods frontend podem conectar
+    ports:
+    - protocol: TCP
+      port: 8080</code></pre>
+</div>
+
+<h2 id="secrets-podsecurity"><span class="h2-kicker">Segurança — Secrets &amp; Pod Security</span>Dados Sensíveis, Criptografia e Postura dos Contêineres</h2>
+
+<div class="card reveal">
+  <h4>Secrets — armazenamento e criptografia</h4>
+  <ul>
+    <li>Secrets armazenam dados sensíveis (senhas, tokens, certificados) em <strong>Base64</strong> — não é criptografia! Base64 é apenas codificação.</li>
+    <li>Criptografia real em repouso: habilitar <strong>envelope encryption com AWS KMS</strong> no EKS (<code>encryptionConfig</code> no plano de controle) — o etcd guarda os dados cifrados.</li>
+    <li>Alternativa gerenciada: <strong>AWS Secrets Manager</strong> + CSI Secrets Store Driver (monta Secrets como volumes sem persisti-los no etcd).</li>
+  </ul>
+</div>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Pod Security Standard</th>
+        <th>Nível de restrição</th>
+        <th>O que permite</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="pill strat">privileged</span></td>
+        <td>Sem restrição</td>
+        <td>Tudo — equivale a sem política</td>
+      </tr>
+      <tr>
+        <td><span class="pill warn">baseline</span></td>
+        <td>Restrição mínima</td>
+        <td>Bloqueia privilégios mais perigosos (hostPID, hostNetwork, privileged containers)</td>
+      </tr>
+      <tr>
+        <td><span class="pill ok">restricted</span></td>
+        <td>Restrição máxima</td>
+        <td>Exige <code>runAsNonRoot</code>, <code>allowPrivilegeEscalation: false</code>, drop de todas as capabilities e seccomp profile</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout danger">
+  <span class="tag">✗ PodSecurityPolicy foi removida</span>
+  <p><strong>PodSecurityPolicy (PSP) foi removida no Kubernetes 1.25.</strong> A substituta oficial é o <strong>Pod Security Admission (PSA)</strong>, implementado como um <em>admission controller</em> nativo. PSA aplica os Pod Security Standards (privileged / baseline / restricted) via labels no namespace. Nunca mencione PSP como solução atual em prova — é resposta errada.</p>
+</div>
+
+<div class="card reveal">
+  <h4>Exemplo — securityContext aplicando princípio do menor privilégio</h4>
+  <pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: api-seguro
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 2000
+  containers:
+  - name: api
+    image: 123456789.dkr.ecr.us-east-1.amazonaws.com/api:v2
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]</code></pre>
+</div>
+
+<div class="callout ok">
+  <span class="tag">✓ Scan de imagem — ECR + Trivy</span>
+  <p>O <strong>ECR Basic Scanning</strong> usa o Clair para escanear imagens ao push. O <strong>ECR Enhanced Scanning</strong> integra o Amazon Inspector (contínuo). <strong>Trivy</strong> (open source) pode ser integrado ao pipeline de CI para bloquear imagens com CVEs críticas antes do push.</p>
+</div>
+
+<div class="quiz reveal" data-answer="B">
+  <span class="quiz-label">Questão 1 — RBAC e IAM no EKS</span>
+  <p class="q-text">Uma equipe de desenvolvedores tem uma IAM Role configurada no aws-auth ConfigMap do EKS, mapeada para o grupo K8s <code>dev-team</code>. Ao tentar listar Pods no namespace <code>production</code>, recebem "Forbidden". Qual é a causa mais provável?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>A IAM Role não tem permissão <code>eks:DescribeCluster</code> na AWS.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>Não existe um RoleBinding ou ClusterRoleBinding que conceda ao grupo <code>dev-team</code> o verbo <code>list</code> em <code>pods</code> no namespace <code>production</code>.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>O mapeamento no aws-auth só funciona com usuários IAM, não com roles IAM.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>É necessário criar um ClusterRoleBinding — RoleBinding não funciona para grupos.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>B é correto</strong>: a autenticação IAM funcionou (o usuário chegou ao cluster), mas o RBAC não tem regra que autorize o grupo <code>dev-team</code> a listar Pods no namespace <code>production</code>. <strong>A erra</strong>: <code>eks:DescribeCluster</code> é necessária para baixar o kubeconfig, não para operações dentro do cluster — se conseguiu conectar, esse passo já passou. <strong>C erra</strong>: aws-auth suporta tanto IAM Users (<code>mapUsers</code>) quanto IAM Roles (<code>mapRoles</code>). <strong>D erra</strong>: RoleBinding funciona com grupos, e para acesso namespaced é justamente o objeto correto; ClusterRoleBinding daria acesso em todo o cluster, o que viola o princípio do menor privilégio.</div>
+</div>
+
+<div class="quiz reveal" data-answer="C">
+  <span class="quiz-label">Questão 2 — NetworkPolicy</span>
+  <p class="q-text">Em um cluster EKS com o add-on de Network Policy do VPC CNI habilitado, um time aplicou a seguinte NetworkPolicy no namespace <code>payments</code>: <code>podSelector: {}</code> com <code>policyTypes: [Ingress]</code> e sem regras <code>ingress</code>. Qual o efeito?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>Nenhum efeito, pois a política está vazia.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>Todo tráfego Ingress e Egress é bloqueado para todos os Pods do namespace.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>Todo tráfego Ingress é bloqueado para todos os Pods do namespace; Egress permanece irrestrito.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>Apenas o tráfego entre namespaces é bloqueado; tráfego intra-namespace permanece livre.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>C é correto</strong>: <code>podSelector: {}</code> seleciona <em>todos</em> os Pods do namespace; <code>policyTypes: [Ingress]</code> sem regras <code>ingress</code> significa "nega todo Ingress". Egress não foi declarado, portanto permanece permitido. <strong>A erra</strong>: uma política com <code>policyTypes</code> declarado e sem regras correspondentes é uma <em>default deny</em> para aquele tipo — tem efeito sim. <strong>B erra</strong>: Egress não foi incluído no <code>policyTypes</code>, então não é afetado. <strong>D erra</strong>: NetworkPolicy não distingue intra/inter-namespace sozinha — o <code>podSelector: {}</code> aplica-se a todos os Pods independente da origem do tráfego.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════ MONITORAMENTO ═══════════════════════════════════════════ -->
+
+<h2 id="monitoramento-logging-eks"><span class="h2-kicker">Aula 9 — Observabilidade</span>Monitoramento e Logging no EKS</h2>
+
+<p>Observabilidade em Kubernetes se apoia em três pilares complementares. Cada pilar responde a uma pergunta diferente e usa ferramentas específicas no ecossistema EKS.</p>
+
+<div class="table-wrap reveal">
+  <table>
+    <thead>
+      <tr>
+        <th>Pilar</th>
+        <th>Pergunta que responde</th>
+        <th>Ferramentas EKS</th>
+        <th>Granularidade</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="pill ok">Métricas</span></td>
+        <td>"O sistema está saudável agora?"</td>
+        <td>Prometheus + Grafana, CloudWatch Container Insights, metrics-server</td>
+        <td>Numérica, séries temporais</td>
+      </tr>
+      <tr>
+        <td><span class="pill tat">Logs</span></td>
+        <td>"O que aconteceu exatamente?"</td>
+        <td>Fluent Bit → CloudWatch Logs / OpenSearch, kubectl logs</td>
+        <td>Textual, por evento</td>
+      </tr>
+      <tr>
+        <td><span class="pill warn">Traces</span></td>
+        <td>"Por que esta requisição demorou tanto?"</td>
+        <td>AWS X-Ray, Jaeger, OpenTelemetry</td>
+        <td>Distribuída, por requisição</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card reveal">
+  <h4>CloudWatch Container Insights</h4>
+  <ul>
+    <li>Solução gerenciada AWS: coleta métricas de CPU, memória, rede e disco por Pod, Node e cluster.</li>
+    <li>Requer o add-on <strong>Amazon CloudWatch Observability</strong> (ou instalação manual do agente CloudWatch + Fluent Bit).</li>
+    <li>Integra com CloudWatch Dashboards e alarmes nativos — sem infraestrutura adicional para gerenciar.</li>
+    <li>Desvantagem: custo por métrica/log ingerido; menos flexibilidade que Prometheus para queries ad-hoc (PromQL).</li>
+  </ul>
+</div>
+
+<div class="card reveal">
+  <h4>Prometheus + Grafana — stack open source</h4>
+  <ul>
+    <li><strong>Prometheus</strong>: coleta métricas via <em>scrape</em> HTTP (<code>/metrics</code>) dos Pods e componentes K8s. Armazena localmente como série temporal. Linguagem de query: <strong>PromQL</strong>.</li>
+    <li><strong>Grafana</strong>: consome Prometheus como datasource e renderiza dashboards interativos.</li>
+    <li>Deploy típico: <strong>kube-prometheus-stack</strong> (Helm chart que instala Prometheus, Grafana, Alertmanager e exporters em um comando).</li>
+    <li>ServiceMonitor (CRD do Prometheus Operator) define quais Services raspar — padrão GitOps-friendly.</li>
+  </ul>
+</div>
+
+<div class="card reveal">
+  <h4>Fluent Bit — coleta e roteamento de logs</h4>
+  <ul>
+    <li>DaemonSet: um Pod por Node, lê os logs de todos os contêineres em <code>/var/log/containers/</code>.</li>
+    <li>Roteia para CloudWatch Logs, Amazon OpenSearch Service (Elasticsearch), S3 ou Kinesis Data Firehose.</li>
+    <li>Mais leve que Fluentd — preferido em EKS; Fluentd é usado quando transformações complexas são necessárias.</li>
+    <li>Configuração por <code>ConfigMap</code> — define inputs, filters e outputs declarativamente.</li>
+  </ul>
+</div>
+
+<div class="diagram reveal">
+  <div class="flow">
+    <div class="node">Contêiner<br><small>stdout/stderr</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">Fluent Bit<br><small>DaemonSet</small></div>
+    <span class="arrow-h">→</span>
+    <div class="node">CloudWatch<br>Logs</div>
+    <span class="arrow-h">→</span>
+    <div class="node accent">CloudWatch<br>Insights / Alarmes</div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span> pipeline de logs EKS</span>
+  </div>
+</div>
+
+<div class="callout exam">
+  <span class="tag">🎯 Prova — Métricas × Logs × Traces</span>
+  <ul>
+    <li>Questão comum: "qual ferramenta usar para identificar <em>por que</em> uma requisição entre microsserviços demorou 3 s?" → <strong>Traces</strong> (X-Ray / Jaeger) — não é métricas nem logs.</li>
+    <li>"Qual pilar revela que o CPU do Pod X está em 95%?" → <strong>Métricas</strong> (Prometheus / Container Insights).</li>
+    <li>"Qual pilar mostra a stack trace de uma exceção Java?" → <strong>Logs</strong> (Fluent Bit → CloudWatch).</li>
+  </ul>
+</div>
+
+<div class="quiz reveal" data-answer="D">
+  <span class="quiz-label">Questão 3 — CI/CD GitOps × Push</span>
+  <p class="q-text">Uma empresa quer garantir que o estado real do cluster EKS <strong>nunca divirja</strong> do estado declarado no repositório Git, com detecção e reconciliação automáticas. Qual abordagem atende melhor esse requisito?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>Pipeline push-based no GitHub Actions com <code>kubectl apply -f manifests/</code> a cada merge na branch main.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>Pipeline push-based com <code>helm upgrade --install</code> e verificação manual periódica de drift.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>Script agendado no AWS Lambda que compara o estado do cluster com o Git a cada hora e aplica diferenças.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>Modelo GitOps com ArgoCD instalado no cluster, sincronizando continuamente o repositório Git como fonte da verdade.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>D é correto</strong>: ArgoCD (pull-based/GitOps) monitora o repositório Git continuamente, detecta drift em tempo real e reconcilia automaticamente — é exatamente o que o requisito descreve. <strong>A e B erram</strong>: pipelines push-based só aplicam mudanças quando o CI é acionado; alterações manuais no cluster não são detectadas nem revertidas automaticamente. <strong>C erra</strong>: embora detecte drift, a frequência horária não é "contínua" e a complexidade de um Lambda para isso é desnecessária quando ArgoCD/Flux existem para esse fim — além de não ser a solução padrão do mercado.</div>
+</div>
+
+<div class="quiz reveal" data-answer="A">
+  <span class="quiz-label">Questão 4 — Pod Security e Secrets</span>
+  <p class="q-text">Qual afirmação sobre segurança de Pods e Secrets no Kubernetes está <strong>correta</strong>?</p>
+  <ul class="options">
+    <li class="opt" data-key="A"><span class="marker">A</span><span>Secrets são armazenados em Base64 no etcd por padrão; para criptografia real em repouso no EKS, é necessário habilitar envelope encryption com AWS KMS.</span></li>
+    <li class="opt" data-key="B"><span class="marker">B</span><span>PodSecurityPolicy (PSP) deve ser usada para aplicar o nível <em>restricted</em> em clusters EKS modernos.</span></li>
+    <li class="opt" data-key="C"><span class="marker">C</span><span>O campo <code>readOnlyRootFilesystem: true</code> impede que processos dentro do contêiner façam chamadas de rede.</span></li>
+    <li class="opt" data-key="D"><span class="marker">D</span><span>Base64 é uma forma segura de armazenar senhas em Secrets, pois não é texto puro.</span></li>
+  </ul>
+  <div class="explain"><span class="verdict"></span> <strong>A é correto</strong>: Base64 é codificação, não criptografia — qualquer pessoa com acesso ao etcd decodifica em segundos. A criptografia real requer KMS. <strong>B erra</strong>: PSP foi removida no K8s 1.25; o substituto é <strong>Pod Security Admission (PSA)</strong>. <strong>C erra</strong>: <code>readOnlyRootFilesystem</code> impede escrita no filesystem do contêiner, não conexões de rede — isso é papel de NetworkPolicy. <strong>D erra</strong>: Base64 não é segurança — é reversível sem chave; é usado apenas por conveniência de transporte de dados binários.</div>
+</div>
+
+<div class="mnemonic">
+  <div class="m-head">Mnemônico — Pilares da Observabilidade</div>
+  <div class="m-word">"<b>M</b>inha <b>L</b>uz <b>T</b>remula"</div>
+  <ul>
+    <li><strong>M</strong>étricas — números ao longo do tempo (Prometheus, Container Insights)</li>
+    <li><strong>L</strong>ogs — eventos textuais (Fluent Bit, CloudWatch Logs)</li>
+    <li><strong>T</strong>races — rastreamento distribuído por requisição (X-Ray, Jaeger)</li>
+  </ul>
+</div>
+
+<div class="tldr">
+  <div class="t-head">TL;DR — CI/CD, Segurança e Monitoramento EKS</div>
+  <ul>
+    <li><span class="pill strat">Push</span> CI executa <code>kubectl apply</code>; sem detecção de drift. <span class="pill tat">GitOps</span> agente no cluster reconcilia continuamente com o Git.</li>
+    <li>ArgoCD e Flux = pull-based; Git é a fonte da verdade.</li>
+    <li>Rolling Update = padrão K8s; Blue-Green = dois environments + troca de Service; Canary = tráfego gradual.</li>
+    <li><strong>Role</strong> = namespaced; <strong>ClusterRole</strong> = cluster-wide (mas pode ser vinculada por RoleBinding).</li>
+    <li><strong>IAM autentica</strong> (AWS) → <strong>RBAC autoriza</strong> (K8s). São camadas independentes.</li>
+    <li>Sem NetworkPolicy = tudo permitido. Política <code>policyTypes: [Ingress]</code> sem regras = nega todo Ingress.</li>
+    <li>Secrets = Base64 (não é criptografia!). Criptografia real = KMS envelope encryption.</li>
+    <li>PSP removida no 1.25 → use <strong>Pod Security Admission</strong> com standards privileged/baseline/restricted.</li>
+    <li>Métricas = Prometheus/Grafana; Logs = Fluent Bit → CloudWatch; Traces = X-Ray/Jaeger.</li>
+  </ul>
+</div>
+
+
+      <!-- ============================ FLASHCARDS ============================ -->
+      <h2 id="flashcards"><span class="h2-kicker">Auto-teste</span>Flashcards — clique para virar</h2>
+      <p>Pense na resposta <strong>antes</strong> de clicar.</p>
+      <div class="flashgrid reveal">
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é o estado desejado e como o cluster o mantém?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">É o que você declara no manifesto. Os <strong>controllers</strong> rodam um <strong>reconciliation loop</strong> contínuo, comparando estado atual × desejado e agindo para convergir.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Onde rodam etcd, scheduler e kubelet?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>etcd</strong> e <strong>kube-scheduler</strong> no <strong>Control Plane</strong>; <strong>kubelet</strong> em cada <strong>Worker Node</strong>. O scheduler escolhe o node; o kubelet inicia o container.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Label × Annotation: qual a diferença?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Label</strong> = identificador para <em>seleção/agrupamento</em> (selectors). <strong>Annotation</strong> = metadado não-identificador, <strong>não selecionável</strong>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Os 4 tipos de Service?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>ClusterIP</strong> (interno, default) · <strong>NodePort</strong> (porta no node) · <strong>LoadBalancer</strong> (LB externo do provedor) · <strong>ExternalName</strong> (CNAME para DNS externo).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Secret é criptografado?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Não.</strong> Secret é apenas <strong>base64</strong> (codificação, não criptografia). Para criptografia em repouso é preciso habilitar encryption-at-rest no etcd (ex.: KMS no EKS).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">liveness × readiness probe?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>liveness</strong> falha → <strong>reinicia</strong> o container. <strong>readiness</strong> falha → <strong>tira o Pod dos Endpoints</strong> (para de receber tráfego), <em>sem</em> reiniciar.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Deployment × StatefulSet × DaemonSet?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Deployment</strong>: stateless, Pods intercambiáveis. <strong>StatefulSet</strong>: identidade estável + PVC por réplica + Headless Service (bancos). <strong>DaemonSet</strong>: 1 Pod por node (agentes).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">emptyDir persiste a recriação do Pod?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Não.</strong> <code>emptyDir</code> morre com o Pod. Persistência de verdade = <strong>PVC → PV</strong> (independente do Pod).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">HPA × VPA × Cluster Autoscaler?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>HPA</strong>: + réplicas (horizontal). <strong>VPA</strong>: + recursos por Pod (vertical). <strong>Cluster Autoscaler</strong>: + nodes. HPA precisa de <code>metrics-server</code> e <code>requests</code>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">No EKS, o que a AWS gerencia?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">O <strong>Control Plane</strong> (apiserver, etcd, multi-AZ). Você gerencia os <strong>Worker Nodes</strong> — exceto no <strong>Fargate</strong>, onde não há EC2 para gerenciar.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é Helm e seus conceitos?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Gerenciador de pacotes do K8s. <strong>Chart</strong> (pacote de templates) · <strong>Release</strong> (instância instalada) · <strong>Values</strong> (parametrização). <strong>Helm 3 não tem Tiller</strong>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Role × ClusterRole?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Role</strong> = permissões dentro de <strong>um namespace</strong>. <strong>ClusterRole</strong> = permissões <strong>cluster-wide</strong> (ou em recursos sem namespace). Ligadas por (Cluster)RoleBinding.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Sem NetworkPolicy, qual o tráfego entre Pods?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Tudo liberado.</strong> O default do K8s é permitir toda comunicação Pod-a-Pod. NetworkPolicy é "deny por seleção" — e exige um CNI que a suporte.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">No EKS, IAM e RBAC fazem o quê?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>IAM autentica</strong> (quem é você na AWS) → <strong>RBAC autoriza</strong> (o que pode fazer no cluster), mapeado via <code>aws-auth</code>/Access Entries.</div></div>
+        </div></div>
+
+      </div>
+
+      <!-- ============================ GLOSSÁRIO ============================ -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>Pod</dt><dd>Menor unidade deployável; 1+ containers que compartilham IP/rede e volumes. Efêmero.</dd></div>
+        <div class="gloss-item"><dt>Control Plane</dt><dd>Cérebro do cluster: apiserver, etcd, scheduler, controller-manager.</dd></div>
+        <div class="gloss-item"><dt>etcd</dt><dd>Banco chave-valor distribuído que guarda todo o estado do cluster. Não decide nada.</dd></div>
+        <div class="gloss-item"><dt>kubelet</dt><dd>Agente que roda em cada Worker Node e garante que os containers do PodSpec estejam ativos.</dd></div>
+        <div class="gloss-item"><dt>ReplicaSet</dt><dd>Controller que mantém N réplicas de um Pod. Gerenciado pelo Deployment.</dd></div>
+        <div class="gloss-item"><dt>Deployment</dt><dd>Controller de apps stateless; faz rollout/rollback criando novos ReplicaSets.</dd></div>
+        <div class="gloss-item"><dt>StatefulSet</dt><dd>Workload com identidade estável, ordem e PVC por réplica (bancos). Exige Headless Service.</dd></div>
+        <div class="gloss-item"><dt>DaemonSet</dt><dd>Garante 1 Pod por node — agentes de log/monitor/rede.</dd></div>
+        <div class="gloss-item"><dt>Service</dt><dd>Abstração estável (IP/DNS) que balanceia tráfego para Pods via selector de labels.</dd></div>
+        <div class="gloss-item"><dt>ConfigMap / Secret</dt><dd>Injetam configuração. Secret é base64 (não criptografado por padrão) para dados sensíveis.</dd></div>
+        <div class="gloss-item"><dt>PV / PVC / StorageClass</dt><dd>PV = armazenamento real (cluster-wide); PVC = requisição namespaced; StorageClass = provisionamento dinâmico.</dd></div>
+        <div class="gloss-item"><dt>Probe</dt><dd>Verificação de saúde: liveness (reinicia), readiness (tira do tráfego), startup (boot lento).</dd></div>
+        <div class="gloss-item"><dt>HPA</dt><dd>HorizontalPodAutoscaler: escala réplicas por métricas. Requer metrics-server e requests.</dd></div>
+        <div class="gloss-item"><dt>Helm</dt><dd>Gerenciador de pacotes do K8s. Chart (templates) → Release (instância). Helm 3 sem Tiller.</dd></div>
+        <div class="gloss-item"><dt>EKS</dt><dd>Kubernetes gerenciado da AWS: control plane gerenciado; nodes via Managed/Self/Fargate.</dd></div>
+        <div class="gloss-item"><dt>IRSA</dt><dd>IAM Roles for Service Accounts: dá permissão AWS a Pods via OIDC, sem chaves estáticas.</dd></div>
+        <div class="gloss-item"><dt>RBAC</dt><dd>Autorização no cluster: Role/ClusterRole + (Cluster)RoleBinding.</dd></div>
+        <div class="gloss-item"><dt>NetworkPolicy</dt><dd>Firewall L3/L4 entre Pods. Sem ela, todo tráfego é permitido.</dd></div>
+        <div class="gloss-item"><dt>GitOps</dt><dd>Modelo pull (ArgoCD/Flux): Git é a fonte da verdade e o agente sincroniza o cluster a ele.</dd></div>
+      </dl>
+
+      <!-- ============================ PEGADINHAS ============================ -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas &amp; checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li><strong>etcd</strong> é o banco (não o scheduler); <strong>scheduler</strong> escolhe o node; <strong>kubelet</strong> roda no node e inicia o container.</li>
+          <li><strong>kubelet</strong> e <strong>kube-proxy</strong> são do <em>Worker Node</em> — não do Control Plane.</li>
+          <li><strong>Label</strong> seleciona; <strong>Annotation</strong> não é selecionável.</li>
+          <li><strong>ClusterIP</strong> só é acessível dentro do cluster; para expor externamente use NodePort/LoadBalancer/Ingress.</li>
+          <li><strong>Secret = base64</strong>, não criptografia. Criptografia em repouso precisa ser habilitada (KMS).</li>
+          <li><strong>liveness</strong> reinicia; <strong>readiness</strong> tira do balanceamento (não reinicia); <strong>startup</strong> protege boot lento.</li>
+          <li>Escalar = mudar <code>replicas</code> (ou <code>kubectl scale</code>) — nunca criar Pods à mão.</li>
+          <li><strong>emptyDir</strong> morre com o Pod; <strong>PV</strong> é independente. PV é cluster-wide; PVC é namespaced.</li>
+          <li><strong>StatefulSet</strong> exige Headless Service e dá PVC por réplica; ≠ Deployment com PVC compartilhado.</li>
+          <li><strong>HPA</strong> precisa de <code>metrics-server</code> e <code>resources.requests</code>; HPA = réplicas, VPA = recursos, Cluster Autoscaler = nodes.</li>
+          <li><strong>Job</strong> usa <code>restartPolicy</code> Never/OnFailure (nunca Always); Job termina, Deployment roda sempre.</li>
+          <li><strong>Helm 3</strong> removeu o Tiller; <strong>Fluentd/Fluent Bit</strong> rodam como DaemonSet; <strong>logs ≠ métricas</strong> (Prometheus = métricas).</li>
+          <li>No <strong>EKS</strong> a AWS gerencia o control plane; <strong>Fargate</strong> não tem EC2 para gerenciar; use <strong>IRSA</strong> (não chave estática) para dar permissão AWS a Pods.</li>
+          <li><strong>IAM autentica × RBAC autoriza</strong> no EKS; <strong>Role</strong> é namespaced, <strong>ClusterRole</strong> é cluster-wide.</li>
+          <li><strong>NetworkPolicy</strong>: sem ela, tudo é permitido. <strong>PodSecurityPolicy foi removida</strong> → use Pod Security Admission.</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="complementares.html"><div class="dir">← Tópico anterior</div><div class="ttl">10 · LGPD · Comunicação · Gestão</div></a>
+          <a href="index.html#topicos" class="next"><div class="dir">Próximo tópico →</div><div class="ttl">Escolher no Hub</div></a>
+        </div>
+        <div>Tópico 11 · Kubernetes · material de revisão para a prova final. Base: documentação oficial do Kubernetes (kubernetes.io), AWS EKS e CNCF; Helm; CKA/CKAD curriculum.</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

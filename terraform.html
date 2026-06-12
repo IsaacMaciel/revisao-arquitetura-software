@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Terraform — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão densa de Terraform para prova de múltipla escolha: IaC declarativa, providers e backend, tfstate, comandos, variáveis e precedência, data e locals, módulos, count vs for_each, infra na AWS e Terraform Cloud." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 03 · Terraform</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">Fundamentos</div>
+      <a href="#intro">Introdução ao Terraform</a>
+      <a href="#declarativo">Declarativo × Imperativo</a>
+      <a href="#comparativo">Terraform × CFN × Ansible × Pulumi</a>
+
+      <div class="group-label">Núcleo</div>
+      <a href="#providers">Providers & Backend</a>
+      <a href="#tfstate">O tfstate</a>
+      <a href="#comandos">Principais comandos</a>
+
+      <div class="group-label">Configuração</div>
+      <a href="#variaveis">Variáveis & Output</a>
+      <a href="#precedencia">Precedência de variáveis</a>
+      <a href="#data-locals">Data & Locals</a>
+
+      <div class="group-label">Reúso & Lógica</div>
+      <a href="#modulos">Módulos</a>
+      <a href="#loops">Loops & expressões</a>
+      <a href="#meta">Meta-arguments</a>
+
+      <div class="group-label">Prática</div>
+      <a href="#aws">Infra com AWS</a>
+      <a href="#tfcloud">Terraform Cloud</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 03 · Terraform</span>
+        <h1>Terraform</h1>
+        <p class="lede">Criado pela <em>HashiCorp</em>, o Terraform é a ferramenta de <strong>Infrastructure as Code (IaC)</strong> que provisiona e gerencia infraestrutura de forma <strong>declarativa</strong>: você descreve o <em>estado desejado</em> em HCL e o Terraform calcula e executa as mudanças necessárias para chegar lá. O coração de tudo é o <strong>state</strong> — o mapa entre a sua configuração e os recursos reais no provedor.</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como Terraform cai na prova</span>
+        <p>Espere: (1) <strong>declarativo × imperativo</strong> e o que é IaC — quase certo; (2) o que é o <strong>tfstate</strong>, por que existe e por que precisa de <strong>remote backend + lock</strong>; (3) o <strong>fluxo de comandos</strong> (<code>init → plan → apply → destroy</code>) e o papel de cada um; (4) <strong>precedência de variáveis</strong> (quem vence quem); (5) <strong>count × for_each</strong> (a pegadinha clássica); (6) <strong>data × resource × variable × local</strong>; (7) <strong>módulos</strong> (source, version, inputs/outputs); (8) <strong>Terraform Cloud</strong> (remote runs, VCS-driven, Sentinel).</p>
+      </div>
+
+      <!-- ============================ INTRO ============================ -->
+      <h2 id="intro"><span class="h2-kicker">Aula 1 · Fundamentos</span>Introdução ao Terraform</h2>
+      <p><span class="lead-term">Infrastructure as Code (IaC)</span> é a prática de definir e provisionar infraestrutura (servidores, redes, bancos, DNS) por meio de <strong>arquivos de configuração versionáveis</strong>, em vez de cliques no console. Isso traz <strong>versionamento (Git)</strong>, <strong>revisão por pares</strong>, <strong>reprodutibilidade</strong> e <strong>auditoria</strong>.</p>
+
+      <div class="card reveal">
+        <h4>Características que definem o Terraform</h4>
+        <ul>
+          <li><strong>Declarativo:</strong> você descreve o <em>quê</em> (estado final), não o <em>como</em> (passos).</li>
+          <li><strong>Cloud-agnostic / multi-provider:</strong> AWS, Azure, GCP, Kubernetes, etc., via <strong>providers</strong> plugáveis.</li>
+          <li><strong>HCL (HashiCorp Configuration Language):</strong> linguagem própria, legível, declarativa (também aceita JSON).</li>
+          <li><strong>Idempotente:</strong> rodar <code>apply</code> de novo sem mudanças na config não recria nada — ele converge para o estado desejado.</li>
+          <li><strong>Plano explícito:</strong> mostra o <em>diff</em> antes de aplicar (execution plan).</li>
+          <li><strong>State:</strong> mantém um arquivo de estado que mapeia config ↔ recursos reais.</li>
+        </ul>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">💡 Idempotência em uma frase</span>
+        <p><strong>Idempotência</strong> = aplicar a mesma configuração N vezes produz o mesmo resultado. O Terraform compara o <em>estado desejado</em> (config) com o <em>estado atual</em> (state + realidade) e só faz a <strong>diferença</strong> — não executa comandos cegamente como um script imperativo.</p>
+      </div>
+
+      <!-- ============================ DECLARATIVO ============================ -->
+      <h2 id="declarativo"><span class="h2-kicker">Conceito central</span>Declarativo × Imperativo</h2>
+      <p>É a distinção que mais cai. Um script <strong>imperativo</strong> (Bash, parte do Ansible) lista os <em>passos</em>; uma config <strong>declarativa</strong> (Terraform, CloudFormation) descreve o <em>resultado</em> e deixa a ferramenta descobrir os passos.</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Critério</th><th>Declarativo (Terraform)</th><th>Imperativo (script)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>O que você escreve</strong></td><td>O <em>estado final desejado</em>.</td><td>A <em>sequência de comandos</em> para chegar lá.</td></tr>
+            <tr><td><strong>Quem calcula os passos</strong></td><td>A ferramenta (via <code>plan</code>).</td><td>Você (no código).</td></tr>
+            <tr><td><strong>Reexecução</strong></td><td>Idempotente — converge para o desejado.</td><td>Pode duplicar/quebrar se não tratar estado manualmente.</td></tr>
+            <tr><td><strong>Conhecimento do existente</strong></td><td>Mantém <strong>state</strong> para saber o que já existe.</td><td>Normalmente não sabe — você verifica na mão.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: declarativo ≠ "sem ordem"</span>
+        <p>Ser declarativo não significa que a ordem não importe. O Terraform monta um <strong>grafo de dependências (DAG)</strong> a partir das referências entre recursos e executa na ordem correta, em paralelo quando possível. A ordem é <em>inferida</em>, não escrita à mão.</p>
+      </div>
+
+      <!-- ============================ COMPARATIVO FERRAMENTAS ============================ -->
+      <h2 id="comparativo"><span class="h2-kicker">Comparação</span>Terraform × CloudFormation × Ansible × Pulumi</h2>
+      <p>Distinguir as ferramentas de provisionamento/configuração cai em prova. O critério-chave: <strong>declarativo × imperativo</strong>, <strong>provisioning × configuration management</strong> e <strong>cloud-agnostic × cloud-específico</strong>.</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Ferramenta</th><th>Foco</th><th>Paradigma</th><th>Escopo</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Terraform</strong> (HashiCorp)</td><td>Provisionamento de infra</td><td>Declarativo (HCL)</td><td>Multi-cloud / agnóstico</td></tr>
+            <tr><td><strong>CloudFormation</strong> (AWS)</td><td>Provisionamento de infra</td><td>Declarativo (JSON/YAML)</td><td>Só AWS</td></tr>
+            <tr><td><strong>Ansible</strong> (Red Hat)</td><td>Configuration management (e algum provisioning)</td><td>Procedural/imperativo (playbooks)</td><td>Multi-plataforma; agentless (SSH)</td></tr>
+            <tr><td><strong>Pulumi</strong></td><td>Provisionamento de infra</td><td>Declarativo via linguagens gerais (TS, Python, Go)</td><td>Multi-cloud</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout reveal">
+        <span class="tag">💡 Resumo das distinções</span>
+        <p><strong>Terraform vs CloudFormation:</strong> mesma ideia declarativa, mas Terraform é multi-cloud e CFN é só AWS. <strong>Terraform vs Ansible:</strong> Terraform provisiona infra (declarativo + state); Ansible é mais configuration management (procedural, sem state próprio). <strong>Terraform vs Pulumi:</strong> ambos declarativos, mas Pulumi usa linguagens de programação reais em vez de HCL.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual afirmação distingue corretamente Terraform de Ansible?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Ambos são imperativos e mantêm um arquivo de state idêntico.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Terraform é exclusivo da AWS; Ansible é multi-cloud.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Terraform é declarativo e focado em provisionamento de infra com state; Ansible é mais procedural e focado em configuration management.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Terraform usa playbooks YAML executados em ordem; Ansible usa HCL declarativo.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Terraform = <strong>declarativo</strong>, provisiona infra e mantém <strong>state</strong>; Ansible = procedural/imperativo, foco em <strong>configuration management</strong> (instalar pacotes, configurar SO), agentless via SSH. (B) inverte: CloudFormation é que é só AWS, não o Terraform. (D) troca as linguagens.</div>
+      </div>
+
+      <!-- ============================ PROVIDERS ============================ -->
+      <h2 id="providers"><span class="h2-kicker">Aula 2 · Núcleo</span>Providers & Backend</h2>
+      <p>Um <span class="lead-term">provider</span> é um <strong>plugin</strong> que ensina o Terraform a falar com uma API específica (AWS, Azure, GCP, GitHub, Kubernetes…). Ele expõe os <strong>resource types</strong> (<code>aws_instance</code>) e <strong>data sources</strong> (<code>aws_ami</code>). Providers são baixados no <code>terraform init</code> e fixados no <strong>lock file</strong> (<code>.terraform.lock.hcl</code>).</p>
+
+      <pre><div class="code-head"><span class="lang">hcl</span></div><code><span class="c-key">terraform</span> {
+  <span class="c-key">required_providers</span> {
+    aws = {
+      source  = <span class="c-str">"hashicorp/aws"</span>
+      version = <span class="c-str">"~> 5.0"</span>
+    }
+  }
+}
+
+<span class="c-key">provider</span> <span class="c-str">"aws"</span> {
+  region = <span class="c-str">"us-east-1"</span>
+}</code></pre>
+
+      <p>O <span class="lead-term">backend</span> define <strong>onde o state é armazenado</strong> e como as operações rodam. O default é o <strong>local backend</strong> (arquivo <code>terraform.tfstate</code> no diretório). Em equipe, usa-se um <strong>remote backend</strong>.</p>
+
+      <div class="diagram reveal">
+        <div class="flow" style="gap:6px;flex-wrap:wrap">
+          <div class="node">Config HCL</div>
+          <span class="arrow-h">→</span>
+          <div class="node accent">Terraform Core<br><small style="color:var(--text-2)">monta o DAG</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node">Provider plugin<br><small style="color:var(--text-2)">ex.: aws</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node">API do provedor</div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span> O Core lê config + state e fala com a nuvem somente através do <b>provider</b>.</span></div>
+      </div>
+
+      <!-- ============================ TFSTATE ============================ -->
+      <h2 id="tfstate"><span class="h2-kicker">Conceito crítico</span>O tfstate (state)</h2>
+      <p>O <span class="lead-term">state</span> (arquivo <code>terraform.tfstate</code>, em JSON) é o <strong>mapa entre a sua configuração e os recursos reais</strong> no provedor. Sem ele o Terraform não saberia qual recurso real corresponde a qual bloco da config.</p>
+      <div class="card reveal">
+        <h4>Por que o state existe</h4>
+        <ul>
+          <li><strong>Mapeamento (binding):</strong> liga cada recurso da config a um ID real (ex.: <code>i-0abc123</code>).</li>
+          <li><strong>Metadados &amp; dependências:</strong> guarda a ordem e relações para destruir/atualizar corretamente.</li>
+          <li><strong>Performance / cache:</strong> evita consultar toda a nuvem a cada <code>plan</code>.</li>
+          <li><strong>Detecção de drift:</strong> compara state × realidade × config para calcular o diff.</li>
+        </ul>
+      </div>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Critério</th><th>Local backend</th><th>Remote backend</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Onde fica o state</strong></td><td>Arquivo local <code>terraform.tfstate</code>.</td><td>Remoto (S3, Terraform Cloud, GCS, Azure Blob…).</td></tr>
+            <tr><td><strong>Trabalho em equipe</strong></td><td>Ruim — state não compartilhado, conflitos.</td><td>Compartilhado e centralizado.</td></tr>
+            <tr><td><strong>State locking</strong></td><td>Não há (ou só local).</td><td>Sim (ex.: S3 + <strong>DynamoDB</strong>; ou nativo no TF Cloud).</td></tr>
+            <tr><td><strong>Segurança de segredos</strong></td><td>Fica em texto no disco do dev.</td><td>Cifrado em repouso, acesso controlado.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout danger reveal">
+        <span class="tag">✗ O state é SENSÍVEL</span>
+        <p>O state pode conter <strong>segredos em texto puro</strong> (senhas de RDS, chaves, tokens) que recursos retornam. Por isso: nunca commitar <code>terraform.tfstate</code> no Git; usar remote backend cifrado; restringir acesso. Tratar o state como dado confidencial.</p>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: state locking</span>
+        <p>O <strong>state lock</strong> impede que <strong>dois <code>apply</code> simultâneos</strong> corrompam o state. No backend S3 clássico, o lock é feito por uma tabela <strong>DynamoDB</strong> (o S3 guarda o state; o DynamoDB guarda o lock). Não confunda: o S3 não faz lock sozinho na configuração tradicional.</p>
+      </div>
+
+      <pre><div class="code-head"><span class="lang">hcl</span></div><code><span class="c-key">terraform</span> {
+  <span class="c-key">backend</span> <span class="c-str">"s3"</span> {
+    bucket         = <span class="c-str">"minha-empresa-tfstate"</span>
+    key            = <span class="c-str">"prod/network/terraform.tfstate"</span>
+    region         = <span class="c-str">"us-east-1"</span>
+    dynamodb_table = <span class="c-str">"tf-locks"</span>   <span class="c-com"># state locking</span>
+    encrypt        = <span class="c-kw">true</span>
+  }
+}</code></pre>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Uma equipe usa o backend S3 para o state do Terraform. Qual é o papel da tabela DynamoDB associada?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Armazenar o conteúdo do arquivo de state em vez do S3.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Fornecer state locking, impedindo dois apply simultâneos de corromperem o state.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Cifrar automaticamente o state em repouso.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Substituir o comando terraform plan por uma versão remota.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O <strong>S3 guarda o state</strong>; a <strong>tabela DynamoDB guarda o lock</strong> (state locking), serializando operações concorrentes. (A) inverte os papéis; (C) a cifragem vem de <code>encrypt = true</code>/SSE do S3, não do DynamoDB; (D) o <code>plan</code> não depende disso.</div>
+      </div>
+
+      <!-- ============================ COMANDOS ============================ -->
+      <h2 id="comandos"><span class="h2-kicker">Aula 3 · CLI</span>Principais comandos</h2>
+      <p>O ciclo de vida básico é <code>init → plan → apply</code> (e <code>destroy</code> para remover). Saber o que cada comando faz — e o que NÃO faz — é prato cheio de prova.</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Comando</th><th>O que faz</th></tr></thead>
+          <tbody>
+            <tr><td><code>terraform init</code></td><td>Inicializa o diretório: baixa providers e módulos, configura o backend. <strong>Sempre o primeiro.</strong></td></tr>
+            <tr><td><code>terraform plan</code></td><td>Calcula e mostra o <strong>diff</strong> (o que será criado/alterado/destruído). <strong>Não muda nada.</strong></td></tr>
+            <tr><td><code>terraform apply</code></td><td>Aplica as mudanças para chegar ao estado desejado (pede confirmação ou usa um plano salvo).</td></tr>
+            <tr><td><code>terraform destroy</code></td><td>Destrói toda a infra gerenciada por aquele state.</td></tr>
+            <tr><td><code>terraform fmt</code></td><td>Formata os arquivos <code>.tf</code> no estilo canônico.</td></tr>
+            <tr><td><code>terraform validate</code></td><td>Valida a <strong>sintaxe e consistência interna</strong> da config (não acessa a nuvem).</td></tr>
+            <tr><td><code>terraform refresh</code></td><td>Atualiza o state com a realidade do provedor (hoje embutido no <code>plan</code>/<code>apply</code> via <code>-refresh-only</code>).</td></tr>
+            <tr><td><code>terraform import</code></td><td>Traz um recurso <strong>existente</strong> (criado fora) para o state, sem recriá-lo.</td></tr>
+            <tr><td><code>terraform taint</code> / <code>untaint</code></td><td>Marca/desmarca um recurso para ser <strong>recriado</strong> no próximo apply (preferir <code>-replace</code> hoje).</td></tr>
+            <tr><td><code>terraform workspace</code></td><td>Gerencia múltiplos states isolados (ex.: dev/stage/prod) com a mesma config.</td></tr>
+            <tr><td><code>terraform output</code></td><td>Mostra os valores de <strong>output</strong> definidos.</td></tr>
+            <tr><td><code>terraform show</code></td><td>Exibe o state ou um plano salvo em formato legível.</td></tr>
+            <tr><td><code>terraform state list / mv / rm</code></td><td>Inspeciona e manipula o state: listar, mover (renomear/refatorar), remover (sem destruir o recurso real).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mnemonic reveal">
+        <div class="m-head">Mnemônico — o fluxo de vida</div>
+        <div class="m-word">"<b>I</b>nit · <b>P</b>lan · <b>A</b>pply · <b>D</b>estroy"</div>
+        <ul>
+          <li><b>I</b>nit prepara (providers/backend) → <b>P</b>lan mostra o diff (não muda nada) → <b>A</b>pply executa → <b>D</b>estroy desfaz. Decore essa ordem: o <code>plan</code> nunca altera infra; o <code>apply</code> é quem altera.</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: state rm não destrói</span>
+        <p><code>terraform state rm</code> remove o recurso <strong>do state</strong> (o Terraform "esquece" dele), mas <strong>não destrói</strong> o recurso real na nuvem. Já <code>terraform destroy</code> destrói o recurso real. E <code>terraform import</code> faz o oposto do <code>rm</code>: traz um recurso existente para o state.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual comando mostra o conjunto de mudanças que <em>seriam</em> feitas, sem modificar a infraestrutura real?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span><code>terraform plan</code> — calcula e exibe o diff; não aplica nada.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span><code>terraform apply</code> — pois ele só simula as mudanças.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span><code>terraform init</code> — porque baixa os providers para validar.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span><code>terraform destroy</code> — pois mostra o que seria removido.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O <code>plan</code> produz o <strong>execution plan</strong> (diff) sem tocar na infra. (B) o <code>apply</code> efetivamente <em>aplica</em>; (C) o <code>init</code> só prepara o diretório; (D) o <code>destroy</code> remove de fato (e seu próprio plan mostra remoções, mas o comando do enunciado é o <code>plan</code>).</div>
+      </div>
+
+      <!-- ============================ VARIÁVEIS ============================ -->
+      <h2 id="variaveis"><span class="h2-kicker">Aula 4 · Configuração</span>Variáveis & Output</h2>
+      <p>As <span class="lead-term">input variables</span> parametrizam a config (tornam-na reutilizável). Os <span class="lead-term">output values</span> expõem valores para o usuário ou para outros módulos.</p>
+
+      <pre><div class="code-head"><span class="lang">hcl</span></div><code><span class="c-key">variable</span> <span class="c-str">"instance_type"</span> {
+  type        = <span class="c-kw">string</span>
+  default     = <span class="c-str">"t3.micro"</span>
+  description = <span class="c-str">"Tipo da instância EC2"</span>
+}
+
+<span class="c-key">variable</span> <span class="c-str">"db_password"</span> {
+  type      = <span class="c-kw">string</span>
+  sensitive = <span class="c-kw">true</span>   <span class="c-com"># não aparece em logs/plan</span>
+}
+
+<span class="c-key">output</span> <span class="c-str">"instance_ip"</span> {
+  value = aws_instance.web.public_ip
+}</code></pre>
+
+      <p>Tipos suportados: primitivos (<code>string</code>, <code>number</code>, <code>bool</code>), coleções (<code>list</code>, <code>set</code>, <code>map</code>) e estruturais (<code>object</code>, <code>tuple</code>). <code>sensitive = true</code> oculta o valor da saída; <code>sensitive</code> em output também esconde nos logs.</p>
+
+      <!-- ============================ PRECEDÊNCIA ============================ -->
+      <h2 id="precedencia"><span class="h2-kicker">Pegadinha clássica</span>Precedência de variáveis (ordem de carregamento)</h2>
+      <p>Quando a mesma variável é definida em vários lugares, o Terraform aplica uma <strong>ordem de precedência</strong>. Quem é carregado por último <strong>vence</strong>. Cai muito em prova:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Ordem (do menor → maior peso)</th><th>Fonte</th><th>Observação</th></tr></thead>
+          <tbody>
+            <tr><td>1 (mais fraco)</td><td><code>default</code> no bloco <code>variable</code></td><td>Valor de fallback.</td></tr>
+            <tr><td>2</td><td>Variável de ambiente <code>TF_VAR_nome</code></td><td>Ex.: <code>TF_VAR_region=us-east-1</code>.</td></tr>
+            <tr><td>3</td><td><code>terraform.tfvars</code></td><td>Carregado automaticamente.</td></tr>
+            <tr><td>4</td><td><code>*.auto.tfvars</code> (ordem alfabética)</td><td>Carregados automaticamente.</td></tr>
+            <tr><td>5 (mais forte)</td><td><code>-var</code> e <code>-var-file</code> na linha de comando</td><td>Sempre vencem (a última flag na linha prevalece).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: a CLI vence o tfvars</span>
+        <p>Se a variável estiver no <code>terraform.tfvars</code> <strong>e</strong> for passada com <code>-var</code> na linha de comando, <strong>a CLI vence</strong>. O <code>default</code> é o mais fraco de todos; <code>TF_VAR_</code> perde para os arquivos <code>.tfvars</code>; e a linha de comando bate todos.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">A variável <code>region</code> tem <code>default = "us-west-2"</code>, está como <code>region = "us-east-1"</code> no <code>terraform.tfvars</code>, e você roda <code>terraform apply -var="region=eu-west-1"</code>. Qual valor é usado?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span><code>us-west-2</code> — o default sempre prevalece.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span><code>us-east-1</code> — o tfvars tem prioridade máxima.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Erro — não se pode definir a variável em mais de um lugar.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span><code>eu-west-1</code> — a flag <code>-var</code> da linha de comando vence todas as demais fontes.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A ordem é: <code>default</code> &lt; <code>TF_VAR_</code> &lt; <code>terraform.tfvars</code> &lt; <code>*.auto.tfvars</code> &lt; <strong><code>-var</code>/<code>-var-file</code> (CLI)</strong>. A CLI é o mais forte → <code>eu-west-1</code>. (A) e (B) erram a precedência; (C) é falso — definir em vários lugares é permitido e resolvido pela precedência.</div>
+      </div>
+
+      <!-- ============================ DATA & LOCALS ============================ -->
+      <h2 id="data-locals"><span class="h2-kicker">Aula 5 · Configuração</span>Data Sources & Locals</h2>
+      <p>Três coisas que a prova adora confundir: <strong>variable</strong> (entrada externa), <strong>local</strong> (valor calculado interno) e <strong>data source</strong> (consulta read-only à infra existente).</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Bloco</th><th>O que é</th><th>Direção / efeito</th></tr></thead>
+          <tbody>
+            <tr><td><code>variable</code></td><td><strong>Entrada</strong> parametrizável da config.</td><td>Vem de fora (CLI, tfvars, env). Não cria infra.</td></tr>
+            <tr><td><code>local</code></td><td><strong>Valor nomeado interno</strong> (expressão calculada).</td><td>Reutilização/DRY dentro do módulo. Não cria infra.</td></tr>
+            <tr><td><code>data</code> (data source)</td><td><strong>Consulta read-only</strong> a recursos que já existem.</td><td><strong>Lê</strong>, não cria/altera (ex.: buscar a AMI mais recente).</td></tr>
+            <tr><td><code>resource</code></td><td>Objeto de infra <strong>gerenciado</strong>.</td><td><strong>Cria/atualiza/destrói</strong> o recurso real.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <pre><div class="code-head"><span class="lang">hcl</span></div><code><span class="c-com"># data: LÊ a AMI mais recente (não cria nada)</span>
+<span class="c-key">data</span> <span class="c-str">"aws_ami"</span> <span class="c-str">"ubuntu"</span> {
+  most_recent = <span class="c-kw">true</span>
+  owners      = [<span class="c-str">"099720109477"</span>]
+  filter {
+    name   = <span class="c-str">"name"</span>
+    values = [<span class="c-str">"ubuntu/images/*-22.04-amd64-server-*"</span>]
+  }
+}
+
+<span class="c-key">locals</span> {
+  name_prefix = <span class="c-str">"prod-web"</span>
+  common_tags = { Env = <span class="c-str">"prod"</span>, Team = <span class="c-str">"infra"</span> }
+}
+
+<span class="c-key">resource</span> <span class="c-str">"aws_instance"</span> <span class="c-str">"web"</span> {
+  ami           = data.aws_ami.ubuntu.id   <span class="c-com"># usa o data source</span>
+  instance_type = var.instance_type
+  tags          = local.common_tags
+}</code></pre>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: data ≠ resource</span>
+        <p>Um <strong>data source</strong> (<code>data "aws_ami"</code>) <strong>consulta</strong> algo que já existe — ele NÃO cria nem destrói nada. Um <strong>resource</strong> (<code>resource "aws_instance"</code>) é gerenciado pelo Terraform e entra no <code>destroy</code>. Alternativa que diz "data source cria o recurso" está errada.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Você precisa referenciar uma AMI da AWS que já existe na conta, sem gerenciá-la pelo Terraform. Qual bloco usar?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Um <code>resource "aws_ami"</code>, pois todo objeto da AWS é um resource.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Um <code>data "aws_ami"</code> — data source faz consulta read-only sem criar/gerenciar o objeto.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Uma <code>variable</code> do tipo string com o ID hardcoded é a única forma.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Um <code>local</code>, pois locals consultam a API do provider.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> <strong>Data source</strong> é exatamente para <em>ler</em> recursos existentes sem gerenciá-los. (A) usaria um resource e tentaria gerenciar/criar; (C) é possível mas frágil (e não é "a única forma"); (D) <code>local</code> só calcula expressões, não consulta APIs.</div>
+      </div>
+
+      <!-- ============================ MÓDULOS ============================ -->
+      <h2 id="modulos"><span class="h2-kicker">Aula 6 · Reúso</span>Módulos</h2>
+      <p>Um <span class="lead-term">módulo</span> é um conjunto de arquivos <code>.tf</code> em um diretório — a unidade de <strong>reúso e empacotamento</strong> de infra. Todo diretório de trabalho é o <strong>root module</strong>; ele pode chamar <strong>child modules</strong>.</p>
+      <div class="card reveal">
+        <h4>Anatomia de uma chamada de módulo</h4>
+        <ul>
+          <li><strong><code>source</code>:</strong> de onde vem o módulo — caminho local (<code>./modules/vpc</code>), Git, ou o <strong>Terraform Registry</strong> (<code>terraform-aws-modules/vpc/aws</code>).</li>
+          <li><strong><code>version</code>:</strong> restrição de versão (só para registry/sources versionados). Fixar versão evita quebras.</li>
+          <li><strong>inputs:</strong> as variáveis que você passa ao módulo.</li>
+          <li><strong>outputs:</strong> os valores que o módulo expõe de volta (<code>module.vpc.vpc_id</code>).</li>
+        </ul>
+      </div>
+
+      <pre><div class="code-head"><span class="lang">hcl</span></div><code><span class="c-key">module</span> <span class="c-str">"vpc"</span> {
+  source  = <span class="c-str">"terraform-aws-modules/vpc/aws"</span>
+  version = <span class="c-str">"5.8.1"</span>          <span class="c-com"># fixa a versão</span>
+
+  name = <span class="c-str">"prod-vpc"</span>
+  cidr = <span class="c-str">"10.0.0.0/16"</span>
+}
+
+<span class="c-com"># consumindo um output do módulo</span>
+<span class="c-key">resource</span> <span class="c-str">"aws_instance"</span> <span class="c-str">"web"</span> {
+  subnet_id = module.vpc.public_subnets[0]
+}</code></pre>
+
+      <div class="callout reveal">
+        <span class="tag">💡 Módulos = DRY de infra</span>
+        <p>Módulos permitem encapsular um padrão (VPC, cluster, bucket com políticas) e reutilizá-lo em dev/stage/prod com inputs diferentes — o "Don't Repeat Yourself" aplicado à infraestrutura. O <strong>Terraform Registry</strong> publica módulos públicos e privados versionados.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Ao consumir um módulo do Terraform Registry, qual a importância de fixar o argumento <code>version</code>?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>É obrigatório para qualquer <code>source</code>, inclusive caminhos locais.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Define a versão do provider AWS automaticamente.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Garante reprodutibilidade: evita que uma atualização do módulo quebre sua infra de forma inesperada.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Não tem efeito — o Terraform sempre usa a última versão.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Fixar <code>version</code> trava o módulo numa versão conhecida, garantindo <strong>reprodutibilidade</strong>. (A) é falso: <code>version</code> só vale para sources versionados (registry/git tag), não para caminhos locais; (B) confunde com <code>required_providers</code>; (D) é o oposto do correto.</div>
+      </div>
+
+      <!-- ============================ LOOPS ============================ -->
+      <h2 id="loops"><span class="h2-kicker">Aula 7 · Lógica</span>Loops & expressões</h2>
+      <p>O par mais cobrado: <span class="lead-term">count</span> × <span class="lead-term">for_each</span>. Ambos criam múltiplas instâncias de um recurso, mas a forma como o Terraform <strong>indexa no state</strong> muda tudo.</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Critério</th><th><code>count</code></th><th><code>for_each</code></th></tr></thead>
+          <tbody>
+            <tr><td><strong>Entrada</strong></td><td>Um número.</td><td>Um <code>map</code> ou <code>set</code> de strings.</td></tr>
+            <tr><td><strong>Índice no state</strong></td><td>Posicional: <code>[0]</code>, <code>[1]</code>…</td><td>Por chave: <code>["web"]</code>, <code>["db"]</code>.</td></tr>
+            <tr><td><strong>Remover um item do meio</strong></td><td>⚠ Reindexação: tudo após o removido é <strong>recriado/deslocado</strong>.</td><td>Estável: só o item da chave removida é afetado.</td></tr>
+            <tr><td><strong>Quando usar</strong></td><td>N cópias idênticas/condicional (0 ou 1).</td><td>Coleção de itens distintos identificados por chave.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <pre><div class="code-head"><span class="lang">hcl</span></div><code><span class="c-com"># count — N cópias indexadas por posição</span>
+<span class="c-key">resource</span> <span class="c-str">"aws_instance"</span> <span class="c-str">"app"</span> {
+  count         = <span class="c-str">3</span>
+  instance_type = <span class="c-str">"t3.micro"</span>
+}
+
+<span class="c-com"># for_each — uma por chave do map (índice estável)</span>
+<span class="c-key">resource</span> <span class="c-str">"aws_instance"</span> <span class="c-str">"named"</span> {
+  for_each      = { web = <span class="c-str">"t3.small"</span>, db = <span class="c-str">"t3.medium"</span> }
+  instance_type = each.value
+  tags          = { Name = each.key }
+}</code></pre>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: por que preferir for_each</span>
+        <p>Com <code>count</code>, remover um item <strong>no meio</strong> da lista faz o Terraform <strong>reindexar</strong> — os recursos seguintes "deslizam" de índice e são destruídos/recriados (efeito colateral perigoso). Com <code>for_each</code> a chave é estável, então só o item removido é afetado. Por isso a recomendação: <strong>count para 0/1 ou cópias idênticas; for_each para coleções nomeadas</strong>.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Você gerencia 5 buckets distintos. Removendo um do meio da lista, por que <code>for_each</code> é preferível a <code>count</code>?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Porque <code>count</code> não permite mais de 3 recursos.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Porque <code>for_each</code> é imperativo e <code>count</code> é declarativo.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Não há diferença prática; ambos indexam por chave de string.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Porque <code>count</code> indexa por posição: remover do meio reindexa e recria recursos seguintes; <code>for_each</code> usa chaves estáveis, afetando só o item removido.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O ponto é a <strong>indexação no state</strong>: <code>count</code> usa índice posicional (reindexa ao remover do meio); <code>for_each</code> usa chave estável. (A) <code>count</code> aceita qualquer número; (B) ambos são declarativos; (C) só o <code>for_each</code> indexa por chave — <code>count</code> indexa por posição.</div>
+      </div>
+
+      <p>Além dos loops de recurso, o HCL tem <strong>for expressions</strong> (transformar listas/maps), <strong>dynamic blocks</strong> (gerar blocos repetidos dentro de um recurso) e <strong>conditionals</strong> (<code>cond ? a : b</code>):</p>
+      <pre><div class="code-head"><span class="lang">hcl</span></div><code><span class="c-com"># for expression: maiúsculas de cada nome</span>
+upper_names = [<span class="c-kw">for</span> n <span class="c-kw">in</span> var.names : upper(n)]
+
+<span class="c-com"># conditional</span>
+instance_type = var.is_prod ? <span class="c-str">"t3.large"</span> : <span class="c-str">"t3.micro"</span>
+
+<span class="c-com"># dynamic block: gera N ingress rules</span>
+<span class="c-key">dynamic</span> <span class="c-str">"ingress"</span> {
+  for_each = var.ports
+  content {
+    from_port = ingress.value
+    to_port   = ingress.value
+    protocol  = <span class="c-str">"tcp"</span>
+  }
+}</code></pre>
+
+      <!-- ============================ META-ARGUMENTS ============================ -->
+      <h2 id="meta"><span class="h2-kicker">Lógica</span>Meta-arguments: depends_on & lifecycle</h2>
+      <p>Os <span class="lead-term">meta-arguments</span> são argumentos que qualquer bloco <code>resource</code> aceita, independentemente do provider: <code>count</code>, <code>for_each</code>, <code>provider</code>, <code>depends_on</code> e <code>lifecycle</code>.</p>
+      <div class="card reveal">
+        <h4>Os dois que mais caem</h4>
+        <ul>
+          <li><strong><code>depends_on</code>:</strong> declara dependência <em>explícita</em> quando o Terraform não consegue inferi-la por referência. Use só quando necessário — prefira dependências implícitas.</li>
+          <li><strong><code>lifecycle</code>:</strong> controla o ciclo de vida: <code>create_before_destroy</code> (cria o novo antes de destruir o velho), <code>prevent_destroy</code> (bloqueia destruição acidental) e <code>ignore_changes</code> (ignora mudanças externas em certos atributos).</li>
+        </ul>
+      </div>
+
+      <!-- ============================ AWS ============================ -->
+      <h2 id="aws"><span class="h2-kicker">Aula 8 · Prática</span>Criando infra com AWS</h2>
+      <p>O fluxo prático junta tudo: declarar o provider, descrever os recursos e rodar <code>init → plan → apply</code>. As dependências entre recursos são, na maioria, <strong>implícitas</strong> — surgem das <em>referências</em> de um recurso a outro.</p>
+
+      <pre><div class="code-head"><span class="lang">hcl</span></div><code><span class="c-key">resource</span> <span class="c-str">"aws_vpc"</span> <span class="c-str">"main"</span> {
+  cidr_block = <span class="c-str">"10.0.0.0/16"</span>
+}
+
+<span class="c-key">resource</span> <span class="c-str">"aws_subnet"</span> <span class="c-str">"public"</span> {
+  vpc_id     = aws_vpc.main.id   <span class="c-com"># dependência IMPLÍCITA</span>
+  cidr_block = <span class="c-str">"10.0.1.0/24"</span>
+}
+
+<span class="c-key">resource</span> <span class="c-str">"aws_instance"</span> <span class="c-str">"web"</span> {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = <span class="c-str">"t3.micro"</span>
+  subnet_id     = aws_subnet.public.id
+}
+
+<span class="c-key">resource</span> <span class="c-str">"aws_s3_bucket"</span> <span class="c-str">"assets"</span> {
+  bucket = <span class="c-str">"prod-assets-bucket"</span>
+}</code></pre>
+
+      <div class="callout reveal">
+        <span class="tag">💡 Dependência implícita × explícita</span>
+        <p>Quando o <code>aws_subnet</code> referencia <code>aws_vpc.main.id</code>, o Terraform <strong>infere</strong> que a VPC deve existir primeiro — é uma <strong>dependência implícita</strong> (o caso normal). Só use <code>depends_on</code> (<strong>explícita</strong>) quando há uma dependência real que <em>não</em> aparece como referência no código.</p>
+      </div>
+
+      <div class="diagram reveal">
+        <div class="flow" style="gap:6px;flex-wrap:wrap">
+          <div class="node">escrever <code>.tf</code></div>
+          <span class="arrow-h">→</span>
+          <div class="node">init</div>
+          <span class="arrow-h">→</span>
+          <div class="node">plan<br><small style="color:var(--text-2)">revisar diff</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node accent">apply<br><small style="color:var(--text-2)">cria infra</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node">destroy</div>
+        </div>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span> O <b>apply</b> só executa após o plan ser revisado/confirmado; o grafo de dependências define a ordem real.</span></div>
+      </div>
+
+      <!-- ============================ TF CLOUD ============================ -->
+      <h2 id="tfcloud"><span class="h2-kicker">Aula 9 · Plataforma</span>Terraform Cloud</h2>
+      <p>O <span class="lead-term">Terraform Cloud</span> (HCP Terraform) é a plataforma gerenciada da HashiCorp que executa o Terraform de forma remota, centralizando state, runs e políticas para equipes.</p>
+      <div class="card reveal">
+        <h4>O que o Terraform Cloud entrega</h4>
+        <ul>
+          <li><strong>Remote runs:</strong> <code>plan</code>/<code>apply</code> rodam em runners gerenciados, não na máquina do dev.</li>
+          <li><strong>Remote state:</strong> state armazenado, cifrado, versionado e com locking nativo.</li>
+          <li><strong>VCS-driven workflow:</strong> conecta a um repositório (GitHub/GitLab); um push dispara o <code>plan</code> automaticamente.</li>
+          <li><strong>Workspaces:</strong> no TF Cloud, cada workspace é um <strong>ambiente isolado</strong> com seu próprio state e variáveis (mais amplo que o workspace da CLI).</li>
+          <li><strong>Sentinel:</strong> <em>policy as code</em> — regras que validam o plan antes do apply (ex.: "proibir instância sem tag", "negar bucket público").</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha: workspace CLI ≠ workspace TF Cloud</span>
+        <p>O <strong>workspace da CLI</strong> (<code>terraform workspace</code>) só separa states <em>dentro do mesmo backend</em>. O <strong>workspace do Terraform Cloud</strong> é um conceito mais rico: ambiente completo com state, variáveis, runs e VCS próprios. A prova pode tentar tratá-los como idênticos.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">No Terraform Cloud, qual recurso permite aplicar regras de governança (policy as code) que validam um plan antes do apply?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span><strong>Sentinel</strong> — framework de policy as code que avalia o plan e pode barrar o apply.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span><code>terraform validate</code> — pois valida regras de negócio da empresa.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>O backend S3, que aplica políticas de bucket ao state.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>O lock file <code>.terraform.lock.hcl</code>.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> <strong>Sentinel</strong> é o policy-as-code do TF Cloud/Enterprise, avaliado entre o <code>plan</code> e o <code>apply</code>. (B) <code>validate</code> só checa sintaxe/consistência da config, não políticas de governança; (C) o S3 guarda state, não aplica policy; (D) o lock file só fixa versões de provider.</div>
+      </div>
+
+      <!-- ============================ FLASHCARDS ============================ -->
+      <h2 id="flashcards"><span class="h2-kicker">Auto-teste</span>Flashcards — clique para virar</h2>
+      <p>Pense na resposta <strong>antes</strong> de clicar.</p>
+      <div class="flashgrid reveal">
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é IaC e em que o Terraform é declarativo?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">IaC = infra definida em código versionável. Terraform é <strong>declarativo</strong>: você descreve o <strong>estado desejado</strong> e ele calcula os passos.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é o tfstate e por que existe?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">É o <strong>mapa config ↔ recursos reais</strong> (JSON). Existe para mapeamento, metadados/dependências, performance e detecção de <strong>drift</strong>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Backend S3: quem faz o lock?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">O <strong>S3 guarda o state</strong>; uma tabela <strong>DynamoDB</strong> faz o <strong>state locking</strong> (impede apply simultâneo).</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Ordem: init, plan, apply, destroy — o que cada um faz?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>init</strong> prepara (providers/backend); <strong>plan</strong> mostra o diff (não muda nada); <strong>apply</strong> executa; <strong>destroy</strong> desfaz.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Precedência de variáveis (do mais fraco ao mais forte)?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>default</strong> &lt; <strong>TF_VAR_</strong> &lt; <strong>terraform.tfvars</strong> &lt; <strong>*.auto.tfvars</strong> &lt; <strong>-var/-var-file (CLI)</strong>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">variable × local × data — diferença?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>variable</strong> = entrada externa; <strong>local</strong> = valor calculado interno; <strong>data</strong> = consulta read-only à infra existente. Nenhum cria infra.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">count × for_each — quando usar cada um?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>count</strong> (índice posicional) para 0/1 ou cópias idênticas; <strong>for_each</strong> (chave estável) para coleções nomeadas — evita reindexação ao remover do meio.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é um data source?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Bloco <strong>read-only</strong> que <strong>consulta</strong> recursos existentes (ex.: AMI mais recente). NÃO cria nem destrói nada.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que faz <code>terraform import</code>?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Traz um recurso <strong>existente</strong> (criado fora) para o <strong>state</strong>, sem recriá-lo. Oposto de <code>state rm</code>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q"><code>state rm</code> destrói o recurso real?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Não.</strong> Remove apenas do <strong>state</strong> (Terraform "esquece"); o recurso na nuvem continua. Quem destrói é o <code>destroy</code>.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Para que servem os módulos?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Empacotar e <strong>reutilizar</strong> infra (DRY). Têm <strong>source</strong>, <strong>version</strong>, <strong>inputs</strong> e <strong>outputs</strong>; root module chama child modules.</div></div>
+        </div></div>
+
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Sentinel no Terraform Cloud — o que é?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Policy as code</strong>: regras avaliadas entre o <strong>plan</strong> e o <strong>apply</strong> para impor governança (ex.: barrar bucket público).</div></div>
+        </div></div>
+      </div>
+
+      <!-- ============================ GLOSSÁRIO ============================ -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>IaC</dt><dd>Infrastructure as Code: provisionar infra via arquivos de configuração versionáveis.</dd></div>
+        <div class="gloss-item"><dt>HCL</dt><dd>HashiCorp Configuration Language: a linguagem declarativa do Terraform.</dd></div>
+        <div class="gloss-item"><dt>Provider</dt><dd>Plugin que ensina o Terraform a falar com a API de um serviço (AWS, Azure…).</dd></div>
+        <div class="gloss-item"><dt>Backend</dt><dd>Define onde o state é guardado e como as operações rodam (local × remote).</dd></div>
+        <div class="gloss-item"><dt>State (tfstate)</dt><dd>Mapa JSON entre a config e os recursos reais; pode conter segredos.</dd></div>
+        <div class="gloss-item"><dt>State locking</dt><dd>Trava que impede dois <code>apply</code> simultâneos (S3 + DynamoDB, ou nativo no TF Cloud).</dd></div>
+        <div class="gloss-item"><dt>Drift</dt><dd>Diferença entre o estado real e o esperado pelo state/config.</dd></div>
+        <div class="gloss-item"><dt>Plan</dt><dd>Execution plan: o diff de mudanças, sem alterar a infra.</dd></div>
+        <div class="gloss-item"><dt>Resource</dt><dd>Objeto de infra gerenciado pelo Terraform (criado/atualizado/destruído).</dd></div>
+        <div class="gloss-item"><dt>Data source</dt><dd>Consulta read-only a recursos existentes; não gerencia o objeto.</dd></div>
+        <div class="gloss-item"><dt>Local</dt><dd>Valor nomeado interno (expressão calculada) para reúso dentro do módulo.</dd></div>
+        <div class="gloss-item"><dt>Módulo</dt><dd>Conjunto de <code>.tf</code> reutilizável; tem source, version, inputs e outputs.</dd></div>
+        <div class="gloss-item"><dt>count × for_each</dt><dd>Loops de recurso: count indexa por posição; for_each por chave estável.</dd></div>
+        <div class="gloss-item"><dt>Sentinel</dt><dd>Policy as code do Terraform Cloud/Enterprise, avaliada antes do apply.</dd></div>
+      </dl>
+
+      <!-- ============================ PEGADINHAS ============================ -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas & checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li>Terraform é <strong>declarativo</strong> (estado desejado) e <strong>idempotente</strong>; ele monta um <strong>DAG</strong> e infere a ordem.</li>
+          <li><strong>Terraform × CloudFormation</strong>: ambos declarativos, mas Terraform é multi-cloud e CFN é só AWS.</li>
+          <li><strong>Terraform × Ansible</strong>: Terraform provisiona infra com state; Ansible é configuration management procedural.</li>
+          <li>O <strong>tfstate</strong> mapeia config ↔ recursos reais e <strong>pode conter segredos</strong> — nunca commitar.</li>
+          <li><strong>Remote backend</strong> habilita compartilhamento + <strong>state locking</strong> (S3 guarda; <strong>DynamoDB</strong> faz o lock).</li>
+          <li>Fluxo: <strong>init → plan → apply → destroy</strong>. O <code>plan</code> NÃO altera infra; o <code>apply</code> altera.</li>
+          <li><code>state rm</code> remove do state (não destrói o recurso real); <code>import</code> faz o oposto.</li>
+          <li>Precedência: <strong>default &lt; TF_VAR_ &lt; tfvars &lt; *.auto.tfvars &lt; CLI (-var)</strong> — a CLI vence.</li>
+          <li><strong>variable</strong> = entrada; <strong>local</strong> = calculado interno; <strong>data</strong> = consulta read-only; <strong>resource</strong> = gerenciado.</li>
+          <li><strong>count</strong> = índice posicional (reindexa ao remover do meio); <strong>for_each</strong> = chave estável.</li>
+          <li>Módulos: <strong>source</strong> + <strong>version</strong> (fixar = reprodutibilidade) + inputs/outputs.</li>
+          <li>Dependência <strong>implícita</strong> (referência) é o normal; <strong>depends_on</strong> só quando não há referência.</li>
+          <li><strong>Terraform Cloud</strong>: remote runs, VCS-driven, remote state e <strong>Sentinel</strong> (policy as code).</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="clean-architecture.html"><div class="dir">← Tópico anterior</div><div class="ttl">02 · Clean Architecture</div></a>
+          <a href="index.html#topicos" class="next"><div class="dir">Próximo tópico →</div><div class="ttl">Escolher no Hub</div></a>
+        </div>
+        <div>Tópico 03 · Terraform · material de revisão para a prova final. Base: documentação oficial HashiCorp Terraform.</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>
