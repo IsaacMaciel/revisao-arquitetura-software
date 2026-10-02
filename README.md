@@ -19,6 +19,7 @@ Material de revisão para a prova final da pós-graduação em **Arquitetura de 
 | 09 | Microsserviços: SAGA Pattern | Transação distribuída, orquestração × coreografia, compensação, ACID × BASE |
 | 10 | LGPD · Comunicação · Gestão | Privacidade de dados, comunicação/negociação, gestão de times |
 | 11 | Kubernetes & AWS EKS | Arquitetura, Pods/Services/ConfigMap, workloads, volumes, probes, HPA, EFK, Helm, EKS, RBAC |
+| 12 | Segurança & OWASP Top 10 | Security by Design, normas, SQLi/XSS/buffer overflow, licenças e supply chain, SonarQube, OWASP Top 10 2017 × 2021, Well-Architected, Security Hub |
 
 ## Stack
 
