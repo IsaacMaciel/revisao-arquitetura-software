@@ -713,7 +713,7 @@ snprintf(nome, sizeof(nome), "%s", input);</code></pre>
             <tr><td>A2 Broken Authentication</td><td>↓</td><td><strong>A07</strong> Identification and Authentication Failures</td><td>Caiu e foi renomeada (mais frameworks padronizados de autenticação).</td></tr>
             <tr><td>A3 Sensitive Data Exposure</td><td>↑</td><td><strong>A02</strong> Cryptographic Failures</td><td><strong>Renomeada</strong>: "exposição de dados" era o sintoma; a causa raiz é a falha criptográfica.</td></tr>
             <tr><td>A4 XML External Entities (XXE)</td><td>⇢</td><td>dentro de <strong>A05</strong></td><td><strong>Fundida</strong> em Security Misconfiguration.</td></tr>
-            <tr><td>A5 Broken Access Control</td><td>↑</td><td><strong>A01</strong> Broken Access Control</td><td><strong>Subiu para o 1º lugar</strong> (94% das aplicações testadas tinham alguma falha desse tipo).</td></tr>
+            <tr><td>A5 Broken Access Control</td><td>↑</td><td><strong>A01</strong> Broken Access Control</td><td><strong>Subiu para o 1º lugar</strong>: foi a categoria com <strong>mais ocorrências</strong> nos dados contribuídos (94% das aplicações foram <em>testadas</em> para alguma forma dela).</td></tr>
             <tr><td>A6 Security Misconfiguration</td><td>↑</td><td><strong>A05</strong> Security Misconfiguration</td><td>Subiu e incorporou o XXE.</td></tr>
             <tr><td>A7 Cross-Site Scripting (XSS)</td><td>⇢</td><td>dentro de <strong>A03</strong></td><td><strong>Fundida</strong> em Injection.</td></tr>
             <tr><td>A8 Insecure Deserialization</td><td>⇢</td><td>dentro de <strong>A08</strong></td><td><strong>Fundida</strong> na nova Software and Data Integrity Failures.</td></tr>
@@ -801,7 +801,7 @@ snprintf(nome, sizeof(nome), "%s", input);</code></pre>
 
       <div class="callout reveal">
         <span class="tag">ℹ Além do material — edição 2025</span>
-        <p>A OWASP publicou em novembro de 2025 uma nova edição do Top 10. Entre as mudanças: Security Misconfiguration sobe para A02, nasce <strong>A03 Software Supply Chain Failures</strong> (ampliando os componentes vulneráveis), o SSRF é incorporado a Broken Access Control e surge <strong>A10 Mishandling of Exceptional Conditions</strong>. <strong>A disciplina e a prova usam a edição 2021</strong> — use a tabela de 2021 para responder.</p>
+        <p>A OWASP publicou uma edição 2025 do Top 10: A01 Broken Access Control · A02 Security Misconfiguration · <strong>A03 Software Supply Chain Failures</strong> · A04 Cryptographic Failures · A05 Injection · A06 Insecure Design · A07 Authentication Failures · A08 Software or Data Integrity Failures · A09 Security Logging and Alerting Failures · <strong>A10 Mishandling of Exceptional Conditions</strong>. <strong>A disciplina e a prova usam a edição 2021</strong> — use a tabela de 2021 para responder.</p>
       </div>
 
       <h3 id="owasp-projetos">Outros projetos OWASP</h3>
